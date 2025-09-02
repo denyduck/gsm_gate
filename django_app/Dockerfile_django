@@ -1,0 +1,10 @@
+FROM python:3.11-slim
+
+WORKDIR /usr/src/app
+
+COPY requirements_django.txt .
+RUN pip install --no-cache-dir -r requirements_django.txt
+
+COPY . .
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
