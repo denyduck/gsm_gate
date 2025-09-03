@@ -1,0 +1,56 @@
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: user
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gsm_network
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.cz
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    networks:
+      - gsm_network
+    depends_on:
+      - db
+
+  web:
+    container_name: django_app
+    build:
+      context: ./django_app
+      dockerfile: Dockerfile_django
+    volumes:
+      - ./django_app:/usr/src/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_NAME=user
+      - DATABASE_USER=user
+      - DATABASE_PASSWORD=user
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+    depends_on:
+      - db
+    networks:
+      - gsm_network
+    
+    command: python manage.py runserver 0.0.0.0:8000
+volumes:
+  postgres_data:
+networks:
+  gsm_network:
+    driver: bridge
