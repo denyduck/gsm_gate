@@ -16,9 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from .views import home_view  # <-- toto je klíčové
 
 urlpatterns = [
+    path('', home_view, name='home'),
     path('admin/', admin.site.urls),
-    path('accounts/', include('accounts.urls'))
-
+    path('accounts/', include('accounts.urls')),
+    path('dashboard/', include('dashboard.urls')),
 ]

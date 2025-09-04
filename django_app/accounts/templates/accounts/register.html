@@ -1,16 +1,71 @@
 {% extends "base.html" %}
 
-{% block title %}Register{% endblock %}
+{% block title %}Registrace{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <h2 class="mb-3">Register</h2>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-success w-100">Register</button>
-        </form>
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-success text-white text-center">
+                <h3 class="mb-0">Vytvořit účet</h3>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Zobrazení chyb -->
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Opravit chyby:</strong>
+                            <ul class="mb-0">
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- Pole formuláře -->
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <small class="form-text text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <!-- Submit -->
+                    <button type="submit" class="btn btn-success w-100">Registrovat</button>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">
+                    Už máš účet? <a href="{% url 'login' %}" class="text-success fw-bold">Přihlásit se</a>
+                </p>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Bootstrap styly pro inputy -->
+<style>
+    input, select, textarea {
+        width: 100%;
+        padding: .5rem .75rem;
+        border: 1px solid #ced4da;
+        border-radius: .375rem;
+    }
+    input:focus {
+        border-color: #198754;
+        box-shadow: 0 0 0 .25rem rgba(25, 135, 84, 0.25);
+        outline: 0;
+    }
+</style>
 {% endblock %}
