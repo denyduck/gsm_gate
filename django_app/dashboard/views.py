@@ -5,7 +5,7 @@ from .forms import PhoneNumberForm
 
 @login_required
 def dashboard_view(request):
-    numbers = PhoneNumber.objects.filter(user=request.user)
+    numbers = PhoneNumber.objects.filter(users=request.user)
     return render(request, 'dashboard/dashboard.html', {'numbers': numbers})
 
 @login_required

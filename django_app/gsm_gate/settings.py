@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'gsm_gate',
     'accounts',
     'dashboard',
-    'django_extensions'
+    'django_extensions',
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [

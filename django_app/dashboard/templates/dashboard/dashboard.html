@@ -1,21 +1,64 @@
 {% extends "base.html" %}
-
 {% block title %}Dashboard{% endblock %}
-
-
-<a href="{% url 'dashboard' %}">Dashboard</a>
 {% block head %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    .navbar-custom { background-color: #343a40; }
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link { color: white; }
+    .navbar-custom .nav-link:hover { color: #adb5bd; }
+    .card-stat { text-align: center; padding: 20px; }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">GSM Brána - Dashboard</h2>
+<div class="container-fluid my-4">
+    <h2 class="mb-4">Dashboard</h2>
 
-    <div class="mb-3 text-end">
-        <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
+    <!-- Statistika -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card card-stat">
+                <h5 class="card-title">Počet čísel</h5>
+                <h2>{{ numbers|length }}</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-stat">
+                <h5 class="card-title">Odeslané SMS</h5>
+                <h2>0</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-stat">
+                <h5 class="card-title">Stav brány</h5>
+                <h2>Online</h2>
+            </div>
+        </div>
     </div>
 
+    <!-- Akce: Vytvořit kontejner / pravidlo -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-header text-white" style="background-color:#6f42c1;">Vytvořit kontejner / skupinu</div>
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <p class="card-text">Vytvořte nový kontejner nebo skupinu čísel pro snadnější správu SMS.</p>
+                    <a href="" class="btn btn-primary mt-2">Vytvořit</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-header text-white" style="background-color:#6f42c1;">Vytvořit pravidlo</div>
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <p class="card-text">Definujte pravidlo pro automatické odesílání SMS podle vstupů nebo podmínek.</p>
+                    <a href="" class="btn btn-primary mt-2">Vytvořit</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabulka čísel -->
     <div class="card mb-4">
         <div class="card-header">
             <h5>Telefonní čísla</h5>
@@ -51,8 +94,49 @@
         </div>
     </div>
 
-    <div class="text-end">
+    <div class="text-end mb-4">
         <a href="{% url 'add_number' %}" class="btn btn-success">Přidat nové číslo</a>
     </div>
+
+    <!-- Grafy -->
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header">Historie SMS</div>
+                <div class="card-body">
+                    <canvas id="smsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header">Aktivita čísel</div>
+                <div class="card-body">
+                    <canvas id="numbersChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctxSMS = document.getElementById('smsChart').getContext('2d');
+    new Chart(ctxSMS, {
+        type: 'line',
+        data: {
+            labels: ['Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek'],
+            datasets: [{ label: 'Odeslané SMS', data: [5, 7, 3, 6, 4], borderColor: '#6f42c1', tension: 0.3 }]
+        }
+    });
+
+    const ctxNumbers = document.getElementById('numbersChart').getContext('2d');
+    new Chart(ctxNumbers, {
+        type: 'bar',
+        data: {
+            labels: ['Číslo 1', 'Číslo 2', 'Číslo 3', 'Číslo 4'],
+            datasets: [{ label: 'Odeslané SMS', data: [3, 5, 2, 4], backgroundColor: 'rgba(111, 66, 193, 0.6)' }]
+        }
+    });
+</script>
 {% endblock %}
