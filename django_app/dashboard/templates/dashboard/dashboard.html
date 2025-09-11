@@ -64,6 +64,10 @@
             <h5>Telefonní čísla</h5>
         </div>
         <div class="card-body">
+            # tabulka čísel vlastníka a sdílených čísel s uživatelem
+            {% with numbers=request.user.shared_numbers.all %}
+
+            # pokud uživatel má nějaká čísla, zobrazit je v tabulce
             {% if numbers %}
             <table class="table table-striped table-hover">
                 <thead>
@@ -71,15 +75,18 @@
                         <th>ID</th>
                         <th>Číslo</th>
                         <th>Popis</th>
+                        <th>Vlastník</th>
                         <th>Akce</th>
                     </tr>
                 </thead>
                 <tbody>
+                    # iterace přes čísla a zobrazení v tabulce
                     {% for number in numbers %}
                     <tr>
                         <td>{{ number.id }}</td>
-                        <td>{{ number.phone }}</td>
+                        <td>{{ number.number }}</td>
                         <td>{{ number.description }}</td>
+                        <td>{{ number.owner.username }}</td>
                         <td>
                             <a href="{% url 'edit_number' number.id %}" class="btn btn-sm btn-primary">Editovat</a>
                             <a href="{% url 'delete_number' number.id %}" class="btn btn-sm btn-danger">Smazat</a>
@@ -91,6 +98,7 @@
             {% else %}
                 <p>Žádná čísla k dispozici. Přidejte nové číslo pomocí tlačítka níže.</p>
             {% endif %}
+            {% endwith %}
         </div>
     </div>
 

@@ -1,6 +1,10 @@
+# URL konfigurace pro dashboard aplikaci
+# Nyní zahrnují CRUD operace pro PhoneNumber
+
 from django.urls import path
 from . import views
 
+# URL vzory pro dashboard aplikaci
 urlpatterns = [
     path('', views.dashboard_view, name='dashboard'),  # hlavní dashboard
     path('numbers/add/', views.number_create, name='add_number'),  # správný název

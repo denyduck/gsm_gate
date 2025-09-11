@@ -40,9 +40,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'gsm_gate',
     'accounts',
-    'dashboard',
     'django_extensions',
     'widget_tweaks',
+    'dashboard',
 ]
 
 MIDDLEWARE = [
