@@ -5,10 +5,10 @@
 
 {% block content %}
 <div class="row justify-content-center my-5">
-    <div class="col-md-5">
-        <div class="card shadow-lg border-0">
+    <div class="col-md-6">
+        <div class="card shadow border-0 rounded-3">
             <!-- Card Header -->
-            <div class="card-header text-white text-center" style="background-color:#6f42c1;">
+            <div class="card-header text-white text-center bg-primary rounded-top">
                 <h3 class="mb-0">{{ form.instance.pk|yesno:"Upravit číslo,Přidat nové číslo" }}</h3>
             </div>
 
@@ -33,18 +33,44 @@
                         </div>
                     {% endif %}
 
-                    <!-- Pole formuláře -->
+                    <!-- Ostatní pole formuláře -->
                     {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label">{{ field.label }}</label>
-                            {{ field|add_class:"form-control" }}
-                        </div>
+                        {% if field.name != "groups" %}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">{{ field.label }}</label>
+                                {{ field|add_class:"form-control" }}
+                            </div>
+                        {% endif %}
                     {% endfor %}
 
+                    <!-- Checkbox seznam pro skupiny -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Skupiny</label>
+
+                        {% if form.fields.groups.queryset.exists %}
+                            <div class="list-group">
+                                {% for group in form.fields.groups.queryset %}
+                                    <label class="list-group-item d-flex justify-content-start align-items-center mb-1 rounded">
+                                        <input class="form-check-input me-2" type="checkbox" name="groups" value="{{ group.pk }}"
+                                            {% if form.instance.pk and group in form.instance.groups.all %}checked{% endif %}>
+                                        {{ group.name }}
+                                    </label>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text text-center mt-1">
+                                Vyberte jednu nebo více skupin.
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning text-center">
+                                Dosud nebyla vytvořena žádná skupina. Vytvořte nejdříve skupinu.
+                            </div>
+                        {% endif %}
+                    </div>
+
                     <!-- Tlačítka -->
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Zpět</a>
-                        <button type="submit" class="btn" style="background-color:#6f42c1; color:white;">Uložit</button>
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary rounded">Zpět</a>
+                        <button type="submit" class="btn btn-primary rounded">Uložit</button>
                     </div>
                 </form>
             </div>
@@ -52,18 +78,33 @@
     </div>
 </div>
 
-<!-- Input styl -->
+<!-- CSS styl pro profesionální vzhled -->
 <style>
-    input, select, textarea {
-        width: 100%;
-        padding: .5rem .75rem;
-        border: 1px solid #ced4da;
-        border-radius: .375rem;
-    }
-    input:focus, select:focus, textarea:focus {
-        border-color: #6f42c1;
-        box-shadow: 0 0 0 .25rem rgba(111, 66, 193, 0.25);
-        outline: 0;
-    }
+input, select, textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: #c020b8;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    outline: 0;
+}
+
+.list-group-item {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.form-check-input {
+    cursor: pointer;
+}
 </style>
 {% endblock %}

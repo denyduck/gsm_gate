@@ -2,21 +2,18 @@
 # slouží k pohodlné správě přes Django admin a zobrazení důležitých polí
 
 from django.contrib import admin
-from dashboard.models import Group, PhoneNumber
-
-# Registrace modelu Group
-@admin.register(Group)
-class GroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'id')
-    search_fields = ('name', 'description')
-
+from dashboard.models import Group, PhoneNumber, Rule
 
 # Funkce pro zobrazení všech uživatelů M2M v jednom sloupci
 def users_list(obj):
     return ", ".join([u.username for u in obj.users.all()])
 users_list.short_description = "Uživatelé"
 
-# Registrace modelu PhoneNumber
+
+##################################################################################################
+#POLOŽKA V ADMIN ROZHRANÍ "Phone Numbers"
+##################################################################################################
+# Registrace modelu PhoneNumber do admin rozhraní django a další přdané funkce
 @admin.register(PhoneNumber)
 class PhoneNumberAdmin(admin.ModelAdmin):
     list_display = ('number', 'description', 'active', 'owner', users_list)
@@ -30,3 +27,24 @@ class PhoneNumberAdmin(admin.ModelAdmin):
             'fields': ('number', 'description', 'active', 'owner', 'groups', 'users')
         }),
     )
+
+####################################################################################################
+#POLOŽKA V ADMIN ROZHRANÍ "Groups"
+####################################################################################################
+# Registrace modelu Group do admin rozhraní django
+@admin.register(Group)
+class GroupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description', 'id')
+    search_fields = ('name', 'description')
+
+
+####################################################################################################
+#POLOŽKA V ADMIN ROZHRANÍ "Rules"
+####################################################################################################
+# Registrace modelu Rule do admin rozhraní django
+@admin.register(Rule)
+class RuleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description', 'active', 'id')
+    list_filter = ('active',)
+    search_fields = ('name', 'description')
+    ordering = ('name',)

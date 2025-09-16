@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Smazat skupinu "{{ group.name }}"?</h2>
+<form method="post">{% csrf_token %}
+    <button type="submit" class="btn btn-danger">Smazat</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Zrušit</a>
+</form>
+{% endblock %}
