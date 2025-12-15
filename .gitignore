@@ -1,0 +1,29 @@
+# Python - Python bytecode a virtuální prostředí
+__pycache__/           # Složky s kompilovanými .pyc soubory (automaticky generované)
+*.py[cod]              # Všechny .pyc, .pyo, .pyd soubory
+*$py.class             # Jython soubory
+*.so                   # Kompilované Python moduly (Linux)
+.Python                # Python config soubory
+env/                   # Virtuální prostředí (env)
+venv/                  # Virtuální prostředí (venv)
+.venv/                 # Virtuální prostředí (.venv)
+
+# Django - Databáze, logy, uploady
+*.log                  # Log soubory (django.log)
+local_settings.py*     # Lokální nastavení (hesla, API klíče)
+db.sqlite3             # Vývojová SQLite databáze
+media/                 # Nahrání uživatelských souborů
+staticfiles/           # Sestavené statické soubory
+
+# Docker - Docker soubory
+.dockerignore          # Docker ignore soubor (jako .gitignore pro Docker)
+*.db                   # Jiné databázové soubory
+
+# IDE - Editor nastavení
+.vscode/               # VS Code nastavení
+.idea/                 # PyCharm/IntelliJ nastavení
+*.swp *.swo            # Vim swap soubory
+
+# OS - Systémové soubory
+.DS_Store              # macOS metadata
+Thumbs.db              # Windows náhledy
