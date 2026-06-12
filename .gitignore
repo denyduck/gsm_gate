@@ -1,18 +1,36 @@
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pyc
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
 
+# Django
+*.log
+local_settings.py*
+db.sqlite3
+media/
+staticfiles/
+
+# Env
 .env
 .env.*
 !.env.example
 
-*.log
-db.sqlite3
-
-.idea/
-*.iml
-.vscode/
-
+# Docker
+.dockerignore
+*.db
 postgres_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -36,6 +36,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -130,6 +131,10 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 
+
+# STATIC FILES - pro Unfold
+STATIC_URL = '/static/'
+STATIC_ROOT = '/usr/src/app/staticfiles/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
