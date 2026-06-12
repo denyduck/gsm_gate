@@ -2,6 +2,7 @@ import time
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db import OperationalError
 
 from dashboard.services.gsm_worker import GsmWorkerService
 
@@ -26,11 +27,16 @@ class Command(BaseCommand):
 
         try:
             while True:
-                result = worker.cycle()
-                self.stdout.write(
-                    f'Cyklus dokončen: incoming={result.incoming_processed}, '
-                    f'sent={result.outgoing_sent}, failed={result.outgoing_failed}'
-                )
+                try:
+                    result = worker.cycle()
+                    self.stdout.write(
+                        f'Cyklus dokončen: incoming={result.incoming_processed}, '
+                        f'sent={result.outgoing_sent}, failed={result.outgoing_failed}'
+                    )
+                except OperationalError as e:
+                    self.stdout.write(self.style.WARNING(f'DB chyba, čekám 15s a zkouším znovu: {e}'))
+                    time.sleep(15)
+                    continue
 
                 if run_once:
                     break

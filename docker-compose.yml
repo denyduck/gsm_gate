@@ -7,12 +7,16 @@ services:
       POSTGRES_DB: user
       POSTGRES_USER: user
       POSTGRES_PASSWORD: user
+      POSTGRES_SHARED_BUFFERS: 64MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 128MB
+      POSTGRES_MAX_CONNECTIONS: "20"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - gsm_network
+    mem_limit: 256m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d user"]
       interval: 5s
