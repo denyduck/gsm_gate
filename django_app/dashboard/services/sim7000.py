@@ -27,8 +27,11 @@ class Sim7000Client:
     def connect(self):
         if self.serial_connection and self.serial_connection.is_open:
             return
-        self.serial_connection = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
-        time.sleep(0.4)
+        self.serial_connection = serial.Serial(
+            self.port, self.baudrate, timeout=self.timeout,
+            rtscts=False, dsrdtr=False,
+        )
+        time.sleep(2.0)
         self.initialize_modem()
 
     def close(self):
