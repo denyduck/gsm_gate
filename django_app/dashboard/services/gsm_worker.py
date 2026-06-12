@@ -6,6 +6,7 @@ from urllib import request as urllib_request
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import close_old_connections
 from django.utils import timezone
 
 from dashboard.models import OutgoingAction, GatewaySettings
@@ -29,6 +30,7 @@ class GsmWorkerService:
         )
 
     def cycle(self) -> WorkerResult:
+        close_old_connections()
         result = WorkerResult()
         self.client.connect()
 
