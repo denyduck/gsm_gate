@@ -1,0 +1,1207 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-gear"></i> Tvorba pravidla</span>
+    <h1 class="hero-title">{{ title }}</h1>
+    <p class="hero-subtitle">Jednoduchý průvodce v 5 krocích. Vždy řešíte jen jednu část nastavení, ostatní je sbalené.</p>
+    {% if form.instance.pk %}
+        <div class="mt-2">
+            <strong>Vlastník:</strong> {{ form.instance.owner.username|default:"—" }}
+            {% if form.instance.owner_id == request.user.id %}
+                <span class="badge text-bg-success ms-1">Jste vlastník</span>
+            {% endif %}
+
+            <div id="wizard-progress-wrap" class="col-12 wizard-progress-wrap">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="form-text mb-0">Průběh průvodce</span>
+                    <span id="wizard-progress-text" class="form-text mb-0">Krok 1 z 5</span>
+                </div>
+                <div class="progress wizard-progress" role="progressbar" aria-label="Průběh průvodce">
+                    <div id="wizard-progress-bar" class="progress-bar wizard-progress-bar" style="width: 20%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="20"></div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+<section class="app-panel">
+    <div class="form-shell">
+        <form method="post" class="row g-4">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div id="form-error-fields" class="d-none" data-has-non-field-errors="{% if form.non_field_errors %}1{% else %}0{% endif %}">
+                {% for field in form %}
+                    {% if field.errors %}
+                        <span data-field="{{ field.name }}"></span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            {{ form.forward_to_number.as_hidden }}
+
+            <div id="step-1-wrap" class="col-12">
+                <details id="step-1" class="rule-step" open>
+                    <summary><strong>Krok 1/5:</strong> Základ pravidla</summary>
+                    <div class="row g-4 mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.name.label }}</label>
+                            {{ form.name }}
+                            <div id="name-required-feedback" class="invalid-feedback">Název pravidla je povinný.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.priority.label }}</label>
+                            {{ form.priority }}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            <div id="description-required-feedback" class="invalid-feedback">Popis pravidla je povinný.</div>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                            {% if form.errors %}
+                                <span class="form-text me-2 js-save-error-hint d-none" data-step="step-1">Opravte chybu v tomto kroku a klikněte Uložit.</span>
+                                <button type="submit" class="btn btn-app-primary btn-sm me-2 js-save-on-error d-none" data-step="step-1">Uložit pravidlo</button>
+                            {% endif %}
+                            <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-2" aria-label="Další krok" title="Další krok">
+                                <i class="bi bi-arrow-right-circle-fill fs-3" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div id="step-2-wrap" class="col-12">
+                <details id="step-2" class="rule-step">
+                    <summary><strong>Krok 2/5:</strong> Spouštěcí podmínky</summary>
+                    <div class="row g-4 mt-3">
+                        <div id="event-type-wrap" class="col-md-4">
+                            <label class="form-label">{{ form.event_type.label }}</label>
+                            {{ form.event_type }}
+                            <div class="form-text">Vyberte typ příchozí události. Pokud zvolíte variantu obsahující API, je povinné vybrat zdrojový objekt.</div>
+                        </div>
+                        <div id="match-type-wrap" class="col-md-8">
+                            <label class="form-label">{{ form.match_type.label }}</label>
+                            {{ form.match_type }}
+                            <div class="form-text">Zvolte, podle čeho se má pravidlo spustit.</div>
+                        </div>
+
+                        <div id="source-number-wrap" class="col-md-6">
+                            <label class="form-label mb-1">{{ form.source_number_choice.label }}</label>
+                            <div class="mb-1">{{ form.source_number_choice }}</div>
+                            {{ form.source_number.as_hidden }}
+                            <div class="form-text">Používá se při režimu „Přesná shoda“.</div>
+                            <div id="source-number-choice-feedback" class="invalid-feedback">Vyberte zdrojové číslo.</div>
+                        </div>
+
+                        <div id="source-group-wrap" class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                                <label class="form-label mb-0">{{ form.source_groups.label }}</label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-app-outline btn-sm js-select-all" data-target-list="source-groups">Vybrat vše</button>
+                                    <button type="button" class="btn btn-app-outline btn-sm js-clear-all" data-target-list="source-groups">Zrušit vše</button>
+                                </div>
+                            </div>
+                            {% if form.fields.source_groups.queryset.exists %}
+                                <div class="list-group list-scroll mt-2">
+                                    {% with selected_source_groups=form.source_groups.value %}
+                                        {% for group in form.fields.source_groups.queryset %}
+                                            <label class="list-group-item group-item mb-1 rounded">
+                                                <input class="group-checkbox me-2" type="checkbox" name="source_groups" value="{{ group.pk }}"
+                                                    {% if selected_source_groups %}
+                                                        {% if group.pk|stringformat:"s" in selected_source_groups or group.pk in selected_source_groups %}checked{% endif %}
+                                                    {% endif %}>
+                                                <span class="group-item-text">{{ group.name }}</span>
+                                            </label>
+                                        {% endfor %}
+                                    {% endwith %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning mb-0">Nemáte žádné zdrojové skupiny k výběru.</div>
+                            {% endif %}
+                            <div id="source-groups-feedback" class="invalid-feedback">Vyberte alespoň jednu zdrojovou skupinu.</div>
+                        </div>
+
+                        <div id="source-object-wrap" class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                                <label class="form-label mb-0">{{ form.source_objects.label }}</label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-app-outline btn-sm js-select-all" data-target-list="source-objects">Vybrat vše</button>
+                                    <button type="button" class="btn btn-app-outline btn-sm js-clear-all" data-target-list="source-objects">Zrušit vše</button>
+                                </div>
+                            </div>
+                            {% if form.fields.source_objects.queryset.exists %}
+                                <div class="list-group list-scroll mt-2">
+                                    {% with selected_source_objects=form.source_objects.value %}
+                                        {% for source_obj in form.fields.source_objects.queryset %}
+                                            <label class="list-group-item group-item mb-1 rounded">
+                                                <input class="group-checkbox me-2" type="checkbox" name="source_objects" value="{{ source_obj.pk }}"
+                                                    {% if selected_source_objects %}
+                                                        {% if source_obj.pk|stringformat:"s" in selected_source_objects or source_obj.pk in selected_source_objects %}checked{% endif %}
+                                                    {% endif %}>
+                                                <span class="group-item-text">{{ source_obj.name }}{% if source_obj.object_label %} — {{ source_obj.object_label }}{% endif %}</span>
+                                            </label>
+                                        {% endfor %}
+                                    {% endwith %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning mb-0 d-flex flex-wrap align-items-center gap-2">
+                                    <span>Nemáte žádné zdrojové objekty k výběru.</span>
+                                    {% if perms.dashboard.add_deviceobject %}
+                                        <a href="{% url 'device_object_add' %}" class="badge text-bg-primary text-decoration-none">Vytvořit nový objekt teď</a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Pro typy událostí obsahující API je výběr alespoň jednoho zdrojového objektu povinný.</div>
+                            <div id="source-objects-feedback" class="invalid-feedback">Vyberte alespoň jeden zdrojový objekt.</div>
+                        </div>
+
+                        <div id="use-message-flag-wrap" class="col-md-6 form-check mt-2">
+                            {{ form.use_message_flag }} <label class="form-check-label ms-2">{{ form.use_message_flag.label }}</label>
+                        </div>
+                        <div id="message-flag-wrap" class="col-md-6">
+                            <label class="form-label">{{ form.message_flag.label }}</label>
+                            {{ form.message_flag }}
+                            <div class="form-text">Volitelné: pravidlo běží jen při nalezení příznaku v SMS.</div>
+                            <div id="message-flag-feedback" class="invalid-feedback">Vyplňte příznak v SMS.</div>
+                        </div>
+
+                        <div id="action-wrap" class="col-md-12">
+                            <label class="form-label">{{ form.action.label }}</label>
+                            {{ form.action }}
+                            <div class="form-text">Teď zvolte reakci — po výběru podmínky a zdroje.</div>
+                        </div>
+
+                        <div id="step-2-nav-wrap" class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                            <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-1" aria-label="Předchozí krok" title="Předchozí krok">
+                                <i class="bi bi-arrow-left-circle-fill fs-3" aria-hidden="true"></i>
+                            </button>
+                            <div class="d-flex gap-2">
+                                {% if form.errors %}
+                                    <span class="form-text align-self-center js-save-error-hint d-none" data-step="step-2">Opravte chybu v tomto kroku a klikněte Uložit.</span>
+                                    <button type="submit" class="btn btn-app-primary btn-sm js-save-on-error d-none" data-step="step-2">Uložit pravidlo</button>
+                                {% endif %}
+                                <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-3" aria-label="Další krok" title="Další krok">
+                                    <i class="bi bi-arrow-right-circle-fill fs-3" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div id="step-3-wrap" class="col-12">
+                <details id="step-3" class="rule-step">
+                    <summary><strong>Krok 3/5:</strong> Cíle akce</summary>
+                    <div class="row g-4 mt-3">
+                        <div id="target-numbers-wrap" class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                                <label class="form-label mb-0">{{ form.target_numbers.label }}</label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-app-outline btn-sm js-select-all" data-target-list="numbers">Vybrat vše</button>
+                                    <button type="button" class="btn btn-app-outline btn-sm js-clear-all" data-target-list="numbers">Zrušit vše</button>
+                                </div>
+                            </div>
+                            {% if form.fields.target_numbers.queryset.exists %}
+                                <div class="list-group list-scroll mt-2">
+                                    {% with selected_target_numbers=form.target_numbers.value %}
+                                        {% for phone in form.fields.target_numbers.queryset %}
+                                            <label class="list-group-item group-item mb-1 rounded">
+                                                <input class="group-checkbox me-2" type="checkbox" name="target_numbers" value="{{ phone.pk }}"
+                                                    {% if selected_target_numbers %}
+                                                        {% if phone.pk|stringformat:"s" in selected_target_numbers or phone.pk in selected_target_numbers %}checked{% endif %}
+                                                    {% endif %}>
+                                                <span class="group-item-text">{{ phone.number }}{% if phone.description %} — {{ phone.description }}{% endif %}{% if phone.owner %} (vlastník: {{ phone.owner.username }}){% endif %}</span>
+                                            </label>
+                                        {% endfor %}
+                                    {% endwith %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning mb-0">Nemáte žádná aktivní cílová čísla k výběru.</div>
+                            {% endif %}
+                            <div class="form-text">Používá se pro „Poslat informaci na cílová čísla“ i „Předat na číslo“.</div>
+                            <div id="target-numbers-feedback" class="invalid-feedback">Vyberte alespoň jedno cílové číslo.</div>
+                        </div>
+
+                        <div id="target-groups-wrap" class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                                <label class="form-label mb-0">{{ form.target_groups.label }}</label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-app-outline btn-sm js-select-all" data-target-list="groups">Vybrat vše</button>
+                                    <button type="button" class="btn btn-app-outline btn-sm js-clear-all" data-target-list="groups">Zrušit vše</button>
+                                </div>
+                            </div>
+                            {% if form.fields.target_groups.queryset.exists %}
+                                <div class="list-group list-scroll mt-2">
+                                    {% with selected_target_groups=form.target_groups.value %}
+                                        {% for group in form.fields.target_groups.queryset %}
+                                            <label class="list-group-item group-item mb-1 rounded">
+                                                <input class="group-checkbox me-2" type="checkbox" name="target_groups" value="{{ group.pk }}"
+                                                    {% if selected_target_groups %}
+                                                        {% if group.pk|stringformat:"s" in selected_target_groups or group.pk in selected_target_groups %}checked{% endif %}
+                                                    {% endif %}>
+                                                <span class="group-item-text">{{ group.name }}</span>
+                                                <div class="js-group-targets d-none mt-2 ps-4">
+                                                    <div class="small text-muted-soft mb-1">Cíle ve skupině:</div>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        {% for phone in group.phone_numbers.all %}
+                                                            <span class="pill">{{ phone.number }}{% if phone.description %} — {{ phone.description }}{% endif %}</span>
+                                                        {% empty %}
+                                                            <span class="text-muted-soft">Skupina je zatím bez čísel.</span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        {% endfor %}
+                                    {% endwith %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning mb-0">Nemáte žádné cílové skupiny k výběru.</div>
+                            {% endif %}
+                            <div id="target-groups-feedback" class="invalid-feedback">Vyberte alespoň jednu cílovou skupinu.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <div id="rule-collision-hint" class="alert alert-warning d-none mb-0"></div>
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                            <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-2" aria-label="Předchozí krok" title="Předchozí krok">
+                                <i class="bi bi-arrow-left-circle-fill fs-3" aria-hidden="true"></i>
+                            </button>
+                            <div class="d-flex gap-2">
+                                {% if form.errors %}
+                                    <span class="form-text align-self-center js-save-error-hint d-none" data-step="step-3">Opravte chybu v tomto kroku a klikněte Uložit.</span>
+                                    <button type="submit" class="btn btn-app-primary btn-sm js-save-on-error d-none" data-step="step-3">Uložit pravidlo</button>
+                                {% endif %}
+                                <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-4" aria-label="Další krok" title="Další krok">
+                                    <i class="bi bi-arrow-right-circle-fill fs-3" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div id="step-4-wrap" class="col-12">
+                <details id="step-4" class="rule-step">
+                    <summary><strong>Krok 4/5:</strong> Notifikace a obsah</summary>
+                    <div class="row g-4 mt-3">
+                        <div id="notify-channels-wrap" class="col-md-12">
+                            <label class="form-label d-block">Notifikační kanály</label>
+                            <div class="d-flex flex-wrap gap-4">
+                                <div class="form-check">
+                                    {{ form.notify_via_sms }} <label class="form-check-label ms-2" for="{{ form.notify_via_sms.id_for_label }}">{{ form.notify_via_sms.label }}</label>
+                                </div>
+                                <div class="form-check">
+                                    {{ form.notify_via_email }} <label class="form-check-label ms-2" for="{{ form.notify_via_email.id_for_label }}">{{ form.notify_via_email.label }}</label>
+                                </div>
+                                <div class="form-check">
+                                    {{ form.notify_via_teams }} <label class="form-check-label ms-2" for="{{ form.notify_via_teams.id_for_label }}">{{ form.notify_via_teams.label }}</label>
+                                </div>
+                            </div>
+                            <div id="notify-channels-feedback" class="invalid-feedback">Vyberte alespoň jeden notifikační kanál.</div>
+                        </div>
+
+                        <div id="notify-email-list-wrap" class="col-md-12">
+                            <div id="notify-email-target-wrap" class="mb-2">
+                                <label class="form-label d-block mb-1">{{ form.notification_email_choices.label }}</label>
+                                {% if form.notification_email_candidates %}
+                                    <div class="list-group list-scroll mt-2" style="max-height: 260px;">
+                                        {% with selected_email_choices=form.notification_email_choices.value %}
+                                            {% for item in form.notification_email_candidates %}
+                                                <label class="list-group-item group-item mb-1 rounded">
+                                                    <input
+                                                        class="group-checkbox me-2 js-email-candidate"
+                                                        type="checkbox"
+                                                        name="notification_email_choices"
+                                                        value="{{ item.email }}"
+                                                        data-number-ids="{{ item.number_ids|join:',' }}"
+                                                        {% if selected_email_choices %}
+                                                            {% if item.email in selected_email_choices %}checked{% endif %}
+                                                        {% endif %}
+                                                    >
+                                                    <span class="group-item-text">{{ item.label }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        {% endwith %}
+                                    </div>
+                                    <div class="form-text">Zaškrtnutí se automaticky řídí podle cílových čísel. Můžete ručně upravit.</div>
+                                {% else %}
+                                    <div class="alert alert-warning mb-0">U dostupných cílových čísel nejsou vyplněné kontaktní e-maily.</div>
+                                {% endif %}
+                            </div>
+
+                            <label class="form-label">{{ form.notification_emails.label }}</label>
+                            {{ form.notification_emails }}
+                            <div class="form-text">Volitelné: další e-maily mimo seznam výše (oddělte čárkou nebo středníkem).</div>
+                        </div>
+
+                        <div id="custom-message-wrap" class="col-md-6">
+                            <label class="form-label">{{ form.custom_message.label }}</label>
+                            {{ form.custom_message }}
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                            <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-3" aria-label="Předchozí krok" title="Předchozí krok">
+                                <i class="bi bi-arrow-left-circle-fill fs-3" aria-hidden="true"></i>
+                            </button>
+                            <div class="d-flex gap-2">
+                                {% if form.errors %}
+                                    <span class="form-text align-self-center js-save-error-hint d-none" data-step="step-4">Opravte chybu v tomto kroku a klikněte Uložit.</span>
+                                    <button type="submit" class="btn btn-app-primary btn-sm js-save-on-error d-none" data-step="step-4">Uložit pravidlo</button>
+                                {% endif %}
+                                <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-5" aria-label="Další krok" title="Další krok">
+                                    <i class="bi bi-arrow-right-circle-fill fs-3" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div id="step-5-wrap" class="col-12">
+                <details id="step-5" class="rule-step">
+                    <summary><strong>Krok 5/5:</strong> Dokončení a uložení</summary>
+                    <div class="row g-4 mt-3">
+                        <div class="col-md-4 form-check mt-4">{{ form.active }} <label class="form-check-label ms-2">{{ form.active.label }}</label></div>
+                        <div class="col-md-4 form-check mt-4">{{ form.include_original_message }} <label class="form-check-label ms-2">{{ form.include_original_message.label }}</label></div>
+                        <div class="col-md-4 form-check mt-4">{{ form.stop_processing }} <label class="form-check-label ms-2">{{ form.stop_processing.label }}</label></div>
+
+                        <div class="col-12 d-flex flex-wrap gap-2 mt-2">
+                            <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-4" aria-label="Předchozí krok" title="Předchozí krok">
+                                <i class="bi bi-arrow-left-circle-fill fs-3" aria-hidden="true"></i>
+                            </button>
+                            <button type="submit" class="btn btn-app-primary">Uložit pravidlo</button>
+                            <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Zpět</a>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const matchTypeField = document.getElementById('id_match_type');
+        const actionField = document.getElementById('id_action');
+        const eventTypeField = document.getElementById('id_event_type');
+
+        if (!matchTypeField || !actionField) {
+            return;
+        }
+
+        const sourceNumberWrap = document.getElementById('source-number-wrap');
+        const sourceGroupWrap = document.getElementById('source-group-wrap');
+        const sourceObjectWrap = document.getElementById('source-object-wrap');
+        const matchTypeWrap = document.getElementById('match-type-wrap');
+        const useMessageFlagWrap = document.getElementById('use-message-flag-wrap');
+        const messageFlagWrap = document.getElementById('message-flag-wrap');
+        const eventTypeWrap = document.getElementById('event-type-wrap');
+        const targetNumbersWrap = document.getElementById('target-numbers-wrap');
+        const targetGroupsWrap = document.getElementById('target-groups-wrap');
+        const notifyChannelsWrap = document.getElementById('notify-channels-wrap');
+        const notifyEmailListWrap = document.getElementById('notify-email-list-wrap');
+        const notifyEmailTargetWrap = document.getElementById('notify-email-target-wrap');
+        const customMessageWrap = document.getElementById('custom-message-wrap');
+        const actionWrap = document.getElementById('action-wrap');
+        const step1Wrap = document.getElementById('step-1-wrap');
+        const step2Wrap = document.getElementById('step-2-wrap');
+        const step3Wrap = document.getElementById('step-3-wrap');
+        const step4Wrap = document.getElementById('step-4-wrap');
+        const step5Wrap = document.getElementById('step-5-wrap');
+        const step2NavWrap = document.getElementById('step-2-nav-wrap');
+        const wizardProgressBar = document.getElementById('wizard-progress-bar');
+        const wizardProgressText = document.getElementById('wizard-progress-text');
+        const hintBox = document.getElementById('rule-collision-hint');
+        const formErrorFieldsBox = document.getElementById('form-error-fields');
+        const stepOrder = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5'];
+        const stepWrapById = {
+            'step-1': step1Wrap,
+            'step-2': step2Wrap,
+            'step-3': step3Wrap,
+            'step-4': step4Wrap,
+            'step-5': step5Wrap,
+        };
+
+        let currentStepId = 'step-1';
+        let hasAutoFocusedError = false;
+
+        function fieldToStepId(fieldName) {
+            if (['name', 'priority', 'description'].includes(fieldName)) return 'step-1';
+
+            if ([
+                'event_type',
+                'match_type',
+                'source_number',
+                'source_number_choice',
+                'source_groups',
+                'source_objects',
+                'use_message_flag',
+                'message_flag',
+                'action',
+            ].includes(fieldName)) return 'step-2';
+
+            if (['target_numbers', 'target_groups', 'forward_to_number', 'forward_to_number_choice'].includes(fieldName)) return 'step-3';
+
+            if ([
+                'notify_via_sms',
+                'notify_via_email',
+                'notify_via_teams',
+                'notification_emails',
+                'notification_email_choices',
+                'custom_message',
+            ].includes(fieldName)) return 'step-4';
+
+            if (['active', 'include_original_message', 'stop_processing'].includes(fieldName)) return 'step-5';
+
+            return null;
+        }
+
+        function getErrorFieldNames() {
+            if (!formErrorFieldsBox) return [];
+            return Array.from(formErrorFieldsBox.querySelectorAll('[data-field]'))
+                .map((item) => item.dataset.field)
+                .filter(Boolean);
+        }
+
+        function pickErrorStepId() {
+            const errorFields = getErrorFieldNames();
+            for (const fieldName of errorFields) {
+                const stepId = fieldToStepId(fieldName);
+                if (stepId) return stepId;
+            }
+
+            if (formErrorFieldsBox && formErrorFieldsBox.dataset.hasNonFieldErrors === '1') {
+                return 'step-2';
+            }
+
+            return null;
+        }
+
+        function initializeStepFromErrors() {
+            const errorStepId = pickErrorStepId();
+            if (errorStepId) {
+                currentStepId = errorStepId;
+            }
+        }
+
+        function focusFirstErrorField() {
+            const errorFields = getErrorFieldNames();
+            for (const fieldName of errorFields) {
+                const candidates = document.querySelectorAll(`[name="${fieldName}"]`);
+                const target = Array.from(candidates).find((el) => !el.disabled && el.offsetParent !== null);
+                if (target) {
+                    target.focus();
+                    return;
+                }
+            }
+        }
+
+        function highlightErrorFields() {
+            document.querySelectorAll('.field-error').forEach((item) => {
+                item.classList.remove('field-error');
+            });
+
+            const errorFields = getErrorFieldNames();
+            for (const fieldName of errorFields) {
+                const candidates = Array.from(document.querySelectorAll(`[name="${fieldName}"]`));
+                candidates.forEach((element) => {
+                    const type = (element.type || '').toLowerCase();
+                    if (type === 'checkbox' || type === 'radio') {
+                        const label = element.closest('label');
+                        if (label) {
+                            label.classList.add('field-error');
+                        }
+                    } else {
+                        element.classList.add('field-error');
+                    }
+                });
+            }
+        }
+
+        function updateErrorSaveButtons() {
+            if (!saveOnErrorButtons || saveOnErrorButtons.length === 0) {
+                return;
+            }
+
+            const errorStepId = pickErrorStepId();
+            saveOnErrorButtons.forEach((button) => {
+                const shouldShow = !!errorStepId && button.dataset.step === currentStepId && button.dataset.step === errorStepId;
+                button.classList.toggle('d-none', !shouldShow);
+            });
+
+            saveErrorHints.forEach((hint) => {
+                const shouldShow = !!errorStepId && hint.dataset.step === currentStepId && hint.dataset.step === errorStepId;
+                hint.classList.toggle('d-none', !shouldShow);
+            });
+        }
+
+        const sourceNumberField = document.getElementById('id_source_number');
+        const sourceNumberChoiceField = document.getElementById('id_source_number_choice');
+        const useMessageFlagField = document.getElementById('id_use_message_flag');
+        const messageFlagField = document.getElementById('id_message_flag');
+        const sourceGroupCheckboxes = Array.from(document.querySelectorAll('input[name="source_groups"]'));
+        const sourceObjectCheckboxes = Array.from(document.querySelectorAll('input[name="source_objects"]'));
+        const targetNumberCheckboxes = Array.from(document.querySelectorAll('input[name="target_numbers"]'));
+        const targetGroupCheckboxes = Array.from(document.querySelectorAll('input[name="target_groups"]'));
+        const notifyViaEmailField = document.getElementById('id_notify_via_email');
+        const notifyViaSmsField = document.getElementById('id_notify_via_sms');
+        const notifyViaTeamsField = document.getElementById('id_notify_via_teams');
+        const nameField = document.getElementById('id_name');
+        const descriptionField = document.getElementById('id_description');
+        const descriptionRequiredFeedback = document.getElementById('description-required-feedback');
+        const nameRequiredFeedback = document.getElementById('name-required-feedback');
+        const sourceNumberChoiceFeedback = document.getElementById('source-number-choice-feedback');
+        const sourceGroupsFeedback = document.getElementById('source-groups-feedback');
+        const sourceObjectsFeedback = document.getElementById('source-objects-feedback');
+        const messageFlagFeedback = document.getElementById('message-flag-feedback');
+        const targetNumbersFeedback = document.getElementById('target-numbers-feedback');
+        const targetGroupsFeedback = document.getElementById('target-groups-feedback');
+        const notifyChannelsFeedback = document.getElementById('notify-channels-feedback');
+        const emailCandidateCheckboxes = Array.from(document.querySelectorAll('.js-email-candidate'));
+        const saveOnErrorButtons = Array.from(document.querySelectorAll('.js-save-on-error'));
+        const saveErrorHints = Array.from(document.querySelectorAll('.js-save-error-hint'));
+
+        function isRuleNameValid() {
+            return !!(nameField && nameField.value && nameField.value.trim().length > 0);
+        }
+
+        function setRuleNameValidationState(showError) {
+            if (!nameField) return;
+            nameField.classList.toggle('is-invalid', !!showError);
+            nameField.setAttribute('aria-invalid', showError ? 'true' : 'false');
+            if (nameRequiredFeedback) {
+                nameRequiredFeedback.classList.toggle('d-block', !!showError);
+            }
+        }
+
+        function ensureRuleNameBeforeStepChange(targetStepId) {
+            if (currentStepId !== 'step-1') {
+                return true;
+            }
+
+            if (targetStepId === 'step-1') {
+                setRuleNameValidationState(false);
+                return true;
+            }
+
+            const valid = isRuleNameValid();
+            setRuleNameValidationState(!valid);
+            if (!valid) {
+                openStep('step-1');
+                if (nameField) {
+                    nameField.focus();
+                }
+            }
+            return valid;
+        }
+
+        function setFieldValidationState(field, feedbackElement, showError) {
+            if (!field) return;
+            field.classList.toggle('is-invalid', !!showError);
+            field.setAttribute('aria-invalid', showError ? 'true' : 'false');
+            if (feedbackElement) {
+                feedbackElement.classList.toggle('d-block', !!showError);
+            }
+        }
+
+        function setCheckboxGroupValidationState(checkboxes, feedbackElement, showError) {
+            if (!checkboxes || checkboxes.length === 0) return;
+            checkboxes.forEach((checkbox) => {
+                checkbox.classList.toggle('is-invalid', !!showError);
+                const label = checkbox.closest('label');
+                if (label) {
+                    label.classList.toggle('field-error', !!showError);
+                }
+            });
+            if (feedbackElement) {
+                feedbackElement.classList.toggle('d-block', !!showError);
+            }
+        }
+
+        function resetClientStepValidation() {
+            setFieldValidationState(nameField, nameRequiredFeedback, false);
+            setFieldValidationState(descriptionField, descriptionRequiredFeedback, false);
+            setFieldValidationState(sourceNumberChoiceField, sourceNumberChoiceFeedback, false);
+            setFieldValidationState(messageFlagField, messageFlagFeedback, false);
+            setCheckboxGroupValidationState(sourceGroupCheckboxes, sourceGroupsFeedback, false);
+            setCheckboxGroupValidationState(sourceObjectCheckboxes, sourceObjectsFeedback, false);
+            setCheckboxGroupValidationState(targetNumberCheckboxes, targetNumbersFeedback, false);
+            setCheckboxGroupValidationState(targetGroupCheckboxes, targetGroupsFeedback, false);
+            setCheckboxGroupValidationState(
+                [notifyViaSmsField, notifyViaEmailField, notifyViaTeamsField].filter(Boolean),
+                notifyChannelsFeedback,
+                false
+            );
+        }
+
+        function validateCurrentStepBeforeForward() {
+            resetClientStepValidation();
+
+            if (currentStepId === 'step-1') {
+                const nameValid = isRuleNameValid();
+                setRuleNameValidationState(!nameValid);
+
+                const descriptionValid = !!(descriptionField && descriptionField.value && descriptionField.value.trim().length > 0);
+                setFieldValidationState(descriptionField, descriptionRequiredFeedback, !descriptionValid);
+
+                return nameValid && descriptionValid;
+            }
+
+            if (currentStepId === 'step-2') {
+                let valid = true;
+                const matchType = matchTypeField.value;
+                const eventType = eventTypeField ? eventTypeField.value : '';
+                const eventTypeIncludesApi = ['API', 'SMS_API', 'CALL_API', 'ALL'].includes(eventType);
+                const isApiOnlyEvent = eventType === 'API';
+
+                if (!isApiOnlyEvent && matchType === 'EXACT') {
+                    const hasSourceChoice = !!(sourceNumberChoiceField && sourceNumberChoiceField.value);
+                    setFieldValidationState(sourceNumberChoiceField, sourceNumberChoiceFeedback, !hasSourceChoice);
+                    valid = valid && hasSourceChoice;
+                }
+
+                if (!isApiOnlyEvent && matchType === 'GROUP') {
+                    const hasSourceGroup = getCheckedCount(sourceGroupCheckboxes) > 0;
+                    setCheckboxGroupValidationState(sourceGroupCheckboxes, sourceGroupsFeedback, !hasSourceGroup);
+                    valid = valid && hasSourceGroup;
+                }
+
+                if (eventTypeIncludesApi) {
+                    const hasSourceObject = getCheckedCount(sourceObjectCheckboxes) > 0;
+                    setCheckboxGroupValidationState(sourceObjectCheckboxes, sourceObjectsFeedback, !hasSourceObject);
+                    valid = valid && hasSourceObject;
+                }
+
+                if (useMessageFlagField && useMessageFlagField.checked) {
+                    const hasMessageFlag = !!(messageFlagField && messageFlagField.value && messageFlagField.value.trim().length > 0);
+                    setFieldValidationState(messageFlagField, messageFlagFeedback, !hasMessageFlag);
+                    valid = valid && hasMessageFlag;
+                }
+
+                return valid;
+            }
+
+            if (currentStepId === 'step-3') {
+                let valid = true;
+                const action = actionField.value;
+
+                if (action === 'NOTIFY_NUM' || action === 'FORWARD') {
+                    const hasTargetNumbers = getCheckedCount(targetNumberCheckboxes) > 0;
+                    setCheckboxGroupValidationState(targetNumberCheckboxes, targetNumbersFeedback, !hasTargetNumbers);
+                    valid = valid && hasTargetNumbers;
+                }
+
+                if (action === 'NOTIFY_GRP') {
+                    const hasTargetGroups = getCheckedCount(targetGroupCheckboxes) > 0;
+                    setCheckboxGroupValidationState(targetGroupCheckboxes, targetGroupsFeedback, !hasTargetGroups);
+                    valid = valid && hasTargetGroups;
+                }
+
+                return valid;
+            }
+
+            if (currentStepId === 'step-4') {
+                const needsNotifyChannel = ['NOTIFY_NUM', 'NOTIFY_GRP'].includes(actionField.value);
+                if (!needsNotifyChannel) {
+                    return true;
+                }
+
+                const channelFields = [notifyViaSmsField, notifyViaEmailField, notifyViaTeamsField].filter(Boolean);
+                const hasAnyChannel = channelFields.some((field) => field.checked);
+                setCheckboxGroupValidationState(channelFields, notifyChannelsFeedback, !hasAnyChannel);
+                return hasAnyChannel;
+            }
+
+            return true;
+        }
+
+        function ensureStepValidationBeforeStepChange(targetStepId) {
+            const currentIndex = stepOrder.indexOf(currentStepId);
+            const targetIndex = stepOrder.indexOf(targetStepId);
+
+            if (targetIndex <= currentIndex) {
+                return true;
+            }
+
+            const valid = validateCurrentStepBeforeForward();
+            if (!valid) {
+                openStep(currentStepId);
+            }
+            return valid;
+        }
+
+        function setVisible(wrapper, visible) {
+            if (!wrapper) return;
+            wrapper.classList.toggle('d-none', !visible);
+
+            const fields = wrapper.querySelectorAll('input, select, textarea');
+            fields.forEach((field) => {
+                field.disabled = !visible;
+            });
+        }
+
+        function getCheckedCount(checkboxes) {
+            if (!checkboxes || checkboxes.length === 0) return 0;
+            return checkboxes.filter((checkbox) => checkbox.checked).length;
+        }
+
+        function getSelectedTargetNumberIds() {
+            return new Set(
+                targetNumberCheckboxes
+                    .filter((checkbox) => checkbox.checked)
+                    .map((checkbox) => checkbox.value)
+            );
+        }
+
+        function syncEmailCandidatesByTargets(isActive) {
+            if (!emailCandidateCheckboxes || emailCandidateCheckboxes.length === 0) {
+                return;
+            }
+
+            if (!isActive) {
+                emailCandidateCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = false;
+                });
+                return;
+            }
+
+            const selectedTargetIds = getSelectedTargetNumberIds();
+
+            emailCandidateCheckboxes.forEach((checkbox) => {
+                const relatedIds = (checkbox.dataset.numberIds || '').split(',').filter(Boolean);
+                const shouldCheck = relatedIds.some((id) => selectedTargetIds.has(id));
+                checkbox.checked = shouldCheck;
+            });
+        }
+
+        function updateTargetGroupTargetsVisibility(showTargetGroups) {
+            targetGroupCheckboxes.forEach((checkbox) => {
+                const container = checkbox.closest('label');
+                if (!container) return;
+
+                const targetsBlock = container.querySelector('.js-group-targets');
+                if (!targetsBlock) return;
+
+                const shouldShow = !!showTargetGroups && checkbox.checked;
+                targetsBlock.classList.toggle('d-none', !shouldShow);
+            });
+        }
+
+        function openStep(stepId, shouldScroll = true) {
+            currentStepId = stepId;
+            const allSteps = Array.from(document.querySelectorAll('.rule-step'));
+            allSteps.forEach((step) => {
+                step.open = step.id === stepId;
+            });
+
+            const targetStep = document.getElementById(stepId);
+            if (targetStep && shouldScroll) {
+                targetStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            updateWizardProgress();
+        }
+
+        function setStepVisible(stepWrap, visible) {
+            if (!stepWrap) return;
+            stepWrap.classList.toggle('d-none', !visible);
+        }
+
+        function getVisibleSteps() {
+            return Array.from(document.querySelectorAll('.rule-step')).filter((step) => {
+                const container = step.closest('.col-12');
+                return container && !container.classList.contains('d-none');
+            });
+        }
+
+        function getEnabledStepIds(action) {
+            if (isApiWithoutObjectsBlocked()) {
+                return ['step-1', 'step-2'];
+            }
+
+            const enabled = ['step-1', 'step-2'];
+            if (action !== 'IGNORE') {
+                enabled.push('step-3', 'step-4');
+            }
+            enabled.push('step-5');
+            return enabled;
+        }
+
+        function isApiWithoutObjectsBlocked() {
+            const eventType = eventTypeField ? eventTypeField.value : '';
+            const eventTypeIncludesApi = ['API', 'SMS_API', 'CALL_API', 'ALL'].includes(eventType);
+            const hasAnySourceObjects = sourceObjectCheckboxes.length > 0;
+            return eventTypeIncludesApi && !hasAnySourceObjects;
+        }
+
+        function getNextEnabledStepId(preferredStepId, action) {
+            const enabled = getEnabledStepIds(action);
+            if (enabled.includes(preferredStepId)) {
+                return preferredStepId;
+            }
+
+            const currentIndex = stepOrder.indexOf(currentStepId);
+            const preferredIndex = stepOrder.indexOf(preferredStepId);
+
+            if (preferredIndex < currentIndex) {
+                // Going backward — find the nearest previous enabled step
+                const fallbackBackward = [...enabled].reverse().find((stepId) => stepOrder.indexOf(stepId) < currentIndex);
+                if (fallbackBackward) return fallbackBackward;
+            } else {
+                // Going forward — find the nearest next enabled step
+                const fallbackForward = enabled.find((stepId) => stepOrder.indexOf(stepId) > currentIndex);
+                if (fallbackForward) return fallbackForward;
+            }
+
+            return enabled[enabled.length - 1] || 'step-1';
+        }
+
+        function showOnlyCurrentStep(action) {
+            const enabled = getEnabledStepIds(action);
+            if (!enabled.includes(currentStepId)) {
+                currentStepId = enabled[0];
+            }
+
+            stepOrder.forEach((stepId) => {
+                const shouldShow = stepId === currentStepId && enabled.includes(stepId);
+                setStepVisible(stepWrapById[stepId], shouldShow);
+            });
+
+            openStep(currentStepId, false);
+        }
+
+        function updateWizardProgress() {
+            if (!wizardProgressBar || !wizardProgressText) {
+                return;
+            }
+
+            const enabledStepIds = getEnabledStepIds(actionField.value);
+            if (enabledStepIds.length === 0) {
+                wizardProgressText.textContent = 'Krok 0 z 0';
+                wizardProgressBar.style.width = '0%';
+                wizardProgressBar.setAttribute('aria-valuenow', '0');
+                return;
+            }
+
+            const openIndex = enabledStepIds.indexOf(currentStepId);
+            const current = openIndex >= 0 ? openIndex + 1 : 1;
+            const total = enabledStepIds.length;
+            const percent = Math.round((current / total) * 100);
+
+            wizardProgressText.textContent = `Krok ${current} z ${total}`;
+            wizardProgressBar.style.width = `${percent}%`;
+            wizardProgressBar.setAttribute('aria-valuenow', String(percent));
+        }
+
+        function ensureVisibleOpenStep() {
+            const visibleSteps = getVisibleSteps();
+            if (visibleSteps.length === 0) {
+                updateWizardProgress();
+                return;
+            }
+
+            const openVisible = visibleSteps.find((step) => step.open);
+            if (openVisible) {
+                updateWizardProgress();
+                return;
+            }
+
+            openStep(visibleSteps[0].id, false);
+            updateWizardProgress();
+        }
+
+        function setSelections(checkboxes, shouldSelect) {
+            if (!checkboxes || checkboxes.length === 0) return;
+            checkboxes.forEach((checkbox) => {
+                if (checkbox.checked !== shouldSelect) {
+                    checkbox.checked = shouldSelect;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+
+        function updateFormVisibility(triggerField = null) {
+            const matchType = matchTypeField.value;
+            const action = actionField.value;
+            const eventType = eventTypeField ? eventTypeField.value : '';
+            const eventTypeIncludesApi = ['API', 'SMS_API', 'CALL_API', 'ALL'].includes(eventType);
+            const isApiOnlyEvent = eventType === 'API';
+            const apiWithoutObjectsBlocked = isApiWithoutObjectsBlocked();
+
+            if (isApiOnlyEvent && matchTypeField) {
+                matchTypeField.value = 'ANY';
+            }
+
+            // matchTypeWrap: only toggle visibility — never disable the select.
+            // Disabled fields are not submitted, which would cause a required-field
+            // server-side error. The value has already been forced to 'ANY' above.
+            if (matchTypeWrap) matchTypeWrap.classList.toggle('d-none', isApiOnlyEvent);
+            setVisible(sourceNumberWrap, !isApiOnlyEvent && matchType === 'EXACT');
+            setVisible(sourceGroupWrap, !isApiOnlyEvent && matchType === 'GROUP');
+            setVisible(sourceObjectWrap, eventTypeIncludesApi);
+
+            if (isApiOnlyEvent && useMessageFlagField) {
+                useMessageFlagField.checked = false;
+            }
+            if (isApiOnlyEvent && messageFlagField) {
+                messageFlagField.value = '';
+            }
+
+            setVisible(useMessageFlagWrap, !isApiOnlyEvent);
+            setVisible(messageFlagWrap, !isApiOnlyEvent && !!(useMessageFlagField && useMessageFlagField.checked));
+            setVisible(eventTypeWrap, true);
+
+            if (sourceNumberChoiceField) {
+                sourceNumberChoiceField.disabled = matchType !== 'EXACT';
+                sourceNumberChoiceField.classList.remove('field-muted-disabled');
+            }
+
+            if (apiWithoutObjectsBlocked) {
+                if (matchTypeWrap) matchTypeWrap.classList.add('d-none');
+                setVisible(sourceNumberWrap, false);
+                setVisible(sourceGroupWrap, false);
+                setVisible(useMessageFlagWrap, false);
+                setVisible(messageFlagWrap, false);
+                setVisible(actionWrap, false);
+                setVisible(targetNumbersWrap, false);
+                setVisible(targetGroupsWrap, false);
+                setVisible(notifyChannelsWrap, false);
+                setVisible(notifyEmailListWrap, false);
+                setVisible(notifyEmailTargetWrap, false);
+                setVisible(customMessageWrap, false);
+                if (step2NavWrap) {
+                    step2NavWrap.classList.add('d-none');
+                }
+                showOnlyCurrentStep(action);
+                updateWizardProgress();
+                updateErrorSaveButtons();
+                return;
+            }
+
+            if (step2NavWrap) {
+                step2NavWrap.classList.remove('d-none');
+            }
+
+            setVisible(actionWrap, true);
+
+            const showTargetNumbers = action === 'NOTIFY_NUM' || action === 'FORWARD';
+            const showTargetGroups = action === 'NOTIFY_GRP';
+            const showNotifyChannels = action === 'NOTIFY_NUM' || action === 'NOTIFY_GRP';
+            showOnlyCurrentStep(action);
+
+            setVisible(targetNumbersWrap, showTargetNumbers);
+            setVisible(targetGroupsWrap, showTargetGroups);
+            setVisible(notifyChannelsWrap, showNotifyChannels);
+            setVisible(notifyEmailListWrap, showNotifyChannels);
+            const emailChannelActive = showNotifyChannels && notifyViaEmailField && notifyViaEmailField.checked;
+            setVisible(notifyEmailTargetWrap, emailChannelActive);
+            setVisible(customMessageWrap, action !== 'IGNORE');
+
+            syncEmailCandidatesByTargets(emailChannelActive);
+            updateTargetGroupTargetsVisibility(showTargetGroups);
+            updateWizardProgress();
+
+            const hints = [];
+
+            if (matchType === 'EXACT' && getCheckedCount(sourceGroupCheckboxes) > 0) {
+                hints.push('Vyplněná zdrojová skupina se v tomto režimu ignoruje.');
+            }
+            if (matchType === 'GROUP' && sourceNumberField && sourceNumberField.value.trim()) {
+                hints.push('Vyplněné zdrojové číslo se v tomto režimu ignoruje.');
+            }
+            if (action === 'FORWARD' && getCheckedCount(targetGroupsWrap ? targetGroupCheckboxes : []) > 0) {
+                hints.push('Cílové skupiny se pro akci „Předat“ ignorují.');
+            }
+
+            if (hints.length > 0) {
+                hintBox.classList.remove('d-none');
+                hintBox.innerHTML = hints.map((text) => `• ${text}`).join('<br>');
+            } else {
+                hintBox.classList.add('d-none');
+                hintBox.innerHTML = '';
+            }
+
+            if (!hasAutoFocusedError && getErrorFieldNames().length > 0) {
+                highlightErrorFields();
+                focusFirstErrorField();
+                hasAutoFocusedError = true;
+            }
+
+            updateErrorSaveButtons();
+
+        }
+
+        [
+            matchTypeField,
+            actionField,
+            eventTypeField,
+            sourceNumberField,
+            sourceNumberChoiceField,
+            notifyViaEmailField,
+        ].forEach((field) => {
+            if (field) {
+                field.addEventListener('change', () => updateFormVisibility(field));
+                field.addEventListener('input', () => updateFormVisibility(field));
+            }
+        });
+
+        sourceGroupCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                if (getCheckedCount(sourceGroupCheckboxes) > 0) {
+                    setCheckboxGroupValidationState(sourceGroupCheckboxes, sourceGroupsFeedback, false);
+                }
+                updateFormVisibility(checkbox);
+            });
+        });
+
+        sourceObjectCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                if (getCheckedCount(sourceObjectCheckboxes) > 0) {
+                    setCheckboxGroupValidationState(sourceObjectCheckboxes, sourceObjectsFeedback, false);
+                }
+                updateFormVisibility(checkbox);
+            });
+        });
+
+        targetNumberCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                if (getCheckedCount(targetNumberCheckboxes) > 0) {
+                    setCheckboxGroupValidationState(targetNumberCheckboxes, targetNumbersFeedback, false);
+                }
+                updateFormVisibility(checkbox);
+            });
+        });
+
+        targetGroupCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                if (getCheckedCount(targetGroupCheckboxes) > 0) {
+                    setCheckboxGroupValidationState(targetGroupCheckboxes, targetGroupsFeedback, false);
+                }
+                updateFormVisibility(checkbox);
+            });
+        });
+
+        [notifyViaSmsField, notifyViaEmailField, notifyViaTeamsField].forEach((field) => {
+            if (!field) return;
+            field.addEventListener('change', () => {
+                const channelFields = [notifyViaSmsField, notifyViaEmailField, notifyViaTeamsField].filter(Boolean);
+                if (channelFields.some((item) => item.checked)) {
+                    setCheckboxGroupValidationState(channelFields, notifyChannelsFeedback, false);
+                }
+            });
+        });
+
+        document.querySelectorAll('.js-select-all, .js-clear-all').forEach((button) => {
+            button.addEventListener('click', () => {
+                const targetList = button.dataset.targetList;
+                const shouldSelect = button.classList.contains('js-select-all');
+
+                if (targetList === 'numbers') {
+                    setSelections(targetNumberCheckboxes, shouldSelect);
+                } else if (targetList === 'groups') {
+                    setSelections(targetGroupCheckboxes, shouldSelect);
+                } else if (targetList === 'source-groups') {
+                    setSelections(sourceGroupCheckboxes, shouldSelect);
+                } else if (targetList === 'source-objects') {
+                    setSelections(sourceObjectCheckboxes, shouldSelect);
+                }
+
+                updateFormVisibility();
+            });
+        });
+
+        document.querySelectorAll('.js-next-step').forEach((button) => {
+            button.addEventListener('click', () => {
+                const nextStep = button.dataset.nextStep;
+                if (!ensureRuleNameBeforeStepChange(nextStep)) {
+                    return;
+                }
+                if (!ensureStepValidationBeforeStepChange(nextStep)) {
+                    return;
+                }
+                const resolvedStep = getNextEnabledStepId(nextStep, actionField.value);
+                openStep(resolvedStep);
+                updateFormVisibility();
+            });
+        });
+
+        document.querySelectorAll('.rule-step').forEach((step) => {
+            step.addEventListener('toggle', () => {
+                if (step.open) {
+                    if (!ensureRuleNameBeforeStepChange(step.id)) {
+                        step.open = false;
+                        return;
+                    }
+                    if (!ensureStepValidationBeforeStepChange(step.id)) {
+                        step.open = false;
+                        return;
+                    }
+                    openStep(step.id, false);
+                } else {
+                    openStep(currentStepId, false);
+                }
+
+                updateFormVisibility();
+                updateWizardProgress();
+            });
+        });
+
+        if (nameField) {
+            nameField.addEventListener('input', () => {
+                if (isRuleNameValid()) {
+                    setRuleNameValidationState(false);
+                }
+            });
+            nameField.addEventListener('blur', () => {
+                setRuleNameValidationState(!isRuleNameValid());
+            });
+        }
+
+        if (descriptionField) {
+            descriptionField.addEventListener('input', () => {
+                const valid = !!descriptionField.value.trim();
+                setFieldValidationState(descriptionField, descriptionRequiredFeedback, !valid);
+            });
+        }
+
+        if (sourceNumberChoiceField) {
+            sourceNumberChoiceField.addEventListener('change', () => {
+                setFieldValidationState(sourceNumberChoiceField, sourceNumberChoiceFeedback, !sourceNumberChoiceField.value);
+            });
+        }
+
+        if (messageFlagField) {
+            messageFlagField.addEventListener('input', () => {
+                const mustFill = !!(useMessageFlagField && useMessageFlagField.checked);
+                const valid = !!messageFlagField.value.trim();
+                setFieldValidationState(messageFlagField, messageFlagFeedback, mustFill && !valid);
+            });
+        }
+
+        initializeStepFromErrors();
+        updateFormVisibility();
+        updateWizardProgress();
+    })();
+</script>
+{% endblock %}

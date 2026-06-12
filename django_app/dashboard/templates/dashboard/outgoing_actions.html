@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Odchozí akce{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-send"></i> Odchozí akce</span>
+    <h1 class="hero-title">Fronta a historie odchozích akcí</h1>
+    <p class="hero-subtitle">Přehled akcí vytvořených pravidly: SMS, e-mail, Teams, DEVICE_PULL a předání na číslo.</p>
+    <div class="d-flex flex-wrap gap-2">
+        {% if perms.dashboard.view_automationrule %}
+            <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Pravidla</a>
+        {% endif %}
+        {% if perms.dashboard.view_incomingeventlog %}
+            <a href="{% url 'event_logs' %}" class="btn btn-app-outline">Logy událostí</a>
+        {% endif %}
+        <a href="{% url 'outgoing_actions' %}" class="btn {% if not active_action_type_filter %}btn-app-primary{% else %}btn-app-outline{% endif %}">Vše</a>
+        <a href="{% url 'outgoing_actions' %}?action_type=DEVICE_PULL" class="btn {% if active_action_type_filter == 'DEVICE_PULL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze DEVICE_PULL</a>
+        <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_SMS" class="btn {% if active_action_type_filter == 'NOTIFY_SMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze SMS</a>
+        <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_EMAIL" class="btn {% if active_action_type_filter == 'NOTIFY_EMAIL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze e-mail</a>
+        <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_TEAMS" class="btn {% if active_action_type_filter == 'NOTIFY_TEAMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze Teams</a>
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Čas</th>
+                    <th>Typ</th>
+                    <th>Cílové číslo</th>
+                    <th>Stav</th>
+                    <th>Pravidlo</th>
+                    <th>Zpráva</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in actions %}
+                <tr>
+                    <td>{{ action.created_at|date:"d.m.Y H:i:s" }}</td>
+                    <td>{{ action.get_action_type_display }}</td>
+                    <td class="mono">{{ action.target_number }}</td>
+                    <td>{{ action.get_status_display }}</td>
+                    <td>
+                        {% if action.rule %}
+                            <a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a>
+                            {% if action.flag_label %}
+                                <br><small class="text-muted-soft">{{ action.flag_label }}</small>
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ action.payload_message|truncatechars:140 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-muted-soft">Žádné odchozí akce zatím nejsou.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

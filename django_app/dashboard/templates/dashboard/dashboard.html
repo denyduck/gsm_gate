@@ -1,291 +1,435 @@
-
-
-{% block title %}Dashboard{% endblock %}
-
-{% block head %}
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-body {
-    background-color: #10101a;
-    color: #e5e5e5;
-    font-family: "Inter", sans-serif;
-}
-
-/* Sidebar */
-.sidebar {
-    background: #1c1c2e;
-    color: #f0f0f0;
-    min-height: 100vh;
-    padding: 25px 15px;
-    border-radius: 12px 0 0 12px;
-    position: sticky;
-    top: 20px;
-    box-shadow: 2px 0 20px rgba(0,0,0,0.4);
-}
-.sidebar h4 {
-    text-align: center;
-    font-weight: 700;
-    font-size: 1.4rem;
-    margin-bottom: 2rem;
-}
-.sidebar .nav-link {
-    color: #d0d0e0;
-    margin-bottom: 10px;
-    padding: 12px 15px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: all 0.2s;
-    font-weight: 500;
-}
-.sidebar .nav-link:hover {
-    background-color: rgba(255,255,255,0.12);
-    color: #fff;
-}
-.sidebar .nav-link.active {
-    background-color: rgba(255,255,255,0.18);
-    font-weight: 600;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.6);
-}
-
-/* Main content */
-.main-content {
-    background-color: #161622;
-    border-radius: 0 12px 12px 0;
-    padding: 30px;
-    box-shadow: 0 6px 25px rgba(0,0,0,0.5);
-}
-
-/* Stat cards */
-.card-stat {
-    background-color: #1f1b2f;
-    border-radius: 14px;
-    text-align: center;
-    padding: 25px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-.card-stat:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
-}
-.card-stat h5 {
-    font-weight: 600;
-    color: #e0e0e0;
-}
-
-/* Section cards */
-.card {
-    background-color: #1e1b2e;
-    border-radius: 14px;
-    border: none;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-    margin-bottom: 20px;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-}
-.card-header {
-    font-weight: 600;
-    background-color: #7f52d1;
-    color: #fff;
-    border-radius: 14px 14px 0 0;
-}
-
-/* Table */
-table {
-    color: #e0e0e0;
-}
-table th, table td {
-    vertical-align: middle;
-    border-color: #2d2d42;
-}
-.table-striped > tbody > tr:nth-of-type(odd) {
-    background-color: rgba(255,255,255,0.03);
-}
-.table-hover tbody tr:hover {
-    background-color: rgba(255,255,255,0.08);
-}
-
-/* Buttons */
-.btn-primary {
-    background: linear-gradient(90deg,#7f52d1,#563d7c);
-    border: none;
-}
-.btn-primary:hover {
-    background: linear-gradient(90deg,#8a63e0,#693da0);
-}
-.btn-success { background-color: #28a745; border: none; }
-.btn-danger { background-color: #dc3545; border: none; }
-
-/* Charts */
-canvas {
-    background-color: #1f1b2f;
-    border-radius: 14px;
-    padding: 15px;
-}
-
-/* Text and headings */
-h2, h5 {
-    color: #f0f0f0;
-}
-p {
-    color: #cfcfe0;
-    font-size: 0.95rem;
-}
-</style>
-{% endblock %}
+{% extends "base.html" %}
+{% block title %}Dashboard GSM brány{% endblock %}
 
 {% block content %}
-<div class="container my-4" style="max-width:1200px;">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-2 sidebar">
-            <h4>Menu</h4>
-            <nav class="nav flex-column">
-                <a class="nav-link active" href="#groups"><i class="bi bi-collection"></i> Skupiny</a>
-                <a class="nav-link" href="#rules"><i class="bi bi-gear"></i> Pravidla</a>
-                <a class="nav-link" href="#numbers"><i class="bi bi-telephone"></i> Čísla</a>
-                <a class="nav-link" href="#charts"><i class="bi bi-bar-chart"></i> Grafy</a>
-            </nav>
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-speedometer2"></i> Pracovní plocha · Kontakty</span>
+    <h1 class="hero-title">Správa kontaktů a skupin</h1>
+    <p class="hero-subtitle">Centrální pracovní místo pro příjemce SMS, skupiny a rychlé akce brány.</p>
+
+    <div class="row g-3 mb-2">
+        <div class="col-md-3">
+            <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalContacts" title="Zobrazit všechna čísla">
+                <div class="label"><i class="bi bi-telephone me-1"></i>Kontakty</div>
+                <div class="value">{{ numbers|length }}</div>
+            </div>
         </div>
-
-        <!-- Main content -->
-        <div class="col-md-10 main-content">
-            <h2 class="mb-4">Přehled</h2>
-
-            <!-- Statistika -->
-            <div class="row mb-4">
-                <div class="col-md-4"><div class="card-stat"><h5>Počet čísel</h5><h2>{{ numbers|length }}</h2></div></div>
-                <div class="col-md-4"><div class="card-stat"><h5>Odeslané SMS</h5><h2>0</h2></div></div>
-                <div class="col-md-4"><div class="card-stat"><h5>Stav brány</h5><h2>Online</h2></div></div>
+        <div class="col-md-3">
+            <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalActiveContacts" title="Zobrazit aktivní čísla">
+                <div class="label"><i class="bi bi-telephone-fill me-1 text-success"></i>Aktivní kontakty</div>
+                <div class="value">{{ active_numbers_count }}</div>
             </div>
-
-            <!-- Skupiny / Pravidla -->
-            <div id="groups" class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">Kontejner / Skupina</div>
-                        <div class="card-body table-responsive">
-                            {% if groups %}
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th><th>Název</th><th>Popis</th><th>Akce</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for group in groups %}
-                                    <tr>
-                                        <td>{{ group.id }}</td>
-                                        <td>{{ group.name }}</td>
-                                        <td>{{ group.description }}</td>
-                                        <td>
-                                            <a href="{% url 'edit_group' group.id %}" class="btn btn-sm btn-primary">Editovat</a>
-                                            <a href="{% url 'delete_group' group.id %}" class="btn btn-sm btn-danger">Smazat</a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p>Nemáte žádné skupiny.</p>
-                            {% endif %}
-                            <a href="{% url 'add_group' %}" class="btn btn-primary mt-2">Vytvořit</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="rules" class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">Vytvořit pravidlo</div>
-                        <div class="card-body text-center">
-                            <p>Definujte pravidlo pro automatické odesílání SMS podle vstupů nebo podmínek.</p>
-                            <a href="" class="btn btn-primary mt-2">Vytvořit</a>
-                        </div>
-                    </div>
-                </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalGroups" title="Zobrazit skupiny">
+                <div class="label"><i class="bi bi-collection me-1"></i>Skupiny</div>
+                <div class="value">{{ groups|length }}</div>
             </div>
-
-            <!-- Telefonní čísla -->
-            <div id="numbers" class="card table-responsive">
-                <div class="card-header"><h5>Telefonní čísla</h5></div>
-                <div class="card-body">
-                    {% if numbers %}
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr><th>ID</th><th>Číslo</th><th>Popis</th><th>Vlastník</th><th>Akce</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for number in numbers %}
-                            <tr>
-                                <td>{{ number.id }}</td>
-                                <td>{{ number.number }}</td>
-                                <td>{{ number.description }}</td>
-                                <td>{{ number.owner.username }}</td>
-                                <td>
-                                    <a href="{% url 'edit_number' number.id %}" class="btn btn-sm btn-primary">Editovat</a>
-                                    <a href="{% url 'delete_number' number.id %}" class="btn btn-sm btn-danger">Smazat</a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <p>Žádná čísla k dispozici.</p>
-                    {% endif %}
-                </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat">
+                <div class="label"><i class="bi bi-cpu me-1"></i>Modem</div>
+                <div class="value">SIM7000</div>
             </div>
-            <div class="text-end mb-4"><a href="{% url 'add_number' %}" class="btn btn-success">Přidat nové číslo</a></div>
-
-            <!-- Grafy -->
-            <div id="charts" class="row">
-                <div class="col-md-6 mb-3">
-                    <div class="card">
-                        <div class="card-header">Historie SMS</div>
-                        <div class="card-body">
-                            <canvas id="smsChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="card">
-                        <div class="card-header">Aktivita čísel</div>
-                        <div class="card-body">
-                            <canvas id="numbersChart"></canvas>
-                        </div>
-                    </div>
-                </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalRules" title="Zobrazit pravidla">
+                <div class="label"><i class="bi bi-diagram-3 me-1"></i>Pravidla reakcí</div>
+                <div class="value">{{ rules_count }}</div>
             </div>
-
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalLogs" title="Zobrazit události">
+                <div class="label"><i class="bi bi-journal-text me-1"></i>Zpracované události</div>
+                <div class="value">{{ logs_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalObjects" title="Zobrazit objekty">
+                <div class="label"><i class="bi bi-boxes me-1"></i>Objekty zařízení</div>
+                <div class="value">{{ objects_count }}</div>
+            </div>
         </div>
     </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        {% if can_add_number %}
+            <a class="btn btn-app-primary" href="{% url 'add_number' %}"><i class="bi bi-telephone-plus"></i> Přidat číslo</a>
+        {% endif %}
+        {% if can_bulk_add_numbers %}
+            <a class="btn btn-app-outline" href="{% url 'number_bulk_add' %}"><i class="bi bi-list-check"></i> Hromadné úpravy čísel</a>
+        {% endif %}
+        {% if can_add_group %}
+            <a class="btn btn-app-outline" href="{% url 'add_group' %}"><i class="bi bi-collection"></i> Přidat skupinu</a>
+        {% endif %}
+        {% if can_view_rules %}
+            <a class="btn btn-app-outline" href="{% url 'rules_list' %}"><i class="bi bi-diagram-3"></i> Pravidla reakcí</a>
+        {% endif %}
+        {% if can_view_object %}
+            <a class="btn btn-app-outline" href="{% url 'device_objects_list' %}"><i class="bi bi-boxes"></i> Objekty zařízení</a>
+        {% endif %}
+        {% if can_simulate_events %}
+            <a class="btn btn-app-outline" href="{% url 'incoming_simulator' %}"><i class="bi bi-lightning"></i> Simulace události</a>
+        {% endif %}
+        {% if can_view_logs %}
+            <a class="btn btn-app-outline" href="{% url 'event_logs' %}"><i class="bi bi-journal-text"></i> Logy událostí</a>
+        {% endif %}
+        {% if can_view_outgoing_actions %}
+            <a class="btn btn-app-outline" href="{% url 'outgoing_actions' %}"><i class="bi bi-send"></i> Odchozí akce</a>
+        {% endif %}
+        {% if can_view_gateway_status %}
+            <a class="btn btn-app-outline" href="{% url 'gateway_status' %}"><i class="bi bi-activity"></i> Stav</a>
+        {% endif %}
+        {% if can_change_gateway_settings %}
+            <a class="btn btn-app-outline" href="{% url 'gateway_settings' %}"><i class="bi bi-sliders"></i> Konfigurace</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header">
+        <h2 class="panel-title">Objekty zařízení</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if can_view_object %}
+                <a href="{% url 'device_objects_list' %}" class="btn btn-sm btn-app-outline">Otevřít seznam</a>
+            {% endif %}
+            {% if can_add_object %}
+                <a href="{% url 'device_object_add' %}" class="btn btn-sm btn-app-primary">+ Nový objekt</a>
+            {% endif %}
+        </div>
+    </div>
+    {% if objects %}
+        <div class="row g-3">
+            {% for obj in objects|slice:":8" %}
+                <div class="col-md-4 col-lg-3">
+                    {% include 'dashboard/_device_object_card.html' with obj=obj %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="p-3 text-muted-soft">Zatím nemáte žádné objekty zařízení.</div>
+    {% endif %}
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header">
+        <h2 class="panel-title">Telefonní čísla</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if can_bulk_add_numbers %}
+                <a href="{% url 'number_bulk_add' %}" class="btn btn-sm btn-app-outline">Hromadné úpravy</a>
+            {% endif %}
+            {% if can_add_number %}
+                <a href="{% url 'add_number' %}" class="btn btn-sm btn-app-primary">+ Nové číslo</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="table-wrap table-responsive">
+        {% if numbers %}
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr><th>ID</th><th>Číslo</th><th>Popis</th><th>Vlastník</th><th>Akce</th></tr>
+                </thead>
+                <tbody>
+                    {% for number in numbers %}
+                    <tr>
+                        <td>{{ number.id }}</td>
+                        <td>
+                            {{ number.number }}
+                            {% if number.owner_id == request.user.id %}
+                                <span class="pill ms-2">Jste vlastník</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ number.description }}</td>
+                        <td>{{ number.owner.username }}</td>
+                        <td>
+                                    {% if can_view_number %}
+                                        <a href="{% url 'number_detail' number.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                                    {% endif %}
+                                    {% if can_change_number and number.id in editable_number_ids %}
+                                        <a href="{% url 'edit_number' number.id %}" class="btn btn-sm btn-app-outline">Editovat</a>
+                                    {% endif %}
+                                    {% if can_delete_number and number.id in deletable_number_ids %}
+                                        <a href="{% url 'delete_number' number.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                                    {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Žádná čísla k dispozici.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Skupiny příjemců</h2>
+        {% if can_add_group %}
+            <a href="{% url 'add_group' %}" class="btn btn-sm btn-app-primary">+ Nová skupina</a>
+        {% endif %}
+    </div>
+    <div class="table-wrap table-responsive">
+        {% if groups %}
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr><th>ID</th><th>Název</th><th>Popis</th><th>Akce</th></tr>
+                </thead>
+                <tbody>
+                    {% for group in groups %}
+                    <tr>
+                        <td>{{ group.id }}</td>
+                        <td>
+                            {{ group.name }}
+                            {% if group.owner_id == request.user.id %}
+                                <span class="pill ms-2">Jste vlastník</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ group.description }}</td>
+                        <td>
+                                    {% if can_view_group %}
+                                        <a href="{% url 'group_detail' group.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                                    {% endif %}
+                                    {% if can_change_group and group.id in editable_group_ids %}
+                                        <a href="{% url 'edit_group' group.id %}" class="btn btn-sm btn-app-outline">Editovat</a>
+                                    {% endif %}
+                                    {% if can_delete_group and group.id in deletable_group_ids %}
+                                        <a href="{% url 'delete_group' group.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                                    {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Nemáte žádné skupiny.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_modals %}
+{# ── Modal: Všechna čísla ── #}
+<div class="modal fade" id="modalContacts" tabindex="-1" aria-labelledby="modalContactsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content stat-modal">
+      <div class="modal-header stat-modal-header">
+        <h5 class="modal-title" id="modalContactsLabel"><i class="bi bi-telephone me-2"></i>Kontakty ({{ numbers|length }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body stat-modal-body">
+        {% if numbers %}
+        <ul class="stat-modal-list">
+          {% for n in numbers %}
+          <li class="stat-modal-item">
+            <span class="stat-modal-item-main">
+              {% if can_view_number %}
+                <a href="{% url 'number_detail' n.id %}" class="stat-modal-link">{{ n.number }}</a>
+              {% else %}
+                {{ n.number }}
+              {% endif %}
+            </span>
+            <span class="stat-modal-item-sub">{{ n.description|default:"—" }}</span>
+            {% if n.active %}<span class="stat-modal-badge stat-modal-badge--ok">Aktivní</span>{% else %}<span class="stat-modal-badge stat-modal-badge--off">Neaktivní</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="stat-modal-empty">Žádná čísla.</p>
+        {% endif %}
+      </div>
+      {% if can_add_number %}
+      <div class="modal-footer stat-modal-footer">
+        <a href="{% url 'add_number' %}" class="btn btn-sm btn-app-primary"><i class="bi bi-telephone-plus me-1"></i>Přidat číslo</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const ctxSMS = document.getElementById('smsChart').getContext('2d');
-new Chart(ctxSMS, {
-    type:'line',
-    data:{
-        labels:['Pondělí','Úterý','Středa','Čtvrtek','Pátek'],
-        datasets:[{label:'Odeslané SMS', data:[5,7,3,6,4], borderColor:'#7f52d1', backgroundColor:'rgba(127,82,209,0.2)', tension:0.3}]
-    },
-    options:{ responsive:true, plugins:{ legend:{labels:{color:'#e0e0e0'}}}, scales:{x:{ticks:{color:'#e0e0e0'}}, y:{ticks:{color:'#e0e0e0'}}} }
-});
+{# ── Modal: Aktivní čísla ── #}
+<div class="modal fade" id="modalActiveContacts" tabindex="-1" aria-labelledby="modalActiveContactsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content stat-modal">
+      <div class="modal-header stat-modal-header">
+        <h5 class="modal-title" id="modalActiveContactsLabel"><i class="bi bi-telephone-fill me-2"></i>Aktivní kontakty ({{ active_numbers_count }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body stat-modal-body">
+        {% if numbers %}
+        <ul class="stat-modal-list">
+          {% for n in numbers %}{% if n.active %}
+          <li class="stat-modal-item">
+            <span class="stat-modal-item-main">
+              {% if can_view_number %}
+                <a href="{% url 'number_detail' n.id %}" class="stat-modal-link">{{ n.number }}</a>
+              {% else %}
+                {{ n.number }}
+              {% endif %}
+            </span>
+            <span class="stat-modal-item-sub">{{ n.description|default:"—" }}</span>
+            <span class="stat-modal-badge stat-modal-badge--ok">Aktivní</span>
+          </li>
+          {% endif %}{% endfor %}
+        </ul>
+        {% else %}
+        <p class="stat-modal-empty">Žádná aktivní čísla.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 
-const ctxNumbers = document.getElementById('numbersChart').getContext('2d');
-new Chart(ctxNumbers, {
-    type:'bar',
-    data:{
-        labels:['Číslo 1','Číslo 2','Číslo 3','Číslo 4'],
-        datasets:[{label:'Odeslané SMS', data:[3,5,2,4], backgroundColor:'rgba(127,82,209,0.6)'}]
-    },
-    options:{ responsive:true, plugins:{ legend:{labels:{color:'#e0e0e0'}}}, scales:{x:{ticks:{color:'#e0e0e0'}}, y:{ticks:{color:'#e0e0e0'}}} }
-});
-</script>
+{# ── Modal: Skupiny ── #}
+<div class="modal fade" id="modalGroups" tabindex="-1" aria-labelledby="modalGroupsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content stat-modal">
+      <div class="modal-header stat-modal-header">
+        <h5 class="modal-title" id="modalGroupsLabel"><i class="bi bi-collection me-2"></i>Skupiny ({{ groups|length }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body stat-modal-body">
+        {% if groups %}
+        <ul class="stat-modal-list">
+          {% for g in groups %}
+          <li class="stat-modal-item">
+            <span class="stat-modal-item-main">
+              {% if can_view_group %}
+                <a href="{% url 'group_detail' g.id %}" class="stat-modal-link">{{ g.name }}</a>
+              {% else %}
+                {{ g.name }}
+              {% endif %}
+            </span>
+            <span class="stat-modal-item-sub">{{ g.description|default:"—" }}</span>
+            <span class="stat-modal-badge">{{ g.phone_numbers.count }} čísel</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="stat-modal-empty">Žádné skupiny.</p>
+        {% endif %}
+      </div>
+      {% if can_add_group %}
+      <div class="modal-footer stat-modal-footer">
+        <a href="{% url 'add_group' %}" class="btn btn-sm btn-app-primary"><i class="bi bi-collection me-1"></i>Přidat skupinu</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Pravidla reakcí ── #}
+<div class="modal fade" id="modalRules" tabindex="-1" aria-labelledby="modalRulesLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content stat-modal">
+      <div class="modal-header stat-modal-header">
+        <h5 class="modal-title" id="modalRulesLabel"><i class="bi bi-diagram-3 me-2"></i>Pravidla reakcí ({{ rules_count }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body stat-modal-body">
+        {% if rules %}
+        <ul class="stat-modal-list">
+          {% for r in rules %}
+          <li class="stat-modal-item">
+            <span class="stat-modal-item-main">
+              {% if can_view_rules %}
+                <a href="{% url 'rule_detail' r.id %}" class="stat-modal-link">{{ r.name }}</a>
+              {% else %}
+                {{ r.name }}
+              {% endif %}
+            </span>
+            <span class="stat-modal-item-sub">{{ r.get_event_type_display }} → {{ r.get_action_display }}</span>
+            {% if r.active %}<span class="stat-modal-badge stat-modal-badge--ok">Aktivní</span>{% else %}<span class="stat-modal-badge stat-modal-badge--off">Neaktivní</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="stat-modal-empty">Žádná pravidla.</p>
+        {% endif %}
+      </div>
+      {% if can_view_rules %}
+      <div class="modal-footer stat-modal-footer">
+        <a href="{% url 'rules_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-diagram-3 me-1"></i>Všechna pravidla</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Zpracované události ── #}
+<div class="modal fade" id="modalLogs" tabindex="-1" aria-labelledby="modalLogsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content stat-modal">
+      <div class="modal-header stat-modal-header">
+        <h5 class="modal-title" id="modalLogsLabel"><i class="bi bi-journal-text me-2"></i>Zpracované události ({{ logs_count }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body stat-modal-body">
+        {% if recent_logs %}
+        {% if logs_count > 50 %}<p class="stat-modal-note">Zobrazeno posledních 50 z {{ logs_count }}.</p>{% endif %}
+        <ul class="stat-modal-list">
+          {% for log in recent_logs %}
+          <li class="stat-modal-item">
+            <span class="stat-modal-item-main">
+              {% if can_view_logs %}
+                <a href="{% url 'event_log_detail' log.id %}" class="stat-modal-link mono">{{ log.source_number }}</a>
+              {% else %}
+                <span class="mono">{{ log.source_number }}</span>
+              {% endif %}
+            </span>
+            <span class="stat-modal-item-sub">{{ log.created_at|date:"d.m.Y H:i" }} · {{ log.get_event_type_display }}</span>
+            {% if log.processed %}<span class="stat-modal-badge stat-modal-badge--ok">Zpracováno</span>{% else %}<span class="stat-modal-badge stat-modal-badge--off">Nezpracováno</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="stat-modal-empty">Žádné události.</p>
+        {% endif %}
+      </div>
+      {% if can_view_logs %}
+      <div class="modal-footer stat-modal-footer">
+        <a href="{% url 'event_logs' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-journal-text me-1"></i>Všechny logy</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Objekty zařízení ── #}
+<div class="modal fade" id="modalObjects" tabindex="-1" aria-labelledby="modalObjectsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content stat-modal">
+      <div class="modal-header stat-modal-header">
+        <h5 class="modal-title" id="modalObjectsLabel"><i class="bi bi-boxes me-2"></i>Objekty zařízení ({{ objects_count }})</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body stat-modal-body">
+        {% if objects %}
+        <ul class="stat-modal-list">
+          {% for obj in objects %}
+          <li class="stat-modal-item">
+            <span class="stat-modal-item-main">
+              {% if can_view_object %}
+                <a href="{% url 'device_object_detail' obj.id %}" class="stat-modal-link">{{ obj.name }}</a>
+              {% else %}
+                {{ obj.name }}
+              {% endif %}
+            </span>
+            <span class="stat-modal-item-sub">{{ obj.get_object_type_display|default:"—" }}{% if obj.object_label %} · {{ obj.object_label }}{% endif %}</span>
+            {% if obj.active %}<span class="stat-modal-badge stat-modal-badge--ok">Aktivní</span>{% else %}<span class="stat-modal-badge stat-modal-badge--off">Neaktivní</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="stat-modal-empty">Žádné objekty.</p>
+        {% endif %}
+      </div>
+      {% if can_view_object %}
+      <div class="modal-footer stat-modal-footer">
+        <a href="{% url 'device_objects_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-boxes me-1"></i>Všechny objekty</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

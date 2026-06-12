@@ -1,0 +1,38 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="38" y1="34" x2="216" y2="222" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#153047"/>
+      <stop offset="1" stop-color="#0D2235"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="69" y1="67" x2="187" y2="187" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5DCB9A"/>
+      <stop offset="1" stop-color="#46A9FF"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="94" y1="96" x2="162" y2="164" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1C2430"/>
+      <stop offset="1" stop-color="#101821"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="20" y="20" width="216" height="216" rx="48" fill="url(#bg)"/>
+  <rect x="20" y="20" width="216" height="216" rx="48" stroke="#6BBEE7" stroke-opacity="0.32"/>
+
+  <circle cx="128" cy="128" r="70" stroke="url(#ring)" stroke-width="10"/>
+
+  <rect x="92" y="92" width="72" height="72" rx="14" fill="url(#chip)"/>
+  <rect x="96" y="96" width="64" height="64" rx="11" stroke="#5F7288" stroke-opacity="0.7"/>
+  <text x="111" y="131" fill="#A3B3C5" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700">GSM</text>
+  <text x="111" y="146" fill="#7E90A4" font-family="Segoe UI, Arial, sans-serif" font-size="8" font-weight="600">GATE</text>
+
+  <rect x="56" y="120" width="26" height="16" rx="4" fill="#2F9BC6"/>
+  <rect x="174" y="120" width="26" height="16" rx="4" fill="#2F9BC6"/>
+  <rect x="120" y="56" width="16" height="26" rx="4" fill="#49BB8C"/>
+  <rect x="120" y="174" width="16" height="26" rx="4" fill="#49BB8C"/>
+
+  <path d="M188 74L202 60" stroke="#8DD9FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M200 60C208 66 208 74 200 80" stroke="#B7EAFF" stroke-width="3" stroke-linecap="round"/>
+  <path d="M212 50C226 64 226 76 212 90" stroke="#C8F0FF" stroke-opacity="0.62" stroke-width="3" stroke-linecap="round"/>
+
+  <circle cx="66" cy="66" r="8" fill="#285375"/>
+  <circle cx="190" cy="190" r="8" fill="#285375"/>
+</svg>

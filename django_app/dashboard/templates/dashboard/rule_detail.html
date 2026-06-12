@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Detail pravidla{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-diagram-3"></i> Detail pravidla</span>
+    <h1 class="hero-title">{{ rule.name }}</h1>
+    <p class="hero-subtitle">Kompletní nastavení pravidla a související data (cíle, podmínky, akce, události).</p>
+
+    <div class="d-flex flex-nowrap gap-2">
+        <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Zpět na pravidla</a>
+        {% if can_simulate_events %}
+            <a href="{% url 'incoming_simulator' %}?event_type={% if rule.event_type == 'ANY' %}SMS{% else %}{{ rule.event_type }}{% endif %}&source_number={{ rule.source_number|urlencode }}" class="btn btn-app-outline">Spustit simulaci</a>
+        {% endif %}
+        {% if can_change_rule %}
+            <a href="{% url 'rule_edit' rule.id %}" class="btn btn-app-primary">Upravit</a>
+        {% endif %}
+        {% if can_delete_rule %}
+            <a href="{% url 'rule_delete' rule.id %}" class="btn btn-outline-danger">Smazat</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Nastavení pravidla</h2></div>
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <tbody>
+                <tr><th>ID</th><td>{{ rule.id }}</td></tr>
+                <tr>
+                    <th>Vlastník</th>
+                    <td>
+                        {{ rule.owner.username|default:"—" }}
+                        {% if rule.owner_id == request.user.id %}
+                            <span class="badge text-bg-success ms-1">Jste vlastník</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr><th>Popis</th><td>{{ rule.description|default:"—" }}</td></tr>
+                <tr><th>Priorita</th><td>{{ rule.priority }}</td></tr>
+                <tr><th>Typ události</th><td>{{ rule.get_event_type_display }}</td></tr>
+                <tr><th>Typ podmínky</th><td>{{ rule.get_match_type_display }}</td></tr>
+                <tr><th>Filtrovat podle příznaku v SMS</th><td>{% if rule.use_message_flag %}Ano{% else %}Ne{% endif %}</td></tr>
+                <tr><th>Příznak v SMS</th><td>{{ rule.message_flag|default:"—" }}</td></tr>
+                <tr><th>Reakce</th><td>{{ rule.get_action_display }}</td></tr>
+                <tr><th>Aktivní</th><td>{% if rule.active %}Ano{% else %}Ne{% endif %}</td></tr>
+                <tr><th>Zdrojové číslo</th><td>{{ rule.source_number|default:"—" }}</td></tr>
+                <tr>
+                    <th>Zdrojové skupiny</th>
+                    <td>
+                        {% with source_groups=rule.source_groups.all %}
+                            {% if source_groups %}
+                                {% for group in source_groups %}
+                                    <a href="{% url 'group_detail' group.id %}" class="pill pill-link">{{ group.name }}</a>
+                                {% endfor %}
+                            {% elif rule.source_group %}
+                                <a href="{% url 'group_detail' rule.source_group.id %}" class="pill pill-link">{{ rule.source_group.name }}</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Zdrojové objekty</th>
+                    <td>
+                        {% for source_obj in rule.source_objects.all %}
+                            <a href="{% url 'device_object_detail' source_obj.id %}" class="pill pill-link">{{ source_obj.name }}</a>
+                        {% empty %}
+                            —
+                        {% endfor %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Cílová čísla</th>
+                    <td>
+                        {% for number in rule.target_numbers.all %}
+                            <a href="{% url 'number_detail' number.id %}" class="pill pill-link">{{ number.number }}</a>
+                        {% empty %}
+                            —
+                        {% endfor %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Cílová čísla pro předání</th>
+                    <td>
+                        {% if rule.action == 'FORWARD' %}
+                            {% with forward_targets=rule.target_numbers.all %}
+                                {% if forward_targets %}
+                                    {% for number in forward_targets %}
+                                        <a href="{% url 'number_detail' number.id %}" class="pill pill-link">{{ number.number }}</a>
+                                    {% endfor %}
+                                {% elif rule.forward_to_number %}
+                                    <span class="pill">{{ rule.forward_to_number }}</span>
+                                    <span class="text-muted-soft ms-1">(legacy)</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            {% endwith %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Cílové skupiny</th>
+                    <td>
+                        {% for group in rule.target_groups.all %}
+                            <a href="{% url 'group_detail' group.id %}" class="pill pill-link">{{ group.name }}</a>
+                        {% empty %}
+                            —
+                        {% endfor %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Notifikační kanály</th>
+                    <td>
+                        {% if rule.notify_via_sms %}<span class="pill">SMS</span>{% endif %}
+                        {% if rule.notify_via_email %}<span class="pill">E-mail</span>{% endif %}
+                        {% if rule.notify_via_teams %}<span class="pill">Teams</span>{% endif %}
+                        {% if not rule.notify_via_sms and not rule.notify_via_email and not rule.notify_via_teams %}—{% endif %}
+                    </td>
+                </tr>
+                <tr><th>Další e-maily</th><td>{{ rule.notification_emails|default:"—" }}</td></tr>
+                <tr><th>Předat na číslo (legacy)</th><td>{{ rule.forward_to_number|default:"—" }}</td></tr>
+                <tr><th>Vlastní text</th><td>{{ rule.custom_message|default:"—" }}</td></tr>
+                <tr><th>Přiložit původní zprávu</th><td>{% if rule.include_original_message %}Ano{% else %}Ne{% endif %}</td></tr>
+                <tr><th>Zastavit další vyhodnocení</th><td>{% if rule.stop_processing %}Ano{% else %}Ne{% endif %}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Poslední odchozí akce pravidla</h2></div>
+    <div class="table-wrap table-responsive">
+        {% if recent_actions %}
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead><tr><th>Čas</th><th>Typ akce</th><th>Cíl</th><th>Stav</th><th>Zpráva</th></tr></thead>
+            <tbody>
+                {% for action in recent_actions %}
+                <tr>
+                    <td>{{ action.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ action.get_action_type_display }}</td>
+                    <td class="mono">{{ action.target_number }}</td>
+                    <td>{{ action.get_status_display }}</td>
+                    <td>{{ action.payload_message|truncatechars:120 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Pro pravidlo zatím nejsou odchozí akce.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Související příchozí události</h2></div>
+    <div class="table-wrap table-responsive">
+        {% if source_logs %}
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead><tr><th>Čas</th><th>Typ</th><th>Zdroj</th><th>Výsledek</th></tr></thead>
+            <tbody>
+                {% for log in source_logs %}
+                <tr class="clickable-row" onclick="window.location='{% url 'event_log_detail' log.id %}'">
+                    <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ log.get_event_type_display }}</td>
+                    <td class="mono">{{ log.source_number }}</td>
+                    <td>{{ log.result_summary|truncatechars:120 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Pro pravidlo zatím nejsou odpovídající události.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -1,8 +1,23 @@
 {% extends "base.html" %}
+{% block title %}Smazat skupinu{% endblock %}
+
 {% block content %}
-<h2>Smazat skupinu "{{ group.name }}"?</h2>
-<form method="post">{% csrf_token %}
-    <button type="submit" class="btn btn-danger">Smazat</button>
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Zrušit</a>
-</form>
+<section class="app-panel confirm-box">
+    <span class="status-badge"><i class="bi bi-exclamation-triangle"></i> Nevratná akce</span>
+    <h1 class="hero-title fs-3">Smazat skupinu {{ group.name }}?</h1>
+    <p class="hero-subtitle mb-3">Tato akce je nevratná. Čísla zůstanou zachována, ale vazba na skupinu bude odstraněna.</p>
+    <p class="mb-3">
+        <strong>Vlastník:</strong> {{ group.owner.username|default:"—" }}
+        {% if group.owner_id == request.user.id %}
+            <span class="badge text-bg-success ms-1">Jste vlastník</span>
+        {% endif %}
+    </p>
+
+    <form method="post">{% csrf_token %}
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-outline-danger">Smazat</button>
+            <a href="{% url 'group_detail' group.id %}" class="btn btn-app-outline">Zrušit</a>
+        </div>
+    </form>
+</section>
 {% endblock %}

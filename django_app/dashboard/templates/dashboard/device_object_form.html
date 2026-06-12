@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-boxes"></i> Objekt zařízení</span>
+    <h1 class="hero-title">{{ title }}</h1>
+    <p class="hero-subtitle">Vyberte velkou ikonu, nastavte příznak stavu a doplňte specifikaci objektu.</p>
+</section>
+
+<section class="app-panel">
+    <div class="form-shell">
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="col-md-6">
+                <label class="form-label">{{ form.name.label }}</label>
+                {{ form.name }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.object_label.label }}</label>
+                {{ form.object_label }}
+                <div class="form-text">Volitelný popisek toho, co objekt reprezentuje.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.object_type.label }}</label>
+                {{ form.object_type }}
+            </div>
+            <div class="col-md-12">
+                <label class="form-label d-block">{{ form.icon.label }}</label>
+                <div class="row g-2">
+                    {% with selected_icon=form.icon.value|default:'hdd-network' %}
+                        {% for value,label in form.fields.icon.choices %}
+                            <div class="col-md-3 col-6">
+                                <label class="border rounded p-2 d-flex flex-column align-items-center gap-1 w-100" style="cursor:pointer;">
+                                    <input type="radio" name="icon" value="{{ value }}" class="form-check-input mt-1"
+                                        {% if selected_icon == value %}checked{% endif %}>
+                                    <i class="bi bi-{{ value }}" style="font-size: 36px;"></i>
+                                    <small>{{ label }}</small>
+                                </label>
+                            </div>
+                        {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="form-text">Vyberte primární ikonu objektu.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.status_flag.label }}</label>
+                {{ form.status_flag }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.status_label.label }}</label>
+                {{ form.status_label }}
+            </div>
+            <div class="col-md-6 form-check mt-4">
+                {{ form.active }} <label class="form-check-label ms-2">{{ form.active.label }}</label>
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">{{ form.description.label }}</label>
+                {{ form.description }}
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">{{ form.specification.label }}</label>
+                {{ form.specification }}
+            </div>
+
+            <div class="col-12 d-flex gap-2 flex-wrap">
+                <button type="submit" class="btn btn-app-primary">Uložit objekt</button>
+                <a href="{% url 'device_objects_list' %}" class="btn btn-app-outline">Zpět</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

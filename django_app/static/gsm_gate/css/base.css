@@ -1,0 +1,93 @@
+:root {
+    --bg-main: #0d111b;
+    --bg-elev-1: #131a2a;
+    --bg-elev-2: #1b2438;
+    --bg-soft: #0f1524;
+    --text-main: #e8edf8;
+    --text-muted: #a8b1c7;
+    --primary: #5f7cff;
+    --primary-soft: rgba(95, 124, 255, 0.18);
+    --danger: #ff6b81;
+    --success: #36c38a;
+    --border: #2b3550;
+    --body-grad-1: #1a2450;
+    --body-grad-2: #1b3a54;
+    --footer-bg: rgba(13, 17, 27, 0.85);
+    --topbar-bg: rgba(19, 26, 42, 0.82);
+    --panel-bg-start: rgba(19, 26, 42, 0.9);
+    --panel-bg-end: rgba(19, 26, 42, 0.75);
+    --shadow-main: 0 14px 40px rgba(0, 0, 0, 0.3);
+    --input-bg: #0f1524;
+    --input-border: #34405f;
+    --table-row-odd: rgba(255, 255, 255, 0.015);
+    --table-row-hover: rgba(95, 124, 255, 0.1);
+    --chip-bg: rgba(95, 124, 255, 0.12);
+    --logout-border: #3f4a66;
+    --logout-text: #e6ebfb;
+    --logout-hover-bg: rgba(255, 107, 129, 0.12);
+    --logout-hover-text: #ffd7de;
+}
+
+html[data-theme='light'] {
+    --bg-main: #eef3fb;
+    --bg-elev-1: #ffffff;
+    --bg-elev-2: #f3f6fc;
+    --bg-soft: #f8faff;
+    --text-main: #1f2a44;
+    --text-muted: #5f6d86;
+    --primary: #3f66f3;
+    --primary-soft: rgba(63, 102, 243, 0.15);
+    --danger: #d23f56;
+    --success: #2f9c70;
+    --border: #d4ddee;
+    --body-grad-1: #dbe7ff;
+    --body-grad-2: #d8f0ff;
+    --footer-bg: rgba(238, 243, 251, 0.9);
+    --topbar-bg: rgba(255, 255, 255, 0.88);
+    --panel-bg-start: rgba(255, 255, 255, 0.95);
+    --panel-bg-end: rgba(247, 250, 255, 0.96);
+    --shadow-main: 0 14px 32px rgba(31, 42, 68, 0.1);
+    --input-bg: #ffffff;
+    --input-border: #c4d0e9;
+    --table-row-odd: rgba(63, 102, 243, 0.045);
+    --table-row-hover: rgba(63, 102, 243, 0.08);
+    --chip-bg: rgba(63, 102, 243, 0.12);
+    --logout-border: #c9d5ed;
+    --logout-text: #314261;
+    --logout-hover-bg: rgba(210, 63, 86, 0.12);
+    --logout-hover-text: #8f2537;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--text-main);
+    font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background:
+        radial-gradient(1200px 700px at 0% -10%, var(--body-grad-1) 0%, transparent 60%),
+        radial-gradient(900px 600px at 100% 0%, var(--body-grad-2) 0%, transparent 50%),
+        var(--bg-main);
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+.site-main {
+    max-width: 1280px;
+    min-height: 84vh;
+}
+
+footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    background: var(--footer-bg);
+    backdrop-filter: blur(4px);
+}
+
+a {
+    text-decoration: none;
+}

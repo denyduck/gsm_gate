@@ -43,12 +43,45 @@ services:
       - DATABASE_PASSWORD=user
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
+      - GSM_ENABLED=${GSM_ENABLED:-false}
+      - GSM_MODEM_PORT=${GSM_MODEM_PORT:-/dev/ttyUSB0}
+      - GSM_MODEM_BAUD=${GSM_MODEM_BAUD:-115200}
+      - GSM_WORKER_INTERVAL=${GSM_WORKER_INTERVAL:-10}
     depends_on:
       - db
     networks:
       - gsm_network
     
     command: python manage.py runserver 0.0.0.0:8000
+
+  gsm_worker:
+    container_name: gsm_worker
+    build:
+      context: ./django_app
+      dockerfile: Dockerfile_django
+    volumes:
+      - ./django_app:/usr/src/app
+    environment:
+      - DATABASE_NAME=user
+      - DATABASE_USER=user
+      - DATABASE_PASSWORD=user
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - GSM_ENABLED=${GSM_ENABLED:-true}
+      - GSM_MODEM_PORT=${GSM_MODEM_PORT:-/dev/ttyUSB0}
+      - GSM_MODEM_BAUD=${GSM_MODEM_BAUD:-115200}
+      - GSM_WORKER_INTERVAL=${GSM_WORKER_INTERVAL:-10}
+      - GSM_MAX_ACTIONS_PER_CYCLE=${GSM_MAX_ACTIONS_PER_CYCLE:-30}
+    depends_on:
+      - db
+    devices:
+      - "${GSM_MODEM_PORT:-/dev/ttyUSB0}:${GSM_MODEM_PORT:-/dev/ttyUSB0}"
+    command: python manage.py gsm_gateway_worker --interval ${GSM_WORKER_INTERVAL:-10}
+    restart: unless-stopped
+    networks:
+      - gsm_network
+    profiles:
+      - rpi
 volumes:
   postgres_data:
 networks:

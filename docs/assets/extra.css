@@ -1,0 +1,22 @@
+:root {
+  --md-primary-fg-color: #0b3b46;
+  --md-primary-fg-color--light: #135365;
+  --md-primary-fg-color--dark: #072a33;
+  --md-accent-fg-color: #1cc3d8;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #0e151c;
+  --md-default-fg-color: #e6eef5;
+  --md-typeset-a-color: #43d6e8;
+}
+
+.md-header {
+  border-bottom: 1px solid rgba(67, 214, 232, 0.25);
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  letter-spacing: 0.01em;
+}

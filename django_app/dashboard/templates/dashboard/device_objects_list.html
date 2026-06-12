@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Objekty zařízení{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-boxes"></i> Objekty zařízení</span>
+    <h1 class="hero-title">Přehled objektů zařízení</h1>
+    <p class="hero-subtitle">Každý objekt reprezentuje zařízení nebo zdroj událostí a má vlastní ikonu, stav i detail.</p>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'dashboard' %}" class="btn btn-app-outline">Zpět na dashboard</a>
+        {% if can_add_object %}
+            <a href="{% url 'device_object_add' %}" class="btn btn-app-primary">Nový objekt</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Objekty zařízení</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-app-outline">Zpět na dashboard</a>
+            {% if can_add_object %}
+                <a href="{% url 'device_object_add' %}" class="btn btn-sm btn-app-primary">+ Nový objekt</a>
+            {% endif %}
+        </div>
+    </div>
+    {% if objects %}
+        <div class="row g-3">
+            {% for obj in objects %}
+                <div class="col-md-4 col-lg-3">
+                    {% include 'dashboard/_device_object_card.html' with obj=obj %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="p-3 text-muted-soft">Žádné objekty zatím nejsou vytvořené.</div>
+    {% endif %}
+</section>
+{% endblock %}

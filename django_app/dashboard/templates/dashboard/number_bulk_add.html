@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Hromadné úpravy čísel{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-list-check"></i> Hromadné operace</span>
+    <h1 class="hero-title">Hromadné úpravy telefonních čísel</h1>
+    <p class="hero-subtitle">Postup: vyberte operaci, označte existující čísla (nebo je doplňte ručně/CSV), pak potvrďte změnu.</p>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'number_bulk_csv_template' %}" class="btn btn-app-outline"><i class="bi bi-download"></i> Stáhnout vzor CSV</a>
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="form-shell">
+        <form method="post" enctype="multipart/form-data" class="row g-3">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="col-12 alert alert-danger">
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="col-12">
+                <label class="form-label">{{ form.operation.label }}</label>
+                {{ form.operation }}
+                <div class="form-text">Vyberte, jaká hromadná operace se má nad zadanými čísly provést.</div>
+            </div>
+
+            <div class="col-md-6" id="existing-numbers-wrap">
+                <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                    <label class="form-label mb-0">{{ form.existing_numbers.label }}</label>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-app-outline btn-sm" id="existing-numbers-select-all">Vybrat vše</button>
+                        <button type="button" class="btn btn-app-outline btn-sm" id="existing-numbers-clear-all">Zrušit vše</button>
+                    </div>
+                </div>
+
+                <input type="text" id="existing-numbers-search" class="form-control mb-2" placeholder="Filtrovat čísla nebo popis...">
+
+                {% if form.fields.existing_numbers.queryset.exists %}
+                    <div class="list-group list-scroll" id="existing-numbers-list">
+                        {% with selected_existing=form.existing_numbers.value %}
+                            {% for number in form.fields.existing_numbers.queryset %}
+                                <label class="list-group-item group-item mb-1 rounded">
+                                    <input class="group-checkbox me-2" type="checkbox" name="existing_numbers" value="{{ number.pk }}"
+                                        {% if selected_existing %}
+                                            {% if number.pk|stringformat:"s" in selected_existing or number.pk in selected_existing %}checked{% endif %}
+                                        {% endif %}>
+                                    <span class="group-item-text">{{ number.number }}{% if number.description %} — {{ number.description }}{% endif %}</span>
+                                </label>
+                            {% endfor %}
+                        {% endwith %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning mb-0">Nemáte žádná existující čísla.</div>
+                {% endif %}
+                <div class="form-text">{{ form.existing_numbers.help_text }}</div>
+            </div>
+
+            <div class="col-md-6" id="groups-wrap">
+                <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                    <label class="form-label mb-0">{{ form.groups.label }}</label>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-app-outline btn-sm" id="bulk-groups-select-all">Vybrat vše</button>
+                        <button type="button" class="btn btn-app-outline btn-sm" id="bulk-groups-clear-all">Zrušit vše</button>
+                    </div>
+                </div>
+
+                {% if form.fields.groups.queryset.exists %}
+                    <div class="list-group list-scroll" id="bulk-groups-list">
+                        {% with selected_groups=form.groups.value %}
+                            {% for group in form.fields.groups.queryset %}
+                                <label class="list-group-item group-item mb-1 rounded">
+                                    <input class="group-checkbox me-2" type="checkbox" name="groups" value="{{ group.pk }}"
+                                        {% if selected_groups %}
+                                            {% if group.pk|stringformat:"s" in selected_groups or group.pk in selected_groups %}checked{% endif %}
+                                        {% endif %}>
+                                    <span class="group-item-text">{{ group.name }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endwith %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning mb-0">Nemáte žádné skupiny. Nejprve vytvořte skupinu.</div>
+                {% endif %}
+                <div class="form-text">{{ form.groups.help_text }}</div>
+
+                <div class="form-check mt-3" id="create-missing-wrap">
+                    {{ form.create_missing }}
+                    <label class="form-check-label ms-2" for="{{ form.create_missing.id_for_label }}">{{ form.create_missing.label }}</label>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">{{ form.numbers_raw.label }} (volitelné)</label>
+                {{ form.numbers_raw }}
+                <div class="form-text">{{ form.numbers_raw.help_text }}</div>
+                <div class="form-text">Příklad: +420777111222, +420777111333 nebo každý kontakt na samostatný řádek.</div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">{{ form.csv_file.label }} (volitelné)</label>
+                {{ form.csv_file }}
+                <div class="form-text">{{ form.csv_file.help_text }}</div>
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-2 mt-2">
+                <button type="submit" class="btn btn-app-primary">Zpracovat hromadnou úpravu</button>
+                <a href="{% url 'dashboard' %}" class="btn btn-app-outline">Zpět</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const groupCheckboxes = Array.from(document.querySelectorAll('input[name="groups"]'));
+        const existingNumberCheckboxes = Array.from(document.querySelectorAll('input[name="existing_numbers"]'));
+        const selectAllBtn = document.getElementById('bulk-groups-select-all');
+        const clearAllBtn = document.getElementById('bulk-groups-clear-all');
+        const existingSelectAllBtn = document.getElementById('existing-numbers-select-all');
+        const existingClearAllBtn = document.getElementById('existing-numbers-clear-all');
+        const operationField = document.getElementById('id_operation');
+        const groupsWrap = document.getElementById('groups-wrap');
+        const existingWrap = document.getElementById('existing-numbers-wrap');
+        const createMissingWrap = document.getElementById('create-missing-wrap');
+        const existingSearchInput = document.getElementById('existing-numbers-search');
+        const existingItems = Array.from(document.querySelectorAll('#existing-numbers-list .group-item'));
+
+        function updateOperationVisibility() {
+            const operation = operationField ? operationField.value : 'ADD_GROUPS';
+            const needsGroups = operation === 'ADD_GROUPS' || operation === 'REMOVE_GROUPS' || operation === 'REPLACE_GROUPS';
+            const showCreateMissing = operation === 'ADD_GROUPS';
+
+            if (groupsWrap) {
+                groupsWrap.classList.toggle('d-none', !needsGroups);
+                groupsWrap.querySelectorAll('input').forEach((input) => {
+                    input.disabled = !needsGroups;
+                });
+            }
+
+            if (existingWrap) {
+                existingWrap.classList.toggle('d-none', false);
+            }
+
+            if (createMissingWrap) {
+                createMissingWrap.classList.toggle('d-none', !showCreateMissing);
+                const createMissingInput = createMissingWrap.querySelector('input');
+                if (createMissingInput) {
+                    createMissingInput.disabled = !showCreateMissing;
+                }
+            }
+        }
+
+        function setAll(checked) {
+            groupCheckboxes.forEach((checkbox) => {
+                if (checkbox.checked !== checked) {
+                    checkbox.checked = checked;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+
+        function setAllExisting(checked) {
+            existingNumberCheckboxes.forEach((checkbox) => {
+                if (checkbox.checked !== checked) {
+                    checkbox.checked = checked;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+
+        function filterExistingNumbers() {
+            const query = (existingSearchInput ? existingSearchInput.value : '').trim().toLowerCase();
+            existingItems.forEach((item) => {
+                const text = item.textContent.trim().toLowerCase();
+                item.classList.toggle('d-none', query && !text.includes(query));
+            });
+        }
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => setAll(true));
+        }
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => setAll(false));
+        }
+
+        if (existingSelectAllBtn) {
+            existingSelectAllBtn.addEventListener('click', () => setAllExisting(true));
+        }
+        if (existingClearAllBtn) {
+            existingClearAllBtn.addEventListener('click', () => setAllExisting(false));
+        }
+
+        if (existingSearchInput) {
+            existingSearchInput.addEventListener('input', filterExistingNumbers);
+            filterExistingNumbers();
+        }
+
+        if (operationField) {
+            operationField.addEventListener('change', updateOperationVisibility);
+            updateOperationVisibility();
+        }
+    })();
+</script>
+{% endblock %}

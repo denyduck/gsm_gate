@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Pravidla reakcí{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-diagram-3"></i> Automatizace</span>
+    <h1 class="hero-title">Pravidla reakcí na příchozí SMS a volání</h1>
+    <p class="hero-subtitle">Definujte robustní logiku: ignorace, notifikace na více čísel, předání na číslo a priorita pravidel.</p>
+    <div class="d-flex flex-wrap gap-2">
+        {% if can_add_rule %}
+            <a href="{% url 'rule_add' %}" class="btn btn-app-primary"><i class="bi bi-plus-circle"></i> Nové pravidlo</a>
+        {% endif %}
+        {% if can_simulate_events %}
+            <a href="{% url 'incoming_simulator' %}" class="btn btn-app-outline">Simulace události</a>
+        {% endif %}
+        {% if can_view_logs %}
+            <a href="{% url 'event_logs' %}" class="btn btn-app-outline">Logy</a>
+        {% endif %}
+        {% if can_view_outgoing_actions %}
+            <a href="{% url 'outgoing_actions' %}" class="btn btn-app-outline">Odchozí akce</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="table-wrap table-responsive">
+        {% if rules %}
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Priorita</th>
+                    <th>Název</th>
+                    <th>Spouštěč</th>
+                    <th>Podmínka</th>
+                    <th>Akce</th>
+                    <th>Aktivní</th>
+                    <th>Operace</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in rules %}
+                <tr>
+                    <td>{{ rule.priority }}</td>
+                    <td>
+                        {% if can_view_rule %}
+                            <a href="{% url 'rule_detail' rule.id %}" class="table-link"><strong>{{ rule.name }}</strong></a>
+                        {% else %}
+                            <strong>{{ rule.name }}</strong>
+                        {% endif %}
+                        {% if rule.owner_id == request.user.id %}
+                            <span class="badge text-bg-success ms-1">Jste vlastník</span>
+                        {% endif %}
+                        <br>
+                        <small class="text-muted-soft">{{ rule.description }}</small>
+                    </td>
+                    <td>{{ rule.get_event_type_display }}</td>
+                    <td>
+                        {{ rule.get_match_type_display }}
+                        {% if rule.source_number %}<br><small class="mono">{{ rule.source_number }}</small>{% endif %}
+                        {% with source_groups=rule.source_groups.all %}
+                            {% if source_groups %}
+                                <br><small>
+                                    {% for group in source_groups %}
+                                        <a href="{% url 'group_detail' group.id %}" class="table-link">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </small>
+                            {% elif rule.source_group %}
+                                <br><small><a href="{% url 'group_detail' rule.source_group.id %}" class="table-link">{{ rule.source_group.name }}</a></small>
+                            {% endif %}
+                        {% endwith %}
+                        {% with source_objects=rule.source_objects.all %}
+                            {% if source_objects %}
+                                <br><small>
+                                    {% for source_obj in source_objects %}
+                                        <a href="{% url 'device_object_detail' source_obj.id %}" class="table-link">{{ source_obj.name }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </small>
+                            {% endif %}
+                        {% endwith %}
+                        {% if rule.use_message_flag %}
+                            <br><small><strong>Příznak:</strong> <span class="mono">{{ rule.message_flag }}</span></small>
+                        {% endif %}
+                    </td>
+                    <td>{{ rule.get_action_display }}</td>
+                    <td>{% if rule.active %}Ano{% else %}Ne{% endif %}</td>
+                    <td>
+                        <div class="d-flex flex-nowrap gap-1">
+                            {% if can_view_rule %}
+                                <a href="{% url 'rule_detail' rule.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                            {% endif %}
+                            {% if can_change_rule and rule.id in editable_rule_ids %}
+                                <a href="{% url 'rule_edit' rule.id %}" class="btn btn-sm btn-app-outline">Upravit</a>
+                            {% endif %}
+                            {% if can_delete_rule and rule.id in deletable_rule_ids %}
+                                <a href="{% url 'rule_delete' rule.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Zatím nemáte žádná pravidla. Vytvořte první reakční pravidlo.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

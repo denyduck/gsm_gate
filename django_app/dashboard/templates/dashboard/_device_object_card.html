@@ -1,0 +1,42 @@
+<div class="device-object-card h-100">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="device-object-card__icon-wrap">
+            <i class="bi bi-{{ obj.icon }} device-object-card__icon"></i>
+        </div>
+        {% if obj.status_flag == 'OK' %}
+            <span class="badge text-bg-success">{{ obj.get_status_flag_display }}</span>
+        {% elif obj.status_flag == 'WARN' %}
+            <span class="badge text-bg-warning">{{ obj.get_status_flag_display }}</span>
+        {% elif obj.status_flag == 'ALERT' %}
+            <span class="badge text-bg-danger">{{ obj.get_status_flag_display }}</span>
+        {% else %}
+            <span class="badge text-bg-secondary">{{ obj.get_status_flag_display }}</span>
+        {% endif %}
+    </div>
+    <div class="fw-semibold">
+        {{ obj.name }}
+        {% if obj.owner_id == request.user.id %}
+            <span class="pill ms-2">Jste vlastník</span>
+        {% endif %}
+    </div>
+    <small class="text-muted-soft">{{ obj.get_object_type_display }}</small>
+    {% if obj.object_label %}
+        <small class="d-block text-muted-soft">{{ obj.object_label }}</small>
+    {% endif %}
+    {% if obj.status_label %}
+        <small class="d-block mt-1">{{ obj.status_label }}</small>
+    {% endif %}
+    <small class="d-block mt-1 text-muted-soft">Vlastník: {{ obj.owner.username }}</small>
+
+    <div class="device-object-card__actions mt-3 d-flex gap-1 flex-wrap">
+        {% if can_view_object %}
+            <a href="{% url 'device_object_detail' obj.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+        {% endif %}
+        {% if can_change_object and obj.id in editable_object_ids %}
+            <a href="{% url 'device_object_edit' obj.id %}" class="btn btn-sm btn-app-outline">Editovat</a>
+        {% endif %}
+        {% if can_delete_object and obj.id in deletable_object_ids %}
+            <a href="{% url 'device_object_delete' obj.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+        {% endif %}
+    </div>
+</div>

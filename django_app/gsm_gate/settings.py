@@ -26,7 +26,11 @@ SECRET_KEY = 'django-insecure-t0%wq!9&yzf6t5(ovu0(v^-8g3y9wf3_$m4r^+t7_@is7#h@=!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://localhost:8000,http://127.0.0.1:8000'
+).split(',')
 
 
 # Application definition
@@ -121,7 +125,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -132,3 +140,26 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Redirect to home URL after login (Default redirects to /accounts/profile/)
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+def _env_bool(name, default='false'):
+    return os.environ.get(name, default).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+GSM_ENABLED = _env_bool('GSM_ENABLED', 'false')
+GSM_MODEM_PORT = os.environ.get('GSM_MODEM_PORT', '/dev/ttyUSB0')
+GSM_MODEM_BAUD = int(os.environ.get('GSM_MODEM_BAUD', '115200'))
+GSM_MODEM_TIMEOUT = float(os.environ.get('GSM_MODEM_TIMEOUT', '3'))
+GSM_WORKER_INTERVAL = int(os.environ.get('GSM_WORKER_INTERVAL', '10'))
+GSM_MAX_ACTIONS_PER_CYCLE = int(os.environ.get('GSM_MAX_ACTIONS_PER_CYCLE', '30'))
+
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', 'false')
+EMAIL_USE_SSL = _env_bool('EMAIL_USE_SSL', 'false')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@gsm-gate.local')
+NOTIFY_EMAIL_SUBJECT_PREFIX = os.environ.get('NOTIFY_EMAIL_SUBJECT_PREFIX', '[GSM Gate]')
+NOTIFY_TEAMS_TIMEOUT = float(os.environ.get('NOTIFY_TEAMS_TIMEOUT', '8'))

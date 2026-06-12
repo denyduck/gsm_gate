@@ -1,0 +1,32 @@
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-main);
+    letter-spacing: 0.1px;
+}
+
+p {
+    color: var(--text-muted);
+}
+
+.text-muted-soft {
+    color: var(--text-muted) !important;
+}
+
+.mono {
+    font-family: "JetBrains Mono", "Consolas", monospace;
+}
+
+.code-chip {
+    display: inline-block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.15rem 0.45rem;
+    background: #0f1524;
+    color: #c6d4ff;
+    font-size: 0.78rem;
+}
+
+.section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}

@@ -1,0 +1,46 @@
+site_name: GSM Gate Documentation
+site_description: Kompletní dokumentace projektu GSM Gate (Django + SIM7000)
+site_url: http://localhost:8010
+repo_name: gsm_gate
+
+theme:
+  name: material
+  language: cs
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Přepnout na světlý režim
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Přepnout na tmavý režim
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - def_list
+  - footnotes
+
+extra_css:
+  - docs/assets/extra.css
+
+nav:
+  - Úvod: index.md
+  - Architektura: architektura.md
+  - Funkcionalita: funkcionalita.md
+  - Role a oprávnění: role-a-opravneni.md
+  - API objektů zařízení: api-objekty-zarizeni.md
+  - Provozní scénáře: provozni-scenare.md
+  - Troubleshooting: troubleshooting.md

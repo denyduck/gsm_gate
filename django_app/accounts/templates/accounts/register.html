@@ -3,69 +3,51 @@
 {% block title %}Registrace{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow-lg border-0">
-            <div class="card-header bg-success text-white text-center">
-                <h3 class="mb-0">Vytvořit účet</h3>
+<section class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="auth-card p-3 p-md-4">
+            <div class="mb-3">
+                <span class="status-badge"><i class="bi bi-person-plus"></i> Nový účet</span>
+                <h1 class="hero-title fs-3">Registrace uživatele</h1>
+                <p class="text-muted-soft mb-0">Po registraci je nutné schválení správcem v Django administraci.</p>
             </div>
-            <div class="card-body p-4">
-                <form method="post" novalidate>
-                    {% csrf_token %}
 
-                    <!-- Zobrazení chyb -->
-                    {% if form.errors %}
-                        <div class="alert alert-danger">
-                            <strong>Opravit chyby:</strong>
-                            <ul class="mb-0">
-                                {% for field in form %}
-                                    {% for error in field.errors %}
-                                        <li>{{ error }}</li>
-                                    {% endfor %}
-                                {% endfor %}
-                                {% for error in form.non_field_errors %}
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Opravit chyby:</strong>
+                        <ul class="mb-0">
+                            {% for field in form %}
+                                {% for error in field.errors %}
                                     <li>{{ error }}</li>
                                 {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
 
-                    <!-- Pole formuláře -->
-                    {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.help_text %}
-                                <small class="form-text text-muted">{{ field.help_text }}</small>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
+                {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="form-text text-muted-soft">{{ field.help_text }}</small>
+                        {% endif %}
+                    </div>
+                {% endfor %}
 
-                    <!-- Submit -->
-                    <button type="submit" class="btn btn-success w-100">Registrovat</button>
-                </form>
-            </div>
-            <div class="card-footer text-center">
-                <p class="mb-0">
-                    Už máš účet? <a href="{% url 'login' %}" class="text-success fw-bold">Přihlásit se</a>
-                </p>
+                <button type="submit" class="btn btn-app-primary w-100">Registrovat</button>
+            </form>
+
+            <div class="mt-3 text-center text-muted-soft">
+                Už máš účet? <a href="{% url 'login' %}">Přihlásit se</a>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Bootstrap styly pro inputy -->
-<style>
-    input, select, textarea {
-        width: 100%;
-        padding: .5rem .75rem;
-        border: 1px solid #ced4da;
-        border-radius: .375rem;
-    }
-    input:focus {
-        border-color: #198754;
-        box-shadow: 0 0 0 .25rem rgba(25, 135, 84, 0.25);
-        outline: 0;
-    }
-</style>
+</section>
 {% endblock %}

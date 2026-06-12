@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Logy událostí{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-journal-text"></i> Logy událostí</span>
+    <h1 class="hero-title">Historie příchozích událostí a reakcí</h1>
+    <p class="hero-subtitle">Přehled příchozích událostí a navazujících akcí. Nejnovější záznamy jsou nahoře.</p>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'incoming_simulator' %}" class="btn btn-app-primary">Nová simulace</a>
+        <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Pravidla</a>
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div class="form-text mb-0">Zobrazeno posledních {{ logs|length }} událostí.</div>
+        <div class="form-text mb-0">Sloupec „Akce" obsahuje počet navazujících akcí a případné příznaky pravidel.</div>
+    </div>
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Čas</th>
+                    <th>Typ</th>
+                    <th>Zdroj</th>
+                    <th>Souhrn</th>
+                    <th>Akce</th>
+                    <th>Detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at|date:"d.m.Y H:i:s" }}</td>
+                    <td>
+                        {% if log.event_type == 'SMS' %}
+                            <span class="pill">SMS</span>
+                        {% elif log.event_type == 'CALL' %}
+                            <span class="pill">Volání</span>
+                        {% elif log.event_type == 'API' %}
+                            <span class="pill">API</span>
+                        {% else %}
+                            <span class="pill">{{ log.get_event_type_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono">{{ log.source_number }}</td>
+                    <td>{{ log.result_summary|default:"—"|truncatechars:140 }}</td>
+                    <td>
+                        <span class="pill">{{ log.actions.count }} akcí</span>
+                        {% if log.unique_flag_labels %}
+                            <div class="mt-1">
+                                {% for label in log.unique_flag_labels %}
+                                    <div><small class="text-muted-soft">{{ label }}</small></div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'event_log_detail' log.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-muted-soft">Žádné záznamy zatím nejsou.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

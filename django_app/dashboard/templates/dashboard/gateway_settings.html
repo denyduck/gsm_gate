@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Nastavení GSM brány{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-sliders"></i> Konfigurace</span>
+    <h1 class="hero-title">Nastavení GSM brány</h1>
+    <p class="hero-subtitle">Konfigurace modemu SIM7000 a provozních parametrů brány.</p>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Parametry zařízení a provozu</h2>
+    </div>
+
+    <div class="form-shell">
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <div class="col-md-6">
+                <label class="form-label">{{ form.serial_port.label }}</label>
+                {{ form.serial_port }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.baud_rate.label }}</label>
+                {{ form.baud_rate }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">{{ form.pin_code.label }}</label>
+                {{ form.pin_code }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.apn.label }}</label>
+                {{ form.apn }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">{{ form.network_mode.label }}</label>
+                {{ form.network_mode }}
+                <div class="form-text">Vyberte síťový režim ze seznamu dostupných možností.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.sms_storage.label }}</label>
+                {{ form.sms_storage }}
+                <div class="form-text">Vyberte, odkud má brána číst SMS zprávy.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">{{ form.heartbeat_interval_sec.label }}</label>
+                {{ form.heartbeat_interval_sec }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">{{ form.webhook_url.label }}</label>
+                {{ form.webhook_url }}
+            </div>
+
+            <div class="col-md-4 form-check mt-4">
+                {{ form.delivery_reports }}
+                <label class="form-check-label ms-2">{{ form.delivery_reports.label }}</label>
+            </div>
+            <div class="col-md-4 form-check mt-4">
+                {{ form.allow_incoming_sms }}
+                <label class="form-check-label ms-2">{{ form.allow_incoming_sms.label }}</label>
+            </div>
+            <div class="col-md-4 form-check mt-4">
+                {{ form.auto_start_gateway }}
+                <label class="form-check-label ms-2">{{ form.auto_start_gateway.label }}</label>
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-app-primary"><i class="bi bi-save"></i> Uložit nastavení</button>
+                <a href="{% url 'gateway_status' %}" class="btn btn-app-outline">Zobrazit stav</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-app-outline">Zpět na dashboard</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

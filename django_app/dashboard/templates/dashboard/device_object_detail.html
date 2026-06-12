@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Detail objektu{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-boxes"></i> Detail objektu</span>
+    <h1 class="hero-title">{{ obj.name }}</h1>
+    <p class="hero-subtitle">Detailní nastavení objektu zařízení včetně ikony, příznaku a specifikace.</p>
+
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'device_objects_list' %}" class="btn btn-app-outline">Zpět na objekty</a>
+        {% if can_change_object %}
+            <a href="{% url 'device_object_edit' obj.id %}" class="btn btn-app-primary">Editovat</a>
+        {% endif %}
+        {% if can_delete_object %}
+            <a href="{% url 'device_object_delete' obj.id %}" class="btn btn-outline-danger">Smazat</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <i class="bi bi-{{ obj.icon }}" style="font-size: 64px;"></i>
+        <div>
+            <div class="fw-semibold">{{ obj.get_object_type_display }}</div>
+            {% if obj.object_label %}
+                <div class="small text-muted-soft">{{ obj.object_label }}</div>
+            {% endif %}
+            {% if obj.status_flag == 'OK' %}
+                <span class="badge text-bg-success">{{ obj.get_status_flag_display }}</span>
+            {% elif obj.status_flag == 'WARN' %}
+                <span class="badge text-bg-warning">{{ obj.get_status_flag_display }}</span>
+            {% elif obj.status_flag == 'ALERT' %}
+                <span class="badge text-bg-danger">{{ obj.get_status_flag_display }}</span>
+            {% else %}
+                <span class="badge text-bg-secondary">{{ obj.get_status_flag_display }}</span>
+            {% endif %}
+            {% if obj.status_label %}
+                <div class="mt-1">{{ obj.status_label }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <tbody>
+                <tr><th>ID</th><td>{{ obj.id }}</td></tr>
+                <tr><th>Vlastník</th><td>{{ obj.owner.username }} {% if obj.owner_id == request.user.id %}<span class="pill ms-2">Jste vlastník</span>{% endif %}</td></tr>
+                <tr><th>Popisek objektu</th><td>{{ obj.object_label|default:"—" }}</td></tr>
+                <tr><th>Aktivní</th><td>{% if obj.active %}Ano{% else %}Ne{% endif %}</td></tr>
+                <tr><th>Popis</th><td>{{ obj.description|default:"—" }}</td></tr>
+                <tr><th>Vytvořeno</th><td>{{ obj.created_at|date:"d.m.Y H:i" }}</td></tr>
+                <tr><th>Upraveno</th><td>{{ obj.updated_at|date:"d.m.Y H:i" }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Specifikace</h2></div>
+    {% if obj.specification %}
+        <div class="p-3" style="white-space: pre-wrap;">{{ obj.specification }}</div>
+    {% else %}
+        <div class="p-3 text-muted-soft">Specifikace zatím nebyla vyplněna.</div>
+    {% endif %}
+</section>
+
+<section class="app-panel mt-4">
+    <div class="panel-header d-flex justify-content-between align-items-center">
+        <h2 class="panel-title mb-0">API komunikace objektu</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if can_change_object %}
+                <a href="{% url 'device_object_export_config' obj.id %}" class="btn btn-sm btn-app-outline">Export config</a>
+                <form method="post" action="{% url 'device_object_regenerate_api_key' obj.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Regenerovat API klíč</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="table-wrap table-responsive mb-3">
+        <table class="table table-striped align-middle mb-0">
+            <tbody>
+                <tr><th>Endpoint</th><td class="mono">{{ api_ingest_url }}</td></tr>
+                <tr><th>Header</th><td class="mono">X-Device-Token: {{ api_credential.token }}</td></tr>
+                <tr><th>Aktivní klíč</th><td>{% if api_credential.active %}Ano{% else %}Ne{% endif %}</td></tr>
+                <tr><th>Naposledy použit</th><td>{% if api_credential.last_used_at %}{{ api_credential.last_used_at|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="p-3 border rounded">
+        <div class="fw-semibold mb-2">Ukázka požadavku</div>
+        <pre class="mb-0" style="white-space: pre-wrap;">curl -X POST "{{ api_ingest_url }}" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-Token: {{ api_credential.token }}" \
+  -d '{"event_type":"SMS","source_number":"{{ obj.id }}","message_body":"{{ obj.status_label|default:"test event" }}"}'</pre>
+    </div>
+</section>
+{% endblock %}

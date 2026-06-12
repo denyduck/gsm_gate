@@ -1,161 +1,305 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}GSM Brána{% endblock %}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}GSM Brána{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-<!-- Bootstrap & Icons -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('gsm_theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 
-<style>
-body {
-    background-color: #10101a;
-    color: #e5e5e5;
-    font-family: "Inter", sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-}
+    <!-- Bootstrap & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
-main {
-    flex: 1 0 auto;
-}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'gsm_gate/css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'gsm_gate/css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'gsm_gate/css/typography.css' %}">
 
-footer {
-    flex-shrink: 0;
-    background-color: #1c1c2e;
-    color: #e5e5e5;
-}
-
-.info-banner {
-    background-color: #1c1c2e;
-    padding: 1rem 2rem;
-    border-radius: 1rem;
-    width: 100%;
-    max-width: 1200px;
-    margin-bottom: 2rem;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    align-items: center;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-}
-
-.info-banner .user-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.info-banner .btn {
-    background: linear-gradient(90deg,#7f52d1,#563d7c);
-    color: #fff;
-    border: none;
-    font-weight: 500;
-}
-
-.info-banner .btn:hover {
-    background: linear-gradient(90deg,#8a63e0,#693da0);
-}
-
-/* ASCII hlídací pes */
-.ascii-logo {
-    font-family: monospace;
-    color: #7f52d1;
-    text-align: center;
-    font-weight: bold;
-    line-height: 1.1;
-    font-size: 1rem;
-    margin-bottom: 2rem;
-}
-
-@media (min-width: 768px) {
-    .ascii-logo {
-        font-size: 1.3rem;
-    }
-}
-@media (min-width: 1200px) {
-    .ascii-logo {
-        font-size: 1.5rem;
-    }
-}
-
-.card, .alert {
-    background-color: #1e1b2e;
-    color: #e5e5e5;
-    border-radius: 1rem;
-    border: none;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-}
-
-h1, h2, h3, h4, h5 {
-    color: #f0f0f0;
-}
-p, li {
-    color: #cfcfe0;
-}
-
-footer p {
-    margin: 0;
-}
-</style>
-{% block head %}{% endblock %}
+    {% block head %}{% endblock %}
 </head>
 <body>
 
-<main class="container d-flex flex-column align-items-center justify-content-start my-4" style="max-width:1200px; min-height:80vh;">
+<main class="container site-main d-flex flex-column align-items-center justify-content-start my-4">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a href="{% url 'home' %}" class="brand-title fs-5">
+                <span class="brand-mark" aria-hidden="true"></span>
+                GSM Brána · Automatizace a monitoring
+            </a>
 
-    <!-- ASCII hlídací pes jako logo -->
-
-    <!-- Info banner s názvem a uživatelem -->
-    <div class="info-banner d-flex flex-column flex-md-row align-items-center justify-content-between">
-        <!-- Název GSM Brána -->
-        <div class="fw-bold fs-3 text-gradient mb-2 mb-md-0" style="background: linear-gradient(90deg,#7f52d1,#563d7c); -webkit-background-clip: text; color: transparent;">
-            GSM Brána
-        </div>
-
-        <!-- Uživatelské akce -->
-        <div class="user-actions d-flex gap-2">
+            <nav class="topnav">
+                <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Přepnout motiv">🌙 Dark</button>
             {% if user.is_authenticated %}
-                <span class="fw-bold align-self-center text-white">Vítej, {{ user.username }}!</span>
+                <a class="nav-link-app" href="{% url 'home' %}">Přehled</a>
+                <a class="nav-link-app" href="{% url 'dashboard' %}">Kontakty</a>
+                {% if perms.dashboard.view_automationrule %}
+                    <a class="nav-link-app" href="{% url 'rules_list' %}">Pravidla</a>
+                {% endif %}
+                {% if perms.dashboard.add_incomingeventlog %}
+                    <a class="nav-link-app" href="{% url 'incoming_simulator' %}">Simulace</a>
+                {% endif %}
+                {% if perms.dashboard.view_incomingeventlog %}
+                    <a class="nav-link-app" href="{% url 'event_logs' %}">Logy</a>
+                {% endif %}
+                {% if perms.dashboard.view_outgoingaction %}
+                    <a class="nav-link-app" href="{% url 'outgoing_actions' %}">Odchozí akce</a>
+                {% endif %}
+                {% if perms.dashboard.view_gatewaysettings %}
+                    <a class="nav-link-app" href="{% url 'gateway_status' %}">Stav</a>
+                {% endif %}
+                {% if perms.dashboard.change_gatewaysettings %}
+                    <a class="nav-link-app" href="{% url 'gateway_settings' %}">Konfigurace</a>
+                {% endif %}
+                {% if user.is_staff %}
+                    <a class="nav-link-app" href="/admin/">Admin</a>
+                {% endif %}
+                <span class="chip-user">{{ user.username }}</span>
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-sm">Odhlásit</button>
+                    <button type="submit" class="btn-logout">Odhlásit</button>
                 </form>
             {% else %}
-                <a class="btn btn-sm" href="{% url 'login' %}">Přihlášení</a>
-                <a class="btn btn-sm" href="{% url 'register' %}">Registrace</a>
+                <a class="nav-link-app" href="{% url 'home' %}">Přehled</a>
+                <a class="nav-link-app" href="{% url 'login' %}">Přihlášení</a>
+                <a class="nav-link-app" href="{% url 'register' %}">Registrace</a>
             {% endif %}
+            </nav>
         </div>
-    </div>
+    </header>
 
     <!-- Flash messages -->
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show w-100" role="alert">
                 {{ message }}
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
     {% endif %}
 
     <!-- Hlavní obsah -->
-    <div class="w-100">
-        {% block content %}{% endblock %}
+    <div class="w-100 content-wrap">
+        {% block content %}{% endblock content %}
     </div>
 
 </main>
 
 <!-- Footer -->
-<footer class="text-center py-3 shadow-sm bg-dark text-white w-100">
-    <p>&copy; 2025 GSM Brána</p>
+<footer class="text-center py-3 w-100">
+    <p class="mb-0">&copy; 2026 GSM Brána · Veřejné rozhraní</p>
 </footer>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-{% block scripts %}{% endblock %}
+<script>
+    (function () {
+        const toggle = document.getElementById('theme-toggle');
+        if (!toggle) return;
+
+        const labels = {
+            dark: '🌙 Dark',
+            light: '☀️ Light',
+        };
+
+        const updateToggleText = () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            toggle.textContent = labels[currentTheme] || labels.dark;
+        };
+
+        toggle.addEventListener('click', function () {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('gsm_theme', nextTheme);
+            updateToggleText();
+        });
+
+        updateToggleText();
+    })();
+</script>
+<script>
+    (function () {
+        function getSelectedOptions(field) {
+            if (!field || field.tagName !== 'SELECT' || !field.multiple) {
+                return [];
+            }
+            return Array.from(field.options).filter((option) => option.selected);
+        }
+
+        function ensureMultiSelectStatus(selectField) {
+            const prev = selectField.previousElementSibling;
+            if (prev && prev.classList && prev.classList.contains('multiselect-status')) {
+                return prev;
+            }
+            const next = selectField.nextElementSibling;
+            if (next && next.classList && next.classList.contains('multiselect-status')) {
+                return next;
+            }
+
+            const status = document.createElement('div');
+            status.className = 'multiselect-status';
+            selectField.insertAdjacentElement('beforebegin', status);
+            return status;
+        }
+
+        function ensureCheckboxGroupStatus(groupContainer) {
+            const prev = groupContainer.previousElementSibling;
+            if (prev && prev.classList && prev.classList.contains('multiselect-status')) {
+                return prev;
+            }
+            const next = groupContainer.nextElementSibling;
+            if (next && next.classList && next.classList.contains('multiselect-status')) {
+                return next;
+            }
+
+            const status = document.createElement('div');
+            status.className = 'multiselect-status';
+            groupContainer.insertAdjacentElement('beforebegin', status);
+            return status;
+        }
+
+        function updateMultiSelectStatus(selectField) {
+            const selected = getSelectedOptions(selectField);
+            const status = ensureMultiSelectStatus(selectField);
+
+            if (selected.length === 0) {
+                status.innerHTML = 'Vybráno: <strong>0</strong>';
+                return;
+            }
+
+            const selectedLabels = selected.map((option) => option.textContent.trim()).filter(Boolean);
+            const preview = selectedLabels.slice(0, 3).join(', ');
+            const suffix = selectedLabels.length > 3 ? ' …' : '';
+            status.innerHTML = `Vybráno: <strong>${selected.length}</strong> · ${preview}${suffix}`;
+        }
+
+        function enableEasyMultiSelect(selectField) {
+            if (selectField.dataset.easyMultiEnabled === '1') {
+                return;
+            }
+
+            selectField.dataset.easyMultiEnabled = '1';
+            selectField.addEventListener('mousedown', (event) => {
+                const option = event.target.closest('option');
+                if (!option) {
+                    return;
+                }
+
+                event.preventDefault();
+                option.selected = !option.selected;
+                selectField.dispatchEvent(new Event('change', { bubbles: true }));
+                selectField.focus();
+            });
+
+            const refresh = () => updateMultiSelectStatus(selectField);
+            selectField.addEventListener('change', refresh);
+            selectField.addEventListener('input', refresh);
+            refresh();
+        }
+
+        function updateCheckboxGroupStatus(groupContainer) {
+            const checkboxes = Array.from(groupContainer.querySelectorAll('.group-checkbox'));
+            const selected = checkboxes.filter((checkbox) => checkbox.checked);
+            const selectedLabels = selected
+                .map((checkbox) => {
+                    const wrapper = checkbox.closest('.group-item');
+                    const textNode = wrapper ? wrapper.querySelector('.group-item-text') : null;
+                    return textNode ? textNode.textContent.trim() : '';
+                })
+                .filter(Boolean);
+
+            const status = ensureCheckboxGroupStatus(groupContainer);
+
+            if (selectedLabels.length === 0) {
+                status.innerHTML = 'Vybráno: <strong>0</strong>';
+                return;
+            }
+
+            const preview = selectedLabels.slice(0, 3).join(', ');
+            const suffix = selectedLabels.length > 3 ? ' …' : '';
+            status.innerHTML = `Vybráno: <strong>${selectedLabels.length}</strong> · ${preview}${suffix}`;
+        }
+
+        function enableCheckboxGroupSummary(groupContainer) {
+            if (groupContainer.dataset.checkboxSummaryEnabled === '1') {
+                return;
+            }
+
+            groupContainer.dataset.checkboxSummaryEnabled = '1';
+            const refresh = () => updateCheckboxGroupStatus(groupContainer);
+
+            groupContainer.addEventListener('change', (event) => {
+                if (event.target && event.target.matches('.group-checkbox')) {
+                    refresh();
+                }
+            });
+
+            refresh();
+        }
+
+        function isConfirmed(field) {
+            if (!field) return false;
+
+            if (field.matches('input[type="checkbox"], input[type="radio"]')) {
+                return field.checked;
+            }
+
+            if (field.tagName === 'SELECT' && field.multiple) {
+                return Array.from(field.options).some((option) => option.selected);
+            }
+
+            if (field.tagName === 'SELECT') {
+                return !!field.value;
+            }
+
+            return (field.value || '').trim().length > 0;
+        }
+
+        function applyConfirmedState(field) {
+            const confirmed = isConfirmed(field);
+            field.classList.toggle('field-confirmed', confirmed);
+        }
+
+        function initFieldStates() {
+            const fields = document.querySelectorAll('.form-shell select, .form-shell input, .form-shell textarea, .auth-card select, .auth-card input, .auth-card textarea');
+            fields.forEach((field) => {
+                applyConfirmedState(field);
+                field.addEventListener('change', () => applyConfirmedState(field));
+                field.addEventListener('input', () => applyConfirmedState(field));
+
+                if (field.tagName === 'SELECT' && field.multiple) {
+                    enableEasyMultiSelect(field);
+                }
+            });
+
+            const checkboxGroups = document.querySelectorAll('.form-shell .list-group.list-scroll');
+            checkboxGroups.forEach((groupContainer) => {
+                if (groupContainer.querySelector('.group-checkbox')) {
+                    enableCheckboxGroupSummary(groupContainer);
+                }
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initFieldStates);
+        } else {
+            initFieldStates();
+        }
+    })();
+</script>
+{% block scripts %}{% endblock scripts %}
+{% block extra_modals %}{% endblock extra_modals %}
+
 </body>
 </html>

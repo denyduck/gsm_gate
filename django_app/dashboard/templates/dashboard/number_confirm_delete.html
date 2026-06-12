@@ -1,27 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Smazat kontejner{% endblock %}
-
-{% block head %}
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-{% endblock %}
+{% block title %}Smazat číslo{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 text-center">
-            <h2 class="mb-4">Smazat kontejner "{{ container.name }}"?</h2>
-            <p class="text-muted mb-4">
-                Tato akce je nevratná. Všechna pravidla uvnitř kontejneru budou také smazána.
-            </p>
-            <form method="post">
-                {% csrf_token %}
-                <div class="d-flex justify-content-center gap-2">
-                    <button type="submit" class="btn btn-danger">Ano, smazat</button>
-                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Zrušit</a>
-                </div>
-            </form>
+<section class="app-panel confirm-box">
+    <span class="status-badge"><i class="bi bi-exclamation-triangle"></i> Nevratná akce</span>
+    <h1 class="hero-title fs-3">Smazat číslo {{ number.number }}?</h1>
+    <p class="hero-subtitle mb-3">Tato akce je nevratná. Číslo bude odstraněno ze seznamu příjemců.</p>
+    <p class="mb-3">
+        <strong>Vlastník:</strong> {{ number.owner.username|default:"—" }}
+        {% if number.owner_id == request.user.id %}
+            <span class="badge text-bg-success ms-1">Jste vlastník</span>
+        {% endif %}
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-outline-danger">Ano, smazat</button>
+            <a href="{% url 'number_detail' number.id %}" class="btn btn-app-outline">Zrušit</a>
         </div>
-    </div>
-</div>
+    </form>
+</section>
 {% endblock %}

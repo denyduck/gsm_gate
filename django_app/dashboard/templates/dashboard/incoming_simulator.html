@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Simulace příchozí události{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-lightning"></i> Simulace události</span>
+    <h1 class="hero-title">Simulace příchozí SMS / volání / API</h1>
+    <p class="hero-subtitle">Otestujte pravidla a ověřte, co se stane při příchozí události.</p>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="form-shell">
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-4">
+                <label class="form-label">{{ form.event_type.label }}</label>
+                {{ form.event_type }}
+            </div>
+            <div id="sim-source-number-wrap" class="col-md-8">
+                <label class="form-label">{{ form.source_number.label }}</label>
+                {{ form.source_number }}
+            </div>
+            <div id="sim-source-object-wrap" class="col-md-8">
+                <label class="form-label">{{ form.source_object.label }}</label>
+                {{ form.source_object }}
+                <div class="form-text">Pro API událost je výběr objektu povinný.</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">{{ form.message_body.label }}</label>
+                {{ form.message_body }}
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-app-primary">Spustit simulaci</button>
+                <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Upravit pravidla</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{% if latest_log %}
+<section class="app-panel mb-4">
+    <div class="panel-header">
+        <h2 class="panel-title">Výsledek poslední simulace</h2>
+    </div>
+    <div class="mb-2">
+        <a href="{% url 'event_log_detail' latest_log.id %}" class="btn btn-sm btn-app-outline">Otevřít detail události</a>
+    </div>
+    <p><strong>Událost:</strong> {{ latest_log.get_event_type_display }} z {{ latest_log.source_number }}</p>
+    <pre class="p-3 result-box">{{ latest_log.result_summary }}</pre>
+
+    {% if generated_actions %}
+    <div class="table-wrap table-responsive mt-3">
+        <table class="table table-striped table-hover align-middle">
+            <thead><tr><th>Typ akce</th><th>Cílové číslo</th><th>Stav</th><th>Zpráva</th></tr></thead>
+            <tbody>
+                {% for action in generated_actions %}
+                <tr>
+                    <td>{{ action.get_action_type_display }}</td>
+                    <td class="mono">{{ action.target_number }}</td>
+                    <td>{{ action.get_status_display }}</td>
+                    <td>{{ action.payload_message }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Posledních 20 událostí</h2></div>
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead><tr><th>Čas</th><th>Typ</th><th>Zdroj</th><th>Souhrn</th><th>Akce ve frontě</th><th>Detail</th></tr></thead>
+            <tbody>
+                {% for item in recent_logs %}
+                <tr>
+                    <td>{{ item.created_at|date:"d.m.Y H:i:s" }}</td>
+                    <td>{{ item.get_event_type_display }}</td>
+                    <td class="mono">{{ item.source_number }}</td>
+                    <td>{{ item.result_summary|truncatechars:120 }}</td>
+                    <td>{{ item.actions.count }}</td>
+                    <td><a href="{% url 'event_log_detail' item.id %}" class="btn btn-sm btn-app-outline">Detail</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted-soft">Žádná historická data.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const eventTypeField = document.getElementById('id_event_type');
+        const sourceNumberWrap = document.getElementById('sim-source-number-wrap');
+        const sourceObjectWrap = document.getElementById('sim-source-object-wrap');
+        const sourceNumberField = document.getElementById('id_source_number');
+        const sourceObjectField = document.getElementById('id_source_object');
+
+        if (!eventTypeField || !sourceNumberWrap || !sourceObjectWrap) {
+            return;
+        }
+
+        function setVisible(wrapper, visible) {
+            wrapper.classList.toggle('d-none', !visible);
+            wrapper.querySelectorAll('input, select, textarea').forEach((field) => {
+                field.disabled = !visible;
+            });
+        }
+
+        function updateSimulationFormVisibility() {
+            const eventType = (eventTypeField.value || '').toUpperCase();
+            const isApi = eventType === 'API';
+
+            setVisible(sourceObjectWrap, isApi);
+            setVisible(sourceNumberWrap, !isApi);
+
+            if (isApi && sourceNumberField) {
+                sourceNumberField.value = '';
+            }
+
+            if (!isApi && sourceObjectField) {
+                sourceObjectField.value = '';
+            }
+        }
+
+        eventTypeField.addEventListener('change', updateSimulationFormVisibility);
+        updateSimulationFormVisibility();
+    })();
+</script>
+{% endblock %}

@@ -1,167 +1,113 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}GSM Brána – Úvod{% endblock %}
 
-{% block head %}
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-/* Úvodní stránka styl */
-.hero {
-    text-align: center;
-    padding: 60px 15px 40px 15px;
-}
-.hero h1 {
-    font-size: 3rem;
-    color: #7f52d1;
-    font-weight: 700;
-}
-.hero p {
-    font-size: 1.25rem;
-    color: #cfcfe0;
-    margin-bottom: 30px;
-}
-.hero .btn {
-    min-width: 180px;
-    margin-bottom: 10px;
-}
-
-/* Funkce karty */
-.feature-card {
-    background-color: #1e1b2e;
-    border-radius: 12px;
-    padding: 30px 20px;
-    color: #e0e0e0;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-.feature-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-.feature-card .display-6 {
-    font-size: 2.5rem;
-}
-.feature-card h5 {
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-.feature-card p {
-    color: #cfcfe0;
-}
-
-/* Rychlý přístup */
-.quick-access .card {
-    background-color: #161622;
-    color: #e0e0e0;
-    border-radius: 12px;
-}
-.quick-access .card-header {
-    font-weight: 600;
-}
-.quick-access .list-group-item {
-    background-color: #1e1b2e;
-    border: none;
-    color: #e0e0e0;
-}
-.quick-access .list-group-item .btn {
-    min-width: 100px;
-}
-
-
-
-/* ASCII hlídací pes */
-.ascii-logo {
-    font-family: monospace;
-    color: #7f52d1;
-    text-align: center;
-    font-weight: bold;
-    line-height: 1.1;
-    font-size: 1rem;
-    margin-bottom: 2rem;
-}
-
-
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="content-container">
+<section class="app-panel mb-4">
+    <div class="hero-layout">
+        <div class="hero-copy">
+            <span class="status-badge"><i class="bi bi-broadcast"></i> Veřejné rozhraní · GSM brána</span>
+            <div class="hero-top-row">
+                <div class="hero-text-col">
+                    <h1 class="hero-title">Aplikace pro správu GSM brány</h1>
+                    <p class="hero-subtitle">
+                        Profesionální prostředí pro administraci, monitoring a simulaci provozu GSM brány.
+                        Platforma sjednocuje SMS, volání a API události do jednoho řízeného workflow
+                        s přehlednými logy, pravidly a rychlou konfigurací zařízení.
+                    </p>
+                    <div class="hero-highlights" aria-label="Klíčové vlastnosti">
+                        <span><i class="bi bi-shield-check"></i> Řízení přístupu podle rolí</span>
+                        <span><i class="bi bi-lightning-charge"></i> Reakce na události v reálném čase</span>
+                        <span><i class="bi bi-diagram-3"></i> Integrace přes API a webhooky</span>
+                    </div>
+                </div>
 
-    <!-- Hero sekce -->
-    <div class="hero">
-        <pre class="ascii-logo">
-   ###    ##       ######## ########  ########     ######  ##    ##  ######  ######## ######## ##     ## 
-  ## ##   ##       ##       ##     ##    ##       ##    ##  ##  ##  ##    ##    ##    ##       ###   ### 
- ##   ##  ##       ##       ##     ##    ##       ##         ####   ##          ##    ##       #### #### 
-##     ## ##       ######   ########     ##        ######     ##     ######     ##    ######   ## ### ## 
-######### ##       ##       ##   ##      ##             ##    ##          ##    ##    ##       ##     ## 
-##     ## ##       ##       ##    ##     ##       ##    ##    ##    ##    ##    ##    ##       ##     ## 
-##     ## ######## ######## ##     ##    ##        ######     ##     ######     ##    ######## ##     ## 
+                <aside class="hero-visual" aria-hidden="true">
+                    <img src="{% static 'gsm_gate/images/rpi5-gsm-vector.svg' %}" alt="" class="hero-rpi-image">
+                    <p class="hero-visual-note">RPi 5 propojený s GSM modulem pro SMS, volání i API události</p>
+                </aside>
+            </div>
 
-        </pre>
+            <div class="d-flex flex-wrap gap-2">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-app-primary"><i class="bi bi-speedometer2"></i> Otevřít aplikaci</a>
+                    <a href="{% url 'gateway_status' %}" class="btn btn-app-outline"><i class="bi bi-activity"></i> Stav brány</a>
+                    <a href="{% url 'gateway_settings' %}" class="btn btn-app-outline"><i class="bi bi-sliders"></i> Konfigurace</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-app-primary"><i class="bi bi-box-arrow-in-right"></i> Přihlásit se</a>
+                    <a href="{% url 'register' %}" class="btn btn-app-outline"><i class="bi bi-person-plus"></i> Registrace</a>
+                {% endif %}
+            </div>
 
-        <p>Profesionální správa telefonních čísel, přístupů a logů hovorů.</p>
-        {% if user.is_authenticated %}
-            <a href="#" class="btn btn-primary btn-lg me-2"><i class="bi bi-telephone"></i> Moje čísla</a>
-            <a href="#" class="btn btn-outline-secondary btn-lg"><i class="bi bi-journal-text"></i> Logy hovorů</a>
-        {% else %}
-            <a href="{% url 'login' %}" class="btn btn-primary btn-lg me-2"><i class="bi bi-box-arrow-in-right"></i> Přihlásit se</a>
-            <a href="{% url 'register' %}" class="btn btn-success btn-lg"><i class="bi bi-person-plus"></i> Registrovat</a>
+            <div class="hero-trust-strip" aria-label="Provozní vlastnosti">
+                <span>Auditovatelné logy</span>
+                <span>Správa pravidel</span>
+                <span>Bezpečné role a oprávnění</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="module-card">
+                <span class="pill">01</span>
+                <i class="bi bi-people module-card-icon" aria-hidden="true"></i>
+                <h6>Kontakty a skupiny</h6>
+                <p>Centralizovaná správa čísel, segmentace kontaktů a rychlé hromadné operace.</p>
+                <a href="{% url 'dashboard' %}" class="btn btn-sm btn-app-outline">Otevřít modul</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="module-card">
+                <span class="pill">02</span>
+                <i class="bi bi-activity module-card-icon" aria-hidden="true"></i>
+                <h6>Stav brány</h6>
+                <p>Okamžitý přehled o konfiguraci portu, síťovém režimu a klíčových metrikách.</p>
+                <a href="{% url 'gateway_status' %}" class="btn btn-sm btn-app-outline">Otevřít modul</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="module-card">
+                <span class="pill">03</span>
+                <i class="bi bi-sliders2 module-card-icon" aria-hidden="true"></i>
+                <h6>Nastavení brány</h6>
+                <p>Konfigurace SIM7000: APN, baud rate, heartbeat, webhooky a příchozí SMS.</p>
+                <a href="{% url 'gateway_settings' %}" class="btn btn-sm btn-app-outline">Otevřít modul</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if user.is_authenticated %}
+<section class="app-panel">
+    <div class="panel-header">
+        <h2 class="panel-title"><i class="bi bi-grid"></i> Rychlé akce</h2>
+        <span class="pill">Uživatelský prostor</span>
+    </div>
+    <div class="row g-3">
+        {% if perms.dashboard.add_phonenumber %}
+            <div class="col-md-3"><a href="{% url 'add_number' %}" class="btn btn-app-outline w-100">+ Nové číslo</a></div>
         {% endif %}
+        {% if perms.dashboard.add_group %}
+            <div class="col-md-3"><a href="{% url 'add_group' %}" class="btn btn-app-outline w-100">+ Nová skupina</a></div>
+        {% endif %}
+        <div class="col-md-3"><a href="{% url 'dashboard' %}" class="btn btn-app-outline w-100">Správa kontaktů</a></div>
+        <div class="col-md-3"><a href="{% url 'gateway_settings' %}" class="btn btn-app-outline w-100">Nastavení brány</a></div>
     </div>
-
-    <!-- Funkce -->
-    <div class="row g-4 text-center mb-5">
-        <div class="col-md-4">
-            <div class="feature-card h-100">
-                <div class="display-6 text-primary mb-3"><i class="bi bi-telephone-fill"></i></div>
-                <h5>Správa čísel</h5>
-                <p>Přidávejte a spravujte telefonní čísla s oprávněním pro přístup.</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="feature-card h-100">
-                <div class="display-6 text-success mb-3"><i class="bi bi-shield-lock-fill"></i></div>
-                <h5>Přístupová oprávnění</h5>
-                <p>Flexibilní správa, kdo a kdy může GSM bránu používat.</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="feature-card h-100">
-                <div class="display-6 text-danger mb-3"><i class="bi bi-clipboard-data-fill"></i></div>
-                <h5>Historie a logy</h5>
-                <p>Detailní přehled všech hovorů a přístupových pokusů.</p>
-            </div>
-        </div>
+</section>
+{% else %}
+<section class="app-panel">
+    <div class="panel-header">
+        <h2 class="panel-title"><i class="bi bi-lock"></i> Přístup do aplikace</h2>
     </div>
-
-    <!-- Rychlý přístup pro přihlášené -->
-    {% if user.is_authenticated %}
-    <div class="row quick-access mb-5">
-        <div class="col-lg-8 offset-lg-2">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0"><i class="bi bi-speedometer2"></i> Rychlý přístup</h4>
-                </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Moje čísla
-                            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-primary">Otevřít</a>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Přístupová pravidla
-                            <a href="#" class="btn btn-sm btn-outline-success">Otevřít</a>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Historie volání
-                            <a href="#" class="btn btn-sm btn-outline-danger">Otevřít</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+    <p class="mb-3">Pro práci s GSM bránou se přihlaste nebo vytvořte účet.</p>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'login' %}" class="btn btn-app-primary">Přihlášení</a>
+        <a href="{% url 'register' %}" class="btn btn-app-outline">Registrace</a>
     </div>
-    {% endif %}
-
-</div>
+</section>
+{% endif %}
 {% endblock %}

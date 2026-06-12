@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Detail skupiny{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-collection"></i> Detail položky</span>
+    <h1 class="hero-title">Skupina {{ group.name }}</h1>
+    <p class="hero-subtitle">Přehled souvisejících dat: členové, pravidla i akce navázané na tuto skupinu.</p>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'dashboard' %}" class="btn btn-app-outline">Zpět na dashboard</a>
+        {% if can_change_group %}
+            <a href="{% url 'edit_group' group.id %}" class="btn btn-app-primary">Editovat</a>
+        {% endif %}
+        {% if can_delete_group %}
+            <a href="{% url 'delete_group' group.id %}" class="btn btn-outline-danger">Smazat</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Základní informace</h2></div>
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <tbody>
+                <tr><th>ID</th><td>{{ group.id }}</td></tr>
+                <tr><th>Název</th><td>{{ group.name }}</td></tr>
+                <tr><th>Popis</th><td>{{ group.description|default:"—" }}</td></tr>
+                <tr>
+                    <th>Vlastník</th>
+                    <td>
+                        {% if group.owner %}
+                            {{ group.owner.username }}
+                            {% if group.owner_id == request.user.id %}
+                                <span class="pill ms-2">Jste vlastník</span>
+                            {% endif %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr><th>Počet členů</th><td>{{ members|length }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Členové skupiny</h2></div>
+    <div class="table-wrap table-responsive">
+        {% if members %}
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead><tr><th>Číslo</th><th>Popis</th><th>Aktivní</th></tr></thead>
+            <tbody>
+                {% for number in members %}
+                <tr class="clickable-row" onclick="window.location='{% url 'number_detail' number.id %}'">
+                    <td class="mono"><a href="{% url 'number_detail' number.id %}" class="table-link">{{ number.number }}</a></td>
+                    <td>{{ number.description|default:"—" }}</td>
+                    <td>{% if number.active %}Ano{% else %}Ne{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Skupina zatím nemá žádné členy.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Pravidla, kde je skupina zdroj</h2></div>
+    <div class="table-wrap table-responsive">
+        {% if source_rules %}
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead><tr><th>Název</th><th>Typ události</th><th>Reakce</th><th>Priorita</th></tr></thead>
+            <tbody>
+                {% for rule in source_rules %}
+                <tr class="clickable-row" onclick="window.location='{% url 'rule_detail' rule.id %}'">
+                    <td><a href="{% url 'rule_detail' rule.id %}" class="table-link">{{ rule.name }}</a></td>
+                    <td>{{ rule.get_event_type_display }}</td>
+                    <td>{{ rule.get_action_display }}</td>
+                    <td>{{ rule.priority }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Skupina není použita jako zdroj v žádném pravidle.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Pravidla, kde je skupina cíl</h2></div>
+    <div class="table-wrap table-responsive">
+        {% if target_rules %}
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead><tr><th>Název</th><th>Typ události</th><th>Reakce</th><th>Priorita</th></tr></thead>
+            <tbody>
+                {% for rule in target_rules %}
+                <tr class="clickable-row" onclick="window.location='{% url 'rule_detail' rule.id %}'">
+                    <td><a href="{% url 'rule_detail' rule.id %}" class="table-link">{{ rule.name }}</a></td>
+                    <td>{{ rule.get_event_type_display }}</td>
+                    <td>{{ rule.get_action_display }}</td>
+                    <td>{{ rule.priority }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Skupina není použita jako cíl v žádném pravidle.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Odchozí akce navázané na skupinu (posledních 20)</h2></div>
+    <div class="table-wrap table-responsive">
+        {% if related_actions %}
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead><tr><th>Čas</th><th>Akce</th><th>Stav</th><th>Pravidlo</th><th>Cílové číslo</th></tr></thead>
+            <tbody>
+                {% for action in related_actions %}
+                <tr>
+                    <td>{{ action.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ action.get_action_type_display }}</td>
+                    <td>{{ action.get_status_display }}</td>
+                    <td>{% if action.rule %}<a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a>{% else %}—{% endif %}</td>
+                    <td class="mono">{{ action.target_number }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-3 text-muted-soft">Pro tuto skupinu nejsou evidovány odchozí akce.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

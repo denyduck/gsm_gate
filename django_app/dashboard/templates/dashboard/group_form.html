@@ -4,16 +4,15 @@
 {% block title %}Přidat / Upravit skupinu{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center my-5">
-    <div class="col-md-5">
-        <div class="card shadow-lg border-0">
-            <!-- Card Header -->
-            <div class="card-header text-white text-center" style="background-color:#198754;">
-                <h3 class="mb-0">{{ form.instance.pk|yesno:"Upravit skupinu,Přidat novou skupinu" }}</h3>
+<section class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="app-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">{{ form.instance.pk|yesno:"Upravit skupinu,Přidat novou skupinu" }}</h2>
+                <span class="pill">Záznam skupiny</span>
             </div>
 
-            <!-- Card Body -->
-            <div class="card-body p-4">
+            <div class="form-shell">
                 <form method="post">
                     {% csrf_token %}
 
@@ -38,34 +37,22 @@
                         <div class="mb-3">
                             <label class="form-label">{{ field.label }}</label>
                             {{ field|add_class:"form-control" }}
+                            {% if field.name == "name" %}
+                                <div class="form-text">Název skupiny by měl být stručný a jednoznačný (např. Obchod, Servis).</div>
+                            {% elif field.name == "description" %}
+                                <div class="form-text">Volitelné upřesnění účelu skupiny.</div>
+                            {% endif %}
                         </div>
                     {% endfor %}
 
                     <!-- Tlačítka -->
                     <div class="d-flex justify-content-between">
-                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Zpět</a>
-                        <button type="submit" class="btn btn-success">Uložit</button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-app-outline">Zpět</a>
+                        <button type="submit" class="btn btn-app-primary">Uložit</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</div>
-
-
-
-<!-- Input styl -->
-<style>
-    input, select, textarea {
-        width: 100%;
-        padding: .5rem .75rem;
-        border: 1px solid #ced4da;
-        border-radius: .375rem;
-    }
-    input:focus, select:focus, textarea:focus {
-        border-color: #c50d9d;
-        box-shadow: 0 0 0 .25rem rgba(25, 135, 84, 0.25);
-        outline: 0;
-    }
-</style>
+</section>
 {% endblock %}

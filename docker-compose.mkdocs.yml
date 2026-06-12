@@ -1,0 +1,11 @@
+services:
+  mkdocs:
+    image: squidfunk/mkdocs-material:9.5.39
+    container_name: mkdocs_gsm_gate
+    working_dir: /docs
+    command: serve -a 0.0.0.0:8000
+    volumes:
+      - ./:/docs
+    ports:
+      - "8010:8000"
+    restart: unless-stopped
