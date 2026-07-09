@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 from django.db import OperationalError
 
 from dashboard.services.gsm_worker import GsmWorkerService
+from dashboard.services.sim7000 import ModemError
 
 
 class Command(BaseCommand):
@@ -36,6 +37,11 @@ class Command(BaseCommand):
                 except OperationalError as e:
                     self.stdout.write(self.style.WARNING(f'DB chyba, čekám 15s a zkouším znovu: {e}'))
                     time.sleep(15)
+                    continue
+                except ModemError as e:
+                    self.stdout.write(self.style.WARNING(f'Modem chyba, čekám 10s a zkouším znovu: {e}'))
+                    worker.close()
+                    time.sleep(10)
                     continue
 
                 if run_once:

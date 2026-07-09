@@ -31,8 +31,16 @@ class Sim7000Client:
             self.port, self.baudrate, timeout=self.timeout,
             rtscts=False, dsrdtr=False,
         )
-        time.sleep(2.0)
-        self.initialize_modem()
+        last_error = None
+        for _ in range(5):
+            time.sleep(2.0)
+            try:
+                self.initialize_modem()
+                return
+            except ModemError as e:
+                last_error = e
+                self.serial_connection.reset_input_buffer()
+        raise last_error
 
     def close(self):
         if self.serial_connection and self.serial_connection.is_open:
