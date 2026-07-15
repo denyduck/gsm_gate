@@ -208,6 +208,7 @@ class GatewaySettings(models.Model):
     sms_storage = models.CharField('Úložiště SMS', max_length=10, choices=SMS_STORAGE_CHOICES, default='SIM')
     delivery_reports = models.BooleanField('Doručenky', default=True)
     allow_incoming_sms = models.BooleanField('Povolit příchozí SMS', default=True)
+    allow_incoming_calls = models.BooleanField('Povolit příchozí volání', default=True)
     auto_start_gateway = models.BooleanField('Automatické spuštění brány', default=True)
     heartbeat_interval_sec = models.PositiveIntegerField(
         'Interval heartbeat (s)',

@@ -51,6 +51,32 @@ class Sim7000Client:
         self.send_at('ATE0')
         self.send_at('AT+CMGF=1')
         self.send_at('AT+CSCS="GSM"')
+        self.send_at('AT+CLIP=1')
+
+    def read_pending_urcs(self) -> list:
+        if not self.serial_connection or not self.serial_connection.is_open:
+            return []
+        if self.serial_connection.in_waiting == 0:
+            return []
+        time.sleep(0.3)
+        raw = self.serial_connection.read(self.serial_connection.in_waiting)
+        return [l.strip() for l in raw.decode(errors='ignore').splitlines() if l.strip()]
+
+    def parse_ring_events(self, urcs: list) -> list:
+        numbers = []
+        for i, line in enumerate(urcs):
+            if line == 'RING':
+                number = 'unknown'
+                for j in range(i + 1, min(i + 5, len(urcs))):
+                    m = re.match(r'\+CLIP:\s*"([^"]*)"', urcs[j])
+                    if m:
+                        number = m.group(1)
+                        break
+                numbers.append(number)
+        return numbers
+
+    def hangup(self):
+        self.send_at('ATH')
 
     def send_at(self, command: str, timeout: Optional[float] = None) -> str:
         if not self.serial_connection or not self.serial_connection.is_open:
