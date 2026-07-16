@@ -17,10 +17,14 @@ class IncomingSms:
     message: str
 
 
-_TRANSLITERATE = str.maketrans(
-    'áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ',
-    'acdeeinnorstuuyzACDEEINNORSTUUYZ',
-)
+_TRANSLITERATE = str.maketrans({
+    'á': 'a', 'č': 'c', 'ď': 'd', 'é': 'e', 'ě': 'e',
+    'í': 'i', 'ň': 'n', 'ó': 'o', 'ř': 'r', 'š': 's',
+    'ť': 't', 'ú': 'u', 'ů': 'u', 'ý': 'y', 'ž': 'z',
+    'Á': 'A', 'Č': 'C', 'Ď': 'D', 'É': 'E', 'Ě': 'E',
+    'Í': 'I', 'Ň': 'N', 'Ó': 'O', 'Ř': 'R', 'Š': 'S',
+    'Ť': 'T', 'Ú': 'U', 'Ů': 'U', 'Ý': 'Y', 'Ž': 'Z',
+})
 
 
 def _to_gsm(text: str) -> bytes:
