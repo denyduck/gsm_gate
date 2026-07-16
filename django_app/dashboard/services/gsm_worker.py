@@ -34,7 +34,6 @@ class GsmWorkerService:
         result = WorkerResult()
         self.client.connect()
 
-        result.incoming_processed += self._process_incoming_calls()
         result.incoming_processed += self._process_incoming_sms()
         sent, failed = self._process_outgoing_actions()
         result.outgoing_sent += sent
@@ -44,39 +43,6 @@ class GsmWorkerService:
 
     def close(self):
         self.client.close()
-
-    def _process_incoming_calls(self) -> int:
-        urcs = self.client.read_pending_urcs()
-        if not urcs:
-            return 0
-
-        callers = self.client.parse_ring_events(urcs)
-        if not callers:
-            return 0
-
-        try:
-            self.client.hangup()
-        except ModemError:
-            pass
-
-        seen = set()
-        count = 0
-        for number in callers:
-            source = normalize_phone_number(number)
-            if source in seen:
-                continue
-            seen.add(source)
-
-            for settings_obj in GatewaySettings.objects.filter(allow_incoming_calls=True):
-                process_incoming_event(
-                    user=settings_obj.user,
-                    event_type='CALL',
-                    source_number=source,
-                    message_body='',
-                )
-            count += 1
-
-        return count
 
     def _process_incoming_sms(self) -> int:
         messages = self.client.read_unread_sms()
