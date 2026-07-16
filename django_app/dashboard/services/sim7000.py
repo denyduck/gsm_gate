@@ -17,18 +17,36 @@ class IncomingSms:
     message: str
 
 
-_TRANSLITERATE = str.maketrans({
-    'á': 'a', 'č': 'c', 'ď': 'd', 'é': 'e', 'ě': 'e',
-    'í': 'i', 'ň': 'n', 'ó': 'o', 'ř': 'r', 'š': 's',
-    'ť': 't', 'ú': 'u', 'ů': 'u', 'ý': 'y', 'ž': 'z',
-    'Á': 'A', 'Č': 'C', 'Ď': 'D', 'É': 'E', 'Ě': 'E',
-    'Í': 'I', 'Ň': 'N', 'Ó': 'O', 'Ř': 'R', 'Š': 'S',
-    'Ť': 'T', 'Ú': 'U', 'Ů': 'U', 'Ý': 'Y', 'Ž': 'Z',
-})
+def _to_pdu(phone_number: str, text: str):
+    """Build SMS-SUBMIT PDU with UCS-2 encoding. Returns (pdu_hex, tpdu_byte_count)."""
+    smsc = '00'     # use SIM default SMSC
+    pdu_type = '11' # SMS-SUBMIT, relative VP
+    mr = '00'       # message reference
 
+    number = phone_number.strip()
+    if number.startswith('+'):
+        ton_npi = '91'
+        digits = number[1:]
+    else:
+        ton_npi = '81'
+        digits = number
 
-def _to_gsm(text: str) -> bytes:
-    return text.translate(_TRANSLITERATE).encode('ascii', errors='replace')
+    digit_count = len(digits)
+    if len(digits) % 2:
+        digits += 'F'
+    swapped = ''.join(digits[i + 1] + digits[i] for i in range(0, len(digits), 2))
+    da = f'{digit_count:02X}{ton_npi}{swapped}'
+
+    pid = '00'
+    dcs = '08'  # UCS-2
+    vp = 'AA'   # relative VP, 4 days
+
+    ud_bytes = text.encode('utf-16-be')
+    udl = f'{len(ud_bytes):02X}'
+    ud = ud_bytes.hex().upper()
+
+    tpdu = pdu_type + mr + da + pid + dcs + vp + udl + ud
+    return smsc + tpdu, len(tpdu) // 2
 
 
 def _ucs2_decode(value: str) -> str:
@@ -106,40 +124,46 @@ class Sim7000Client:
         if not self.serial_connection or not self.serial_connection.is_open:
             raise ModemError('Modem není připojen.')
 
-        self.serial_connection.reset_input_buffer()
-        self.serial_connection.write(f'AT+CMGS="{phone_number}"\r'.encode('ascii'))
+        pdu_hex, pdu_length = _to_pdu(phone_number, text)
 
-        prompt_found = False
-        started = time.time()
-        while time.time() - started < 5.0:
-            ch = self.serial_connection.read(1)
-            if ch == b'>':
-                prompt_found = True
-                break
+        self.send_at('AT+CMGF=0')
+        try:
+            self.serial_connection.reset_input_buffer()
+            self.serial_connection.write(f'AT+CMGS={pdu_length}\r'.encode('ascii'))
 
-        if not prompt_found:
-            self.serial_connection.write(bytes([27]))  # ESC - zruší AT+CMGS
-            raise ModemError('Timeout čekání na prompt AT+CMGS (modem nepřipravený)')
+            prompt_found = False
+            started = time.time()
+            while time.time() - started < 5.0:
+                ch = self.serial_connection.read(1)
+                if ch == b'>':
+                    prompt_found = True
+                    break
 
-        time.sleep(0.1)
-        self.serial_connection.write(_to_gsm(text))
-        self.serial_connection.write(bytes([26]))  # Ctrl+Z
+            if not prompt_found:
+                self.serial_connection.write(bytes([27]))  # ESC - zruší AT+CMGS
+                raise ModemError('Timeout čekání na prompt AT+CMGS (modem nepřipravený)')
 
-        started = time.time()
-        while time.time() - started < 30.0:
-            raw = self.serial_connection.readline()
-            if not raw:
-                continue
-            line = raw.decode(errors='ignore').strip()
-            if not line:
-                continue
-            if line == 'OK':
-                return
-            if '+CMGS:' in line:
-                continue
-            if line.startswith('ERROR') or '+CMS ERROR:' in line:
-                raise ModemError(f'Chyba odeslání SMS: {line}')
-        raise ModemError('Timeout při odesílání SMS')
+            time.sleep(0.1)
+            self.serial_connection.write(pdu_hex.encode('ascii'))
+            self.serial_connection.write(bytes([26]))  # Ctrl+Z
+
+            started = time.time()
+            while time.time() - started < 30.0:
+                raw = self.serial_connection.readline()
+                if not raw:
+                    continue
+                line = raw.decode(errors='ignore').strip()
+                if not line:
+                    continue
+                if line == 'OK':
+                    return
+                if '+CMGS:' in line:
+                    continue
+                if line.startswith('ERROR') or '+CMS ERROR:' in line:
+                    raise ModemError(f'Chyba odeslání SMS: {line}')
+            raise ModemError('Timeout při odesílání SMS')
+        finally:
+            self.send_at('AT+CMGF=1')
 
     def read_unread_sms(self) -> List[IncomingSms]:
         self.send_at('AT+CSCS="UCS2"')
