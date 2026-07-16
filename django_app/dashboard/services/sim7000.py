@@ -97,9 +97,10 @@ class Sim7000Client:
             raise ModemError('Modem není připojen.')
 
         encoded_text = _ucs2_encode(text).encode('ascii')
+        encoded_number = _ucs2_encode(phone_number)
 
         self.serial_connection.reset_input_buffer()
-        self.serial_connection.write(f'AT+CMGS="{phone_number}"\r'.encode('ascii'))
+        self.serial_connection.write(f'AT+CMGS="{encoded_number}"\r'.encode('ascii'))
         time.sleep(0.3)
         self.serial_connection.write(encoded_text)
         self.serial_connection.write(bytes([26]))
