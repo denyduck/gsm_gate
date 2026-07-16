@@ -20,13 +20,9 @@ def event_type_matches(rule_event_type, incoming_event_type):
 
     mapping = {
         'SMS': {'SMS'},
-        'CALL': {'CALL'},
         'API': {'API'},
-        'SMS_CALL': {'SMS', 'CALL'},
         'SMS_API': {'SMS', 'API'},
-        'CALL_API': {'CALL', 'API'},
-        'ANY': {'SMS', 'CALL'},
-        'ALL': {'SMS', 'CALL', 'API'},
+        'ANY': {'SMS', 'API'},
     }
 
     allowed_types = mapping.get(normalized_rule_type, {normalized_rule_type})
