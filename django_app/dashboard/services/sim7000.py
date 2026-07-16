@@ -17,6 +17,10 @@ class IncomingSms:
     message: str
 
 
+def _ucs2_encode(text: str) -> str:
+    return text.encode('utf-16-be').hex().upper()
+
+
 def _ucs2_decode(value: str) -> str:
     clean = value.strip()
     if len(clean) >= 4 and len(clean) % 4 == 0:
@@ -25,10 +29,6 @@ def _ucs2_decode(value: str) -> str:
         except (ValueError, UnicodeDecodeError):
             pass
     return value
-
-
-def _ucs2_encode(text: str) -> str:
-    return text.encode('utf-16-be').hex().upper()
 
 
 class Sim7000Client:
@@ -64,7 +64,7 @@ class Sim7000Client:
         self.send_at('AT')
         self.send_at('ATE0')
         self.send_at('AT+CMGF=1')
-        self.send_at('AT+CSCS="UCS2"')
+        self.send_at('AT+CSCS="GSM"')
         self.send_at('AT+CPMS="SM","SM","SM"')
 
     def send_at(self, command: str, timeout: Optional[float] = None) -> str:
@@ -96,29 +96,37 @@ class Sim7000Client:
         if not self.serial_connection or not self.serial_connection.is_open:
             raise ModemError('Modem není připojen.')
 
-        encoded_text = _ucs2_encode(text).encode('ascii')
-        encoded_number = _ucs2_encode(phone_number)
+        needs_ucs2 = not all(ord(c) < 128 for c in text)
+
+        if needs_ucs2:
+            self.send_at('AT+CSCS="UCS2"')
+            encoded_text = _ucs2_encode(text).encode('ascii')
+        else:
+            encoded_text = text.encode('ascii', errors='replace')
 
         self.serial_connection.reset_input_buffer()
-        self.serial_connection.write(f'AT+CMGS="{encoded_number}"\r'.encode('ascii'))
+        self.serial_connection.write(f'AT+CMGS="{phone_number}"\r'.encode('ascii'))
         time.sleep(0.3)
         self.serial_connection.write(encoded_text)
         self.serial_connection.write(bytes([26]))
 
         started = time.time()
-        while time.time() - started < max(self.timeout, 15):
-            raw = self.serial_connection.readline()
-            if not raw:
-                continue
-            line = raw.decode(errors='ignore').strip()
-            if not line:
-                continue
-            if line == 'OK':
-                return
-            if line.startswith('ERROR'):
-                raise ModemError(f'Chyba odeslání SMS: {line}')
-
-        raise ModemError('Timeout při odesílání SMS')
+        try:
+            while time.time() - started < max(self.timeout, 15):
+                raw = self.serial_connection.readline()
+                if not raw:
+                    continue
+                line = raw.decode(errors='ignore').strip()
+                if not line:
+                    continue
+                if line == 'OK':
+                    return
+                if line.startswith('ERROR'):
+                    raise ModemError(f'Chyba odeslání SMS: {line}')
+            raise ModemError('Timeout při odesílání SMS')
+        finally:
+            if needs_ucs2:
+                self.send_at('AT+CSCS="GSM"')
 
     def read_unread_sms(self) -> List[IncomingSms]:
         output = self.send_at('AT+CMGL="REC UNREAD"', timeout=6)
