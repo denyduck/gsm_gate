@@ -108,12 +108,25 @@ class Sim7000Client:
 
         self.serial_connection.reset_input_buffer()
         self.serial_connection.write(f'AT+CMGS="{phone_number}"\r'.encode('ascii'))
-        time.sleep(0.3)
+
+        prompt_found = False
+        started = time.time()
+        while time.time() - started < 5.0:
+            ch = self.serial_connection.read(1)
+            if ch == b'>':
+                prompt_found = True
+                break
+
+        if not prompt_found:
+            self.serial_connection.write(bytes([27]))  # ESC - zruší AT+CMGS
+            raise ModemError('Timeout čekání na prompt AT+CMGS (modem nepřipravený)')
+
+        time.sleep(0.1)
         self.serial_connection.write(_to_gsm(text))
-        self.serial_connection.write(bytes([26]))
+        self.serial_connection.write(bytes([26]))  # Ctrl+Z
 
         started = time.time()
-        while time.time() - started < max(self.timeout, 15):
+        while time.time() - started < 30.0:
             raw = self.serial_connection.readline()
             if not raw:
                 continue
@@ -122,12 +135,18 @@ class Sim7000Client:
                 continue
             if line == 'OK':
                 return
-            if line.startswith('ERROR'):
+            if '+CMGS:' in line:
+                continue
+            if line.startswith('ERROR') or '+CMS ERROR:' in line:
                 raise ModemError(f'Chyba odeslání SMS: {line}')
         raise ModemError('Timeout při odesílání SMS')
 
     def read_unread_sms(self) -> List[IncomingSms]:
-        output = self.send_at('AT+CMGL="REC UNREAD"', timeout=6)
+        self.send_at('AT+CSCS="UCS2"')
+        try:
+            output = self.send_at('AT+CMGL="REC UNREAD"', timeout=6)
+        finally:
+            self.send_at('AT+CSCS="GSM"')
         lines = [line for line in output.splitlines() if line and line != 'OK']
 
         messages: List[IncomingSms] = []
