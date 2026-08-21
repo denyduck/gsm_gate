@@ -49,7 +49,7 @@ def _to_pdu(phone_number: str, text: str):
     return smsc + tpdu, len(tpdu) // 2
 
 
-_UNSOLICITED_PREFIXES = ('RING', '+CLIP:', '+CREG:', '+CPIN:', '+CMTI:')
+_UNSOLICITED_PREFIXES = ('RING', '+CLIP:', '+CMTI:')
 
 
 def _is_unsolicited(line: str) -> bool:
