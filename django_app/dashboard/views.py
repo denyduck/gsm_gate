@@ -817,5 +817,10 @@ def event_log_detail_view(request, pk):
 @permission_required('dashboard.view_outgoingaction', raise_exception=True)
 def outgoing_actions_view(request):
     actions = OutgoingAction.objects.filter(owner=request.user).select_related('event_log', 'rule')[:200]
-    return render(request, 'dashboard/outgoing_actions.html', {'actions': actions})
+    gateway_settings = GatewaySettings.objects.filter(user=request.user).first()
+    context = {
+        'actions': actions,
+        'gateway_settings': gateway_settings,
+    }
+    return render(request, 'dashboard/outgoing_actions.html', context)
 

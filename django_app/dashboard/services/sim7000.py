@@ -200,3 +200,10 @@ class Sim7000Client:
 
     def delete_sms(self, index: int):
         self.send_at(f'AT+CMGD={index}')
+
+    def get_signal_quality(self) -> Optional[int]:
+        response = self.send_at('AT+CSQ')
+        match = re.search(r'\+CSQ:\s*(\d+),\d+', response)
+        if not match:
+            return None
+        return int(match.group(1))

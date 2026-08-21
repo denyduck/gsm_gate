@@ -21,6 +21,36 @@
     </div>
 </section>
 
+{% if gateway_settings %}
+<section class="app-panel mb-4">
+    <div class="panel-header">
+        <h2 class="panel-title">Signál brány</h2>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card-stat">
+                <div class="label">Kvalita signálu</div>
+                <div class="value">
+                    {{ gateway_settings.signal_label }}
+                    {% if gateway_settings.last_signal_quality is not None %}<small class="text-muted-soft">({{ gateway_settings.last_signal_quality }}/31{% if gateway_settings.signal_dbm is not None %}, ~{{ gateway_settings.signal_dbm }} dBm{% endif %})</small>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card-stat">
+                <div class="label">Naposledy zjištěno</div>
+                <div class="value">{% if gateway_settings.last_signal_checked_at %}{{ gateway_settings.last_signal_checked_at|date:"d.m.Y H:i:s" }}{% else %}nikdy{% endif %}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            {% if perms.dashboard.view_gatewaysettings %}
+            <a href="{% url 'gateway_status' %}" class="btn btn-app-outline">Detail stavu brány</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <section class="app-panel">
     <div class="table-wrap table-responsive">
         <table class="table table-striped table-hover align-middle">

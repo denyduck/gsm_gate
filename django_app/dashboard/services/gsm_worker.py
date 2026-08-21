@@ -13,6 +13,10 @@ from dashboard.models import OutgoingAction, GatewaySettings
 from dashboard.services.rules_engine import process_incoming_event, normalize_phone_number
 from dashboard.services.sim7000 import Sim7000Client, ModemError
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class WorkerResult:
@@ -38,8 +42,21 @@ class GsmWorkerService:
         sent, failed = self._process_outgoing_actions()
         result.outgoing_sent += sent
         result.outgoing_failed += failed
+        self._update_signal_quality()
 
         return result
+
+    def _update_signal_quality(self) -> None:
+        try:
+            quality = self.client.get_signal_quality()
+        except ModemError as e:
+            logger.warning('Nepodařilo se zjistit sílu signálu: %s', e)
+            return
+
+        GatewaySettings.objects.all().update(
+            last_signal_quality=quality,
+            last_signal_checked_at=timezone.now(),
+        )
 
     def close(self):
         self.client.close()

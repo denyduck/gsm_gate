@@ -17,6 +17,40 @@
 
 <section class="app-panel mb-4">
     <div class="panel-header">
+        <h2 class="panel-title">Síla signálu</h2>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card-stat">
+                <div class="label">Signál (CSQ)</div>
+                <div class="value">
+                    {% if gateway_settings.last_signal_quality is not None %}{{ gateway_settings.last_signal_quality }}/31{% else %}-{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat">
+                <div class="label">Kvalita</div>
+                <div class="value">{{ gateway_settings.signal_label }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat">
+                <div class="label">Odhad dBm</div>
+                <div class="value">{% if gateway_settings.signal_dbm is not None %}{{ gateway_settings.signal_dbm }} dBm{% else %}-{% endif %}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat">
+                <div class="label">Naposledy zjištěno</div>
+                <div class="value">{% if gateway_settings.last_signal_checked_at %}{{ gateway_settings.last_signal_checked_at|date:"d.m.Y H:i:s" }}{% else %}nikdy{% endif %}</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header">
         <h2 class="panel-title">Provozní přepínače</h2>
     </div>
     <div class="row g-3">

@@ -217,8 +217,29 @@ class GatewaySettings(models.Model):
     webhook_url = models.URLField('Webhook URL', blank=True)
     updated_at = models.DateTimeField('Naposledy změněno', auto_now=True)
 
+    last_signal_quality = models.PositiveIntegerField('Poslední síla signálu (CSQ)', null=True, blank=True)
+    last_signal_checked_at = models.DateTimeField('Signál naposledy zjištěn', null=True, blank=True)
+
     def __str__(self):
         return f"Nastavení brány: {self.user.username}"
+
+    @property
+    def signal_label(self):
+        if self.last_signal_quality is None or self.last_signal_quality == 99:
+            return 'Neznámý'
+        if self.last_signal_quality >= 20:
+            return 'Výborný'
+        if self.last_signal_quality >= 15:
+            return 'Dobrý'
+        if self.last_signal_quality >= 10:
+            return 'Slabý'
+        return 'Velmi slabý'
+
+    @property
+    def signal_dbm(self):
+        if self.last_signal_quality is None or self.last_signal_quality == 99:
+            return None
+        return -113 + (self.last_signal_quality * 2)
 
     class Meta:
         verbose_name = 'Nastavení brány'
