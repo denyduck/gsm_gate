@@ -1,3 +1,4 @@
+import logging
 import time
 
 from django.conf import settings
@@ -6,6 +7,8 @@ from django.db import OperationalError
 
 from dashboard.services.gsm_worker import GsmWorkerService
 from dashboard.services.sim7000 import ModemError
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -40,6 +43,12 @@ class Command(BaseCommand):
                     continue
                 except ModemError as e:
                     self.stdout.write(self.style.WARNING(f'Modem chyba, čekám 10s a zkouším znovu: {e}'))
+                    worker.close()
+                    time.sleep(10)
+                    continue
+                except Exception as e:
+                    logger.exception('Neočekávaná chyba v cyklu workeru')
+                    self.stdout.write(self.style.ERROR(f'Neočekávaná chyba, čekám 10s a zkouším znovu: {e}'))
                     worker.close()
                     time.sleep(10)
                     continue

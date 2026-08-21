@@ -49,6 +49,13 @@ def _to_pdu(phone_number: str, text: str):
     return smsc + tpdu, len(tpdu) // 2
 
 
+_UNSOLICITED_PREFIXES = ('RING', '+CLIP:', '+CREG:', '+CPIN:', '+CMTI:')
+
+
+def _is_unsolicited(line: str) -> bool:
+    return line.startswith(_UNSOLICITED_PREFIXES)
+
+
 def _ucs2_decode(value: str) -> str:
     clean = value.strip()
     if len(clean) >= 4 and len(clean) % 4 == 0:
@@ -69,10 +76,14 @@ class Sim7000Client:
     def connect(self):
         if self.serial_connection and self.serial_connection.is_open:
             return
-        self.serial_connection = serial.Serial(
-            self.port, self.baudrate, timeout=self.timeout,
-            rtscts=False, dsrdtr=False,
-        )
+        try:
+            self.serial_connection = serial.Serial(
+                self.port, self.baudrate, timeout=self.timeout,
+                rtscts=False, dsrdtr=False,
+            )
+        except (serial.SerialException, OSError) as e:
+            raise ModemError(f'Nepodařilo se otevřít sériový port: {e}') from e
+
         last_error = None
         for _ in range(5):
             time.sleep(2.0)
@@ -81,7 +92,10 @@ class Sim7000Client:
                 return
             except ModemError as e:
                 last_error = e
-                self.serial_connection.reset_input_buffer()
+                try:
+                    self.serial_connection.reset_input_buffer()
+                except (serial.SerialException, OSError):
+                    pass
         raise last_error
 
     def close(self):
@@ -100,23 +114,27 @@ class Sim7000Client:
             raise ModemError('Modem není připojen.')
 
         effective_timeout = timeout if timeout is not None else self.timeout
-        self.serial_connection.reset_input_buffer()
-        self.serial_connection.write(f'{command}\r'.encode('ascii'))
 
-        started = time.time()
-        output_lines = []
-        while time.time() - started < effective_timeout:
-            raw = self.serial_connection.readline()
-            if not raw:
-                continue
-            line = raw.decode(errors='ignore').strip()
-            if not line:
-                continue
-            output_lines.append(line)
-            if line == 'OK':
-                return '\n'.join(output_lines)
-            if line.startswith('ERROR'):
-                raise ModemError(f'AT chyba ({command}): {line}')
+        try:
+            self.serial_connection.reset_input_buffer()
+            self.serial_connection.write(f'{command}\r'.encode('ascii'))
+
+            started = time.time()
+            output_lines = []
+            while time.time() - started < effective_timeout:
+                raw = self.serial_connection.readline()
+                if not raw:
+                    continue
+                line = raw.decode(errors='ignore').strip()
+                if not line or _is_unsolicited(line):
+                    continue
+                output_lines.append(line)
+                if line == 'OK':
+                    return '\n'.join(output_lines)
+                if line.startswith('ERROR'):
+                    raise ModemError(f'AT chyba ({command}): {line}')
+        except (serial.SerialException, OSError) as e:
+            raise ModemError(f'Chyba sériové komunikace ({command}): {e}') from e
 
         raise ModemError(f'AT timeout ({command})')
 
@@ -128,40 +146,43 @@ class Sim7000Client:
 
         self.send_at('AT+CMGF=0')
         try:
-            self.serial_connection.reset_input_buffer()
-            self.serial_connection.write(f'AT+CMGS={pdu_length}\r'.encode('ascii'))
+            try:
+                self.serial_connection.reset_input_buffer()
+                self.serial_connection.write(f'AT+CMGS={pdu_length}\r'.encode('ascii'))
 
-            prompt_found = False
-            started = time.time()
-            while time.time() - started < 5.0:
-                ch = self.serial_connection.read(1)
-                if ch == b'>':
-                    prompt_found = True
-                    break
+                prompt_found = False
+                started = time.time()
+                while time.time() - started < 5.0:
+                    ch = self.serial_connection.read(1)
+                    if ch == b'>':
+                        prompt_found = True
+                        break
 
-            if not prompt_found:
-                self.serial_connection.write(bytes([27]))  # ESC - zruší AT+CMGS
-                raise ModemError('Timeout čekání na prompt AT+CMGS (modem nepřipravený)')
+                if not prompt_found:
+                    self.serial_connection.write(bytes([27]))  # ESC - zruší AT+CMGS
+                    raise ModemError('Timeout čekání na prompt AT+CMGS (modem nepřipravený)')
 
-            time.sleep(0.1)
-            self.serial_connection.write(pdu_hex.encode('ascii'))
-            self.serial_connection.write(bytes([26]))  # Ctrl+Z
+                time.sleep(0.1)
+                self.serial_connection.write(pdu_hex.encode('ascii'))
+                self.serial_connection.write(bytes([26]))  # Ctrl+Z
 
-            started = time.time()
-            while time.time() - started < 30.0:
-                raw = self.serial_connection.readline()
-                if not raw:
-                    continue
-                line = raw.decode(errors='ignore').strip()
-                if not line:
-                    continue
-                if line == 'OK':
-                    return
-                if '+CMGS:' in line:
-                    continue
-                if line.startswith('ERROR') or '+CMS ERROR:' in line:
-                    raise ModemError(f'Chyba odeslání SMS: {line}')
-            raise ModemError('Timeout při odesílání SMS')
+                started = time.time()
+                while time.time() - started < 30.0:
+                    raw = self.serial_connection.readline()
+                    if not raw:
+                        continue
+                    line = raw.decode(errors='ignore').strip()
+                    if not line or _is_unsolicited(line):
+                        continue
+                    if line == 'OK':
+                        return
+                    if '+CMGS:' in line:
+                        continue
+                    if line.startswith('ERROR') or '+CMS ERROR:' in line:
+                        raise ModemError(f'Chyba odeslání SMS: {line}')
+                raise ModemError('Timeout při odesílání SMS')
+            except (serial.SerialException, OSError) as e:
+                raise ModemError(f'Chyba sériové komunikace při odesílání SMS: {e}') from e
         finally:
             self.send_at('AT+CMGF=1')
 
