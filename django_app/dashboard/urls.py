@@ -8,6 +8,7 @@ from . import views
 urlpatterns = [
     path('', views.dashboard_view, name='dashboard'),                           # hlavní dashboard
     path('gateway/status/', views.gateway_status_view, name='gateway_status'),
+    path('api/gateway/signal/', views.gateway_signal_api, name='gateway_signal_api'),
     path('gateway/settings/', views.gateway_settings_view, name='gateway_settings'),
     path('rules/', views.rules_list_view, name='rules_list'),
     path('rules/add/', views.rule_create, name='rule_add'),

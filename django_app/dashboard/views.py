@@ -588,6 +588,22 @@ def device_event_ingest_api(request):
 
 @login_required
 @permission_required('dashboard.view_gatewaysettings', raise_exception=True)
+def gateway_signal_api(request):
+    settings_obj = GatewaySettings.objects.filter(user=request.user).first()
+    if settings_obj is None:
+        return JsonResponse({'ok': False})
+
+    return JsonResponse({
+        'ok': True,
+        'quality': settings_obj.last_signal_quality,
+        'label': settings_obj.signal_label,
+        'dbm': settings_obj.signal_dbm,
+        'checked_at': settings_obj.last_signal_checked_at.isoformat() if settings_obj.last_signal_checked_at else None,
+    })
+
+
+@login_required
+@permission_required('dashboard.view_gatewaysettings', raise_exception=True)
 def gateway_status_view(request):
     settings_obj, _ = GatewaySettings.objects.get_or_create(user=request.user)
     numbers_count = PhoneNumber.objects.filter(users=request.user).count()

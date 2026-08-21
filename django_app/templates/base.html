@@ -26,6 +26,35 @@
     <link rel="stylesheet" href="{% static 'gsm_gate/css/components.css' %}">
     <link rel="stylesheet" href="{% static 'gsm_gate/css/typography.css' %}">
 
+    <style>
+        .signal-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-left: 0.75rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(127, 127, 127, 0.12);
+            white-space: nowrap;
+        }
+        .signal-indicator[data-level="Výborný"],
+        .signal-indicator[data-level="Dobrý"] {
+            color: #1e9e5a;
+        }
+        .signal-indicator[data-level="Slabý"] {
+            color: #c98a12;
+        }
+        .signal-indicator[data-level="Velmi slabý"],
+        .signal-indicator[data-level="error"] {
+            color: #d1453b;
+        }
+        .signal-indicator[data-level="unknown"],
+        .signal-indicator[data-level="Neznámý"] {
+            color: #8a8f98;
+        }
+    </style>
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -37,6 +66,12 @@
                 <span class="brand-mark" aria-hidden="true"></span>
                 GSM Brána · Automatizace a monitoring
             </a>
+            {% if user.is_authenticated and perms.dashboard.view_gatewaysettings %}
+            <span id="gsm-signal-indicator" class="signal-indicator" data-signal-url="{% url 'gateway_signal_api' %}" title="Síla signálu GSM brány">
+                <i class="bi bi-reception-4"></i>
+                <span class="signal-indicator-text">načítám…</span>
+            </span>
+            {% endif %}
 
             <nav class="topnav">
                 <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Přepnout motiv">🌙 Dark</button>
@@ -296,6 +331,46 @@
         } else {
             initFieldStates();
         }
+    })();
+</script>
+<script>
+    (function () {
+        const indicator = document.getElementById('gsm-signal-indicator');
+        if (!indicator) return;
+
+        const url = indicator.dataset.signalUrl;
+        const textEl = indicator.querySelector('.signal-indicator-text');
+
+        function formatAge(iso) {
+            if (!iso) return null;
+            const diffMs = Date.now() - new Date(iso).getTime();
+            const mins = Math.round(diffMs / 60000);
+            if (mins < 1) return 'právě teď';
+            if (mins < 60) return `před ${mins} min`;
+            return `před ${Math.round(mins / 60)} h`;
+        }
+
+        function refresh() {
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (!data.ok || data.quality === null || data.quality === undefined) {
+                        textEl.textContent = 'signál neznámý';
+                        indicator.dataset.level = 'unknown';
+                        return;
+                    }
+                    const age = formatAge(data.checked_at);
+                    textEl.textContent = `${data.label} (${data.quality}/31)${age ? ' · ' + age : ''}`;
+                    indicator.dataset.level = data.label;
+                })
+                .catch(() => {
+                    textEl.textContent = 'signál nedostupný';
+                    indicator.dataset.level = 'error';
+                });
+        }
+
+        refresh();
+        setInterval(refresh, 20000);
     })();
 </script>
 {% block scripts %}{% endblock scripts %}
