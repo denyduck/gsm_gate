@@ -1,9 +1,13 @@
+import fcntl
+import os
 import re
 import time
 from dataclasses import dataclass
 from typing import List, Optional
 
 import serial
+
+_LOCK_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class ModemError(Exception):
@@ -72,16 +76,49 @@ class Sim7000Client:
         self.baudrate = baudrate
         self.timeout = timeout
         self.serial_connection: Optional[serial.Serial] = None
+        self._lock_file = None
+
+    def _lock_path(self) -> str:
+        safe_name = self.port.replace('/', '_').lstrip('_')
+        return os.path.join(_LOCK_DIR, f'.modem_{safe_name}.lock')
+
+    def _acquire_lock(self):
+        if self._lock_file is not None:
+            return
+        lock_file = open(self._lock_path(), 'w')
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as e:
+            lock_file.close()
+            raise ModemError(
+                f'Modem port {self.port} už používá jiný proces '
+                '(např. běžící gsm_worker). Ukonči ho a zkus to znovu.'
+            ) from e
+        self._lock_file = lock_file
+
+    def _release_lock(self):
+        if self._lock_file is None:
+            return
+        try:
+            fcntl.flock(self._lock_file, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        self._lock_file.close()
+        self._lock_file = None
 
     def connect(self):
         if self.serial_connection and self.serial_connection.is_open:
             return
+
+        self._acquire_lock()
+
         try:
             self.serial_connection = serial.Serial(
                 self.port, self.baudrate, timeout=self.timeout,
                 rtscts=False, dsrdtr=False,
             )
         except (serial.SerialException, OSError) as e:
+            self._release_lock()
             raise ModemError(f'Nepodařilo se otevřít sériový port: {e}') from e
 
         last_error = None
@@ -96,11 +133,14 @@ class Sim7000Client:
                     self.serial_connection.reset_input_buffer()
                 except (serial.SerialException, OSError):
                     pass
+
+        self._release_lock()
         raise last_error
 
     def close(self):
         if self.serial_connection and self.serial_connection.is_open:
             self.serial_connection.close()
+        self._release_lock()
 
     def initialize_modem(self):
         self.send_at('AT')

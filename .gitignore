@@ -25,6 +25,9 @@ staticfiles/
 *.db
 postgres_data/
 
+# GSM modem lock
+*.lock
+
 # IDE
 .vscode/
 .idea/
