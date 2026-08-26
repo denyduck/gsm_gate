@@ -15,7 +15,7 @@
     </div>
 </section>
 
-<section class="app-panel mb-4">
+<section class="app-panel mb-4" id="gateway-signal-panel" data-signal-url="{% url 'gateway_signal_api' %}">
     <div class="panel-header">
         <h2 class="panel-title">Síla signálu</h2>
     </div>
@@ -23,7 +23,7 @@
         <div class="col-md-3">
             <div class="card-stat">
                 <div class="label">Signál (CSQ)</div>
-                <div class="value">
+                <div class="value" id="signal-csq-value">
                     {% if gateway_settings.last_signal_quality is not None %}{{ gateway_settings.last_signal_quality }}/31{% else %}-{% endif %}
                 </div>
             </div>
@@ -31,19 +31,19 @@
         <div class="col-md-3">
             <div class="card-stat">
                 <div class="label">Kvalita</div>
-                <div class="value">{{ gateway_settings.signal_label }}</div>
+                <div class="value" id="signal-label-value">{{ gateway_settings.signal_label }}</div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stat">
                 <div class="label">Odhad dBm</div>
-                <div class="value">{% if gateway_settings.signal_dbm is not None %}{{ gateway_settings.signal_dbm }} dBm{% else %}-{% endif %}</div>
+                <div class="value" id="signal-dbm-value">{% if gateway_settings.signal_dbm is not None %}{{ gateway_settings.signal_dbm }} dBm{% else %}-{% endif %}</div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stat">
                 <div class="label">Naposledy zjištěno</div>
-                <div class="value">{% if gateway_settings.last_signal_checked_at %}{{ gateway_settings.last_signal_checked_at|date:"d.m.Y H:i:s" }}{% else %}nikdy{% endif %}</div>
+                <div class="value" id="signal-checked-at">{% if gateway_settings.last_signal_checked_at %}{{ gateway_settings.last_signal_checked_at|date:"d.m.Y H:i:s" }}{% else %}nikdy{% endif %}</div>
             </div>
         </div>
     </div>
@@ -82,3 +82,46 @@
     </div>
 </section>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const panel = document.getElementById('gateway-signal-panel');
+        if (!panel) return;
+
+        const url = panel.dataset.signalUrl;
+        const csqEl = document.getElementById('signal-csq-value');
+        const labelEl = document.getElementById('signal-label-value');
+        const dbmEl = document.getElementById('signal-dbm-value');
+        const checkedEl = document.getElementById('signal-checked-at');
+
+        function formatDateTime(iso) {
+            const d = new Date(iso);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
+        function refresh() {
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (!data.ok || data.quality === null || data.quality === undefined) {
+                        csqEl.textContent = '-';
+                        labelEl.textContent = 'Neznámý';
+                        dbmEl.textContent = '-';
+                        checkedEl.textContent = 'nikdy';
+                        return;
+                    }
+                    csqEl.textContent = `${data.quality}/31`;
+                    labelEl.textContent = data.label;
+                    dbmEl.textContent = (data.dbm !== null && data.dbm !== undefined) ? `${data.dbm} dBm` : '-';
+                    checkedEl.textContent = data.checked_at ? formatDateTime(data.checked_at) : 'nikdy';
+                })
+                .catch(() => {});
+        }
+
+        refresh();
+        setInterval(refresh, 20000);
+    })();
+</script>
+{% endblock scripts %}

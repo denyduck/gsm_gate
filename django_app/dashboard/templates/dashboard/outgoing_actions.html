@@ -22,7 +22,7 @@
 </section>
 
 {% if gateway_settings %}
-<section class="app-panel mb-4">
+<section class="app-panel mb-4" id="gateway-signal-panel" data-signal-url="{% url 'gateway_signal_api' %}">
     <div class="panel-header">
         <h2 class="panel-title">Signál brány</h2>
     </div>
@@ -30,7 +30,7 @@
         <div class="col-md-4">
             <div class="card-stat">
                 <div class="label">Kvalita signálu</div>
-                <div class="value">
+                <div class="value" id="signal-quality-value">
                     {{ gateway_settings.signal_label }}
                     {% if gateway_settings.last_signal_quality is not None %}<small class="text-muted-soft">({{ gateway_settings.last_signal_quality }}/31{% if gateway_settings.signal_dbm is not None %}, ~{{ gateway_settings.signal_dbm }} dBm{% endif %})</small>{% endif %}
                 </div>
@@ -39,7 +39,7 @@
         <div class="col-md-4">
             <div class="card-stat">
                 <div class="label">Naposledy zjištěno</div>
-                <div class="value">{% if gateway_settings.last_signal_checked_at %}{{ gateway_settings.last_signal_checked_at|date:"d.m.Y H:i:s" }}{% else %}nikdy{% endif %}</div>
+                <div class="value" id="signal-checked-at">{% if gateway_settings.last_signal_checked_at %}{{ gateway_settings.last_signal_checked_at|date:"d.m.Y H:i:s" }}{% else %}nikdy{% endif %}</div>
             </div>
         </div>
         <div class="col-md-4">
@@ -93,3 +93,46 @@
     </div>
 </section>
 {% endblock %}
+
+{% block scripts %}
+{% if gateway_settings %}
+<script>
+    (function () {
+        const panel = document.getElementById('gateway-signal-panel');
+        if (!panel) return;
+
+        const url = panel.dataset.signalUrl;
+        const qualityEl = document.getElementById('signal-quality-value');
+        const checkedEl = document.getElementById('signal-checked-at');
+
+        function formatDateTime(iso) {
+            const d = new Date(iso);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
+        function refresh() {
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (!data.ok || data.quality === null || data.quality === undefined) {
+                        qualityEl.textContent = 'Neznámý';
+                        checkedEl.textContent = 'nikdy';
+                        return;
+                    }
+                    let extra = `${data.quality}/31`;
+                    if (data.dbm !== null && data.dbm !== undefined) {
+                        extra += `, ~${data.dbm} dBm`;
+                    }
+                    qualityEl.innerHTML = `${data.label} <small class="text-muted-soft">(${extra})</small>`;
+                    checkedEl.textContent = data.checked_at ? formatDateTime(data.checked_at) : 'nikdy';
+                })
+                .catch(() => {});
+        }
+
+        refresh();
+        setInterval(refresh, 20000);
+    })();
+</script>
+{% endif %}
+{% endblock scripts %}
