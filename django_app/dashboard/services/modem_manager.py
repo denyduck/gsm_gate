@@ -86,7 +86,7 @@ class ModemManagerClient:
         create_arg = f"text='{text}',number='{phone_number}'"
         data = _run_mmcli(['-m', str(modem_idx), f'--messaging-create-sms={create_arg}'])
 
-        sms_path = data.get('sms', {}).get('dbus-path') or data.get('modem.messaging.create-sms')
+        sms_path = data.get('modem', {}).get('messaging', {}).get('created-sms')
         if not sms_path:
             raise ModemError(f'mmcli nevrátil cestu k nově vytvořené SMS: {data}')
 
