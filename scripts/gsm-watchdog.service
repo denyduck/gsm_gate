@@ -1,0 +1,6 @@
+[Unit]
+Description=GSM modem watchdog check (jednorázová kontrola stavu modemu)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gsm_watchdog.sh
