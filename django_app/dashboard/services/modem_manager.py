@@ -33,16 +33,15 @@ def _run_mmcli(args: List[str], timeout: float = 20.0) -> dict:
 
     stdout = result.stdout.strip()
     if not stdout:
-        # Některé akce (např. --send, --messaging-delete-sms) při úspěchu
-        # nevrací žádný JSON výstup, jen nulový návratový kód.
         return {}
 
     try:
         return json.loads(stdout)
-    except json.JSONDecodeError as e:
-        raise ModemError(
-            f'Nepodařilo se rozparsovat výstup mmcli ({" ".join(args)}): {e}; syrový výstup: {stdout!r}'
-        ) from e
+    except json.JSONDecodeError:
+        # Akční příkazy (--send, --messaging-delete-sms) při úspěchu často
+        # vypíšou jen lidsky čitelné potvrzení místo JSONu, i s -J. Návratový
+        # kód 0 už jsme ověřili výše, takže to bereme jako úspěch bez dat.
+        return {}
 
 
 def _sms_index_from_path(path: str) -> int:
