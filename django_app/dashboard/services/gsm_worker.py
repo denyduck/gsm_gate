@@ -73,7 +73,10 @@ class GsmWorkerService:
                     message_body=item.message,
                 )
 
-            self.client.delete_sms(item.index)
+            try:
+                self.client.delete_sms(item.index)
+            except ModemError as e:
+                logger.warning('Nepodařilo se smazat zpracovanou SMS (index %s): %s', item.index, e)
             processed_count += 1
 
         return processed_count
