@@ -40,4 +40,5 @@ docker compose --profile rpi up -d --build
 - **API objektů zařízení** – ingest endpoint a autentizace tokenem.
 - **Provozní scénáře** – denní provoz, onboarding, incidenty.
 - **Modem – hardware a diagnostika** – aktuální hardware, softwarový stack (ModemManager/mmcli), diagnostické příkazy, watchdog.
+- **Nasazení a obnova po havárii** – kompletní checklist pro novou RPi/výměnu SD karty, co `git pull` sám nezajistí.
 - **Troubleshooting** – nejčastější problémy a řešení.

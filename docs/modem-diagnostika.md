@@ -31,7 +31,7 @@ sudo modprobe option
 echo "1d12 0101" | sudo tee /sys/bus/usb-serial/drivers/option1/new_id
 ```
 
-**Tohle je runtime stav kernelu, ne trvalé nastavení** – po každém restartu RPi se ztrácí. Proto existuje `scripts/calyx-usb-serial.service` (systemd, spouští se automaticky při bootu před `ModemManager.service`) – viz [README, sekce nasazení](../README.md#3-instalace-systemd-služeb-jednorázově-host). Bez téhle služby (nebo ručního spuštění výše po každém restartu) `ModemManager` modem po rebootu vůbec neuvidí, i kdyby bylo všechno ostatní v pořádku.
+**Tohle je runtime stav kernelu, ne trvalé nastavení** – po každém restartu RPi se ztrácí. Proto existuje `scripts/calyx-usb-serial.service` (systemd, spouští se automaticky při bootu před `ModemManager.service`) – instalace viz [Nasazení a obnova po havárii](nasazeni-a-obnova.md). Bez téhle služby (nebo ručního spuštění výše po každém restartu) `ModemManager` modem po rebootu vůbec neuvidí, i kdyby bylo všechno ostatní v pořádku.
 
 ## Historie: proč se přešlo z Waveshare SIM7000E
 
