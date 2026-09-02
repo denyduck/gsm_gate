@@ -21,6 +21,18 @@ Dokumentace výrobce: [QSG Calyx](https://wiki.teltonika-networks.com/view/QSG_C
 
 **Důležité:** i když je HAT fyzicky nasazený na GPIO, AT komunikace jde přes **interní USB rozhraní**, ne přes GPIO UART. GPIO header řeší mechanické usazení, napájení a control piny (reset), ne datový přenos.
 
+### Registrace USB modemu u kernel driveru (nutná po každém bootu)
+
+Aby se modem vůbec objevil jako `/dev/ttyUSB*`, musí se u generického kernel driveru `option` zaregistrovat jeho USB vendor/product ID:
+
+```bash
+sudo modprobe usbserial
+sudo modprobe option
+echo "1d12 0101" | sudo tee /sys/bus/usb-serial/drivers/option1/new_id
+```
+
+**Tohle je runtime stav kernelu, ne trvalé nastavení** – po každém restartu RPi se ztrácí. Proto existuje `scripts/calyx-usb-serial.service` (systemd, spouští se automaticky při bootu před `ModemManager.service`) – viz [README, sekce nasazení](../README.md#3-instalace-systemd-služeb-jednorázově-host). Bez téhle služby (nebo ručního spuštění výše po každém restartu) `ModemManager` modem po rebootu vůbec neuvidí, i kdyby bylo všechno ostatní v pořádku.
+
 ## Historie: proč se přešlo z Waveshare SIM7000E
 
 Původní hardware byl **Waveshare SIM7000E HAT** (NB-IoT/eMTC/EDGE/GPRS, GPIO UART na `/dev/ttyAMA0`, ruční AT příkazy přes `pyserial`). Po měsících provozu modem přestal reagovat na AT příkazy (`AT timeout`), zatímco síťová LED (`NET`) dál ukazovala normální registraci v síti. Diagnostika vyloučila postupně:

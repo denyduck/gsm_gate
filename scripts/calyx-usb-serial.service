@@ -1,0 +1,14 @@
+[Unit]
+Description=Registruje Teltonika Calyx (EBD021) u kernel "option" USB-serial driveru
+Before=ModemManager.service
+After=systemd-udevd.service local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/modprobe usbserial
+ExecStart=/sbin/modprobe option
+ExecStart=/bin/sh -c 'echo "1d12 0101" > /sys/bus/usb-serial/drivers/option1/new_id || true'
+
+[Install]
+WantedBy=multi-user.target
