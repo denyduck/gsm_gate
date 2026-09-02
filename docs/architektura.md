@@ -11,8 +11,10 @@ Systém je rozdělený na dvě hlavní části:
    - logování a audit.
 2. **GSM worker**
    - periodicky čte frontu odchozích akcí,
-   - komunikuje se SIM7000 modemem přes AT příkazy,
+   - komunikuje s modemem přes `ModemManager`/`mmcli` (D-Bus),
    - vyhodnocuje úspěch/neúspěch a zapisuje výsledek.
+
+   Detaily hardwaru, softwarového stacku a diagnostiky viz [Modem – hardware a diagnostika](modem-diagnostika.md).
 
 Datové úložiště je **PostgreSQL**.
 
@@ -21,7 +23,7 @@ Datové úložiště je **PostgreSQL**.
 - `db` – PostgreSQL databáze,
 - `web` – Django aplikace,
 - `pgadmin` – DB administrace,
-- `gsm_worker` – oddělený worker (profil `rpi`),
+- `gsm_worker` – oddělený worker (profil `rpi`), mluví s modemem přes D-Bus socket namountovaný z hostu (`/run/dbus`), kde běží `ModemManager`,
 - `mkdocs` – dokumentace (samostatný compose soubor).
 
 ## Doménové entity

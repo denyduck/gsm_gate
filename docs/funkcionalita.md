@@ -132,12 +132,12 @@ Objekty reprezentují zařízení/zdroje událostí.
 
 ### Stav
 
-- technický přehled zdraví brány a návazných částí.
+- technický přehled zdraví brány a návazných částí,
+- **síla signálu** (v procentech, 0–100 %) – zapisuje ji worker při každém cyklu, na stránce se sama aktualizuje bez nutnosti obnovit stránku (live polling přes JS každých 20 s), stejný badge je vidět i v hlavičce webu.
 
 ### Konfigurace
 
-- sériový port,
-- baud rate,
+- sériový port, baud rate *(pole zůstávají v modelu z dob SIM7000E, aktuální hardware (ModemManager/mmcli) je nepoužívá – viz [Modem – hardware a diagnostika](modem-diagnostika.md))*,
 - SIM PIN,
 - APN,
 - režim sítě,

@@ -28,10 +28,12 @@
 ## 4) Incident: neodesílají se akce
 
 1. Otevřít odchozí akce a zkontrolovat status.
-2. Ověřit dostupnost modemu (`GSM_ENABLED`, port, baud).
+2. Ověřit dostupnost modemu (`GSM_ENABLED`, `mmcli -m 0` – stav `registered`).
 3. Ověřit běh workeru (`gsm_worker` container).
 4. Zkontrolovat `execution_detail` u neúspěšných akcí.
 5. Otestovat jednorázové spuštění workeru.
+
+Podrobný postup: [Modem – hardware a diagnostika](modem-diagnostika.md#postup-při-diagnostice-sms-nechodí-checklist).
 
 ## 5) Změna pravidel bez výpadku
 

@@ -1,6 +1,6 @@
 # GSM Gate – kompletní dokumentace
 
-Tato dokumentace popisuje kompletní funkcionalitu systému **GSM Gate**: webovou správu, pravidla automatizace, auditní logování i napojení na modem **SIM7000** přes oddělený worker.
+Tato dokumentace popisuje kompletní funkcionalitu systému **GSM Gate**: webovou správu, pravidla automatizace, auditní logování i napojení na GSM modem (aktuálně **Teltonika Calyx**, přes **ModemManager**) přes oddělený worker.
 
 ## Co systém řeší
 
@@ -26,7 +26,7 @@ Dokumentace poběží na adrese: <http://localhost:8010>
 docker compose up -d --build
 ```
 
-Volitelně worker profil pro RPi/SIM7000:
+Volitelně worker profil pro RPi/modem:
 
 ```bash
 docker compose --profile rpi up -d --build
@@ -39,4 +39,5 @@ docker compose --profile rpi up -d --build
 - **Role a oprávnění** – kdo co může dělat.
 - **API objektů zařízení** – ingest endpoint a autentizace tokenem.
 - **Provozní scénáře** – denní provoz, onboarding, incidenty.
+- **Modem – hardware a diagnostika** – aktuální hardware, softwarový stack (ModemManager/mmcli), diagnostické příkazy, watchdog.
 - **Troubleshooting** – nejčastější problémy a řešení.

@@ -1,5 +1,5 @@
 site_name: GSM Gate Documentation
-site_description: Kompletní dokumentace projektu GSM Gate (Django + SIM7000)
+site_description: Kompletní dokumentace projektu GSM Gate (Django + ModemManager)
 site_url: http://localhost:8010
 repo_name: gsm_gate
 
@@ -43,4 +43,5 @@ nav:
   - Role a oprávnění: role-a-opravneni.md
   - API objektů zařízení: api-objekty-zarizeni.md
   - Provozní scénáře: provozni-scenare.md
+  - Modem – hardware a diagnostika: modem-diagnostika.md
   - Troubleshooting: troubleshooting.md

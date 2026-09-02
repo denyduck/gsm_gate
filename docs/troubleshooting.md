@@ -48,14 +48,16 @@ docker compose exec web python manage.py migrate
 
 - běží container `gsm_worker`?
 - je nastaveno `GSM_ENABLED=true`?
-- je správně mapovaný modem port?
-- odpovídá `GSM_MODEM_BAUD` hardware konfiguraci?
+- vidí modem `ModemManager` na hostu (`mmcli -m 0`)?
+- vidí kontejner `ModemManager` přes D-Bus (mount `/run/dbus`)?
 
 ### Diagnostika
 
 ```bash
-docker compose run --rm web python manage.py gsm_gateway_worker --once
+docker compose --profile rpi run --rm gsm_worker python manage.py gsm_gateway_worker --once
 ```
+
+Podrobný diagnostický postup krok za krokem (včetně `mmcli` příkazů a watchdogu) viz [Modem – hardware a diagnostika](modem-diagnostika.md).
 
 ## 5) Objekt API neposílá události
 
