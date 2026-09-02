@@ -40,7 +40,9 @@ def _run_mmcli(args: List[str], timeout: float = 20.0) -> dict:
     try:
         return json.loads(stdout)
     except json.JSONDecodeError as e:
-        raise ModemError(f'Nepodařilo se rozparsovat výstup mmcli ({" ".join(args)}): {e}') from e
+        raise ModemError(
+            f'Nepodařilo se rozparsovat výstup mmcli ({" ".join(args)}): {e}; syrový výstup: {stdout!r}'
+        ) from e
 
 
 def _sms_index_from_path(path: str) -> int:
