@@ -31,8 +31,14 @@ def _run_mmcli(args: List[str], timeout: float = 20.0) -> dict:
         detail = (result.stderr or result.stdout or '').strip()
         raise ModemError(f'mmcli chyba ({" ".join(args)}): {detail}')
 
+    stdout = result.stdout.strip()
+    if not stdout:
+        # Některé akce (např. --send, --messaging-delete-sms) při úspěchu
+        # nevrací žádný JSON výstup, jen nulový návratový kód.
+        return {}
+
     try:
-        return json.loads(result.stdout)
+        return json.loads(stdout)
     except json.JSONDecodeError as e:
         raise ModemError(f'Nepodařilo se rozparsovat výstup mmcli ({" ".join(args)}): {e}') from e
 
@@ -86,8 +92,12 @@ class ModemManagerClient:
         sms_idx = _sms_index_from_path(sms_path)
         send_result = _run_mmcli(['-s', str(sms_idx), '--send'])
 
+        # --send při úspěchu často nevrátí žádný JSON (viz _run_mmcli) - v tom
+        # případě je jediným signálem úspěchu nulový návratový kód a `state`
+        # tu není k dispozici vůbec. Selhání hlásíme jen tehdy, když stav
+        # skutečně známe a je jiný než "sent"/"sending".
         state = send_result.get('sms', {}).get('properties', {}).get('state')
-        if state not in ('sent', 'sending'):
+        if state is not None and state not in ('sent', 'sending'):
             raise ModemError(f'SMS se nepodařilo odeslat, stav po odeslání: {state}')
 
         # Uklidíme si po sobě, ať se odchozí zprávy nehromadí ve výpisu.
