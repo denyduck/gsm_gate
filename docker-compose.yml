@@ -40,6 +40,7 @@ services:
 
   web:
     container_name: django_app
+    restart: unless-stopped
     build:
       context: ./django_app
       dockerfile: Dockerfile_django

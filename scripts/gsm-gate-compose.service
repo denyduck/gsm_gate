@@ -1,0 +1,16 @@
+[Unit]
+Description=GSM Gate - kompletní Docker Compose stack (web, db, pgadmin, gsm_worker)
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/usr/src/app/gsm_gate
+ExecStart=/usr/bin/docker compose up -d --build
+ExecStart=/usr/bin/docker compose --profile rpi up -d --build gsm_worker
+ExecStop=/usr/bin/docker compose --profile rpi down
+
+[Install]
+WantedBy=multi-user.target
