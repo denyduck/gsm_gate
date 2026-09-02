@@ -360,7 +360,7 @@
                         return;
                     }
                     const age = formatAge(data.checked_at);
-                    textEl.textContent = `${data.label} (${data.quality}/31)${age ? ' · ' + age : ''}`;
+                    textEl.textContent = `${data.label} (${data.quality}%)${age ? ' · ' + age : ''}`;
                     indicator.dataset.level = data.label;
                 })
                 .catch(() => {

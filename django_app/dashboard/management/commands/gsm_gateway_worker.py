@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import OperationalError
 
 from dashboard.services.gsm_worker import GsmWorkerService
-from dashboard.services.sim7000 import ModemError
+from dashboard.services.modem_manager import ModemError
 
 logger = logging.getLogger(__name__)
 

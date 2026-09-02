@@ -32,7 +32,7 @@
                 <div class="label">Kvalita signálu</div>
                 <div class="value" id="signal-quality-value">
                     {{ gateway_settings.signal_label }}
-                    {% if gateway_settings.last_signal_quality is not None %}<small class="text-muted-soft">({{ gateway_settings.last_signal_quality }}/31{% if gateway_settings.signal_dbm is not None %}, ~{{ gateway_settings.signal_dbm }} dBm{% endif %})</small>{% endif %}
+                    {% if gateway_settings.last_signal_quality is not None %}<small class="text-muted-soft">({{ gateway_settings.last_signal_quality }}%)</small>{% endif %}
                 </div>
             </div>
         </div>
@@ -120,11 +120,7 @@
                         checkedEl.textContent = 'nikdy';
                         return;
                     }
-                    let extra = `${data.quality}/31`;
-                    if (data.dbm !== null && data.dbm !== undefined) {
-                        extra += `, ~${data.dbm} dBm`;
-                    }
-                    qualityEl.innerHTML = `${data.label} <small class="text-muted-soft">(${extra})</small>`;
+                    qualityEl.innerHTML = `${data.label} <small class="text-muted-soft">(${data.quality}%)</small>`;
                     checkedEl.textContent = data.checked_at ? formatDateTime(data.checked_at) : 'nikdy';
                 })
                 .catch(() => {});

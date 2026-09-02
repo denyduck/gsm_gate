@@ -4,6 +4,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /usr/src/app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends modemmanager \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements_django.txt .
 RUN pip install --no-cache-dir -r requirements_django.txt
 

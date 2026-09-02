@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from dashboard.models import OutgoingAction, GatewaySettings
 from dashboard.services.rules_engine import process_incoming_event, normalize_phone_number
-from dashboard.services.sim7000 import Sim7000Client, ModemError
+from dashboard.services.modem_manager import ModemManagerClient, ModemError
 
 import logging
 
@@ -27,11 +27,7 @@ class WorkerResult:
 
 class GsmWorkerService:
     def __init__(self):
-        self.client = Sim7000Client(
-            port=settings.GSM_MODEM_PORT,
-            baudrate=settings.GSM_MODEM_BAUD,
-            timeout=settings.GSM_MODEM_TIMEOUT,
-        )
+        self.client = ModemManagerClient()
 
     def cycle(self) -> WorkerResult:
         close_old_connections()
