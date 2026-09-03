@@ -349,6 +349,37 @@ class AutomationRule(models.Model):
             raise ValidationError('Pokud je zapnutý filtr podle příznaku, vyplňte příznak v SMS.')
 
 
+class SecurityRule(models.Model):
+    """Pevně dané bezpečnostní pravidlo proti zahlcení SMS/API událostmi.
+
+    Jde o singleton na uživatele – vytváří se automaticky (get_or_create),
+    dá se jen upravit a zapnout/vypnout, nedá se smazat (žádné delete view).
+    """
+
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name='security_rule', verbose_name='Vlastník')
+    active = models.BooleanField('Aktivní', default=True)
+    rate_limit_window_minutes = models.PositiveIntegerField(
+        'Časové okno (min)', default=10,
+        validators=[MinValueValidator(1), MaxValueValidator(1440)],
+    )
+    rate_limit_max_events = models.PositiveIntegerField(
+        'Max. událostí v okně', default=20,
+        validators=[MinValueValidator(1)],
+    )
+    auto_block_cooldown_minutes = models.PositiveIntegerField(
+        'Doba automatické blokace (min)', default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(10080)],
+    )
+    updated_at = models.DateTimeField('Naposledy změněno', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Bezpečnostní pravidlo'
+        verbose_name_plural = 'Bezpečnostní pravidla'
+
+    def __str__(self):
+        return f"Bezpečnostní pravidlo: {self.owner.username}"
+
+
 class BlockedNumber(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blocked_numbers', verbose_name='Vlastník')
     number = models.CharField('Telefonní číslo', max_length=30)

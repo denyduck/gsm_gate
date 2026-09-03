@@ -8,12 +8,17 @@
     <h1 class="hero-title">Blokovaná čísla</h1>
     <p class="hero-subtitle">
         Čísla na tomto seznamu se u příchozích SMS/API událostí rovnou ignorují — pravidla se pro ně vůbec nevyhodnocují.
-        Číslo se sem přidá i automaticky, pokud za posledních {{ rate_limit_window }} minut pošle víc než {{ rate_limit_max }} událostí (ochrana proti zahlcení/spamu) — takové zablokování je jen dočasné.
+        Číslo se sem přidá i automaticky, pokud za posledních {{ security_rule.rate_limit_window_minutes }} minut pošle víc než {{ security_rule.rate_limit_max_events }} událostí (ochrana proti zahlcení/spamu) — takové zablokování je jen dočasné.
     </p>
     <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'event_logs' %}" class="btn btn-app-outline">Logy událostí</a>
         <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Pravidla</a>
     </div>
+    {% if not security_rule.active %}
+    <div class="alert alert-warning mt-3 mb-0">
+        Automatická ochrana proti zahlcení je momentálně <strong>vypnutá</strong> (bezpečnostní pravidlo je neaktivní). Ruční blokace níže fungují vždy, ochrana proti zahlcení a vynucování blocklistu ne, dokud se pravidlo znovu nezapne.
+    </div>
+    {% endif %}
 </section>
 
 <section class="app-panel mb-4">

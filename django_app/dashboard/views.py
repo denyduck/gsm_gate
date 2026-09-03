@@ -34,12 +34,7 @@ from .forms import (
     AutomationRuleForm,
     IncomingEventSimulationForm,
 )
-from .services.rules_engine import (
-    normalize_phone_number,
-    process_incoming_event,
-    RATE_LIMIT_MAX_EVENTS,
-    RATE_LIMIT_WINDOW_MINUTES,
-)
+from .services.rules_engine import get_security_rule, normalize_phone_number, process_incoming_event
 
 
 # Zobrazení dashboardu s čísly uživatele
@@ -652,6 +647,7 @@ def rules_list_view(request):
             'rules': rules,
             'editable_rule_ids': rule_ids,
             'deletable_rule_ids': rule_ids,
+            'security_rule': get_security_rule(request.user),
             'can_view_rule': request.user.has_perm('dashboard.view_automationrule'),
             'can_add_rule': request.user.has_perm('dashboard.add_automationrule'),
             'can_change_rule': request.user.has_perm('dashboard.change_automationrule'),
@@ -811,11 +807,11 @@ def blocked_numbers_view(request):
         form = BlockedNumberForm()
 
     numbers = BlockedNumber.objects.filter(owner=request.user)
+    security_rule = get_security_rule(request.user)
     context = {
         'form': form,
         'numbers': numbers,
-        'rate_limit_window': RATE_LIMIT_WINDOW_MINUTES,
-        'rate_limit_max': RATE_LIMIT_MAX_EVENTS,
+        'security_rule': security_rule,
     }
     return render(request, 'dashboard/blocked_numbers.html', context)
 

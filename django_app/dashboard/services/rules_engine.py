@@ -3,18 +3,18 @@ from datetime import timedelta
 from django.db.models import Q
 from django.utils import timezone
 
-from dashboard.models import AutomationRule, BlockedNumber, IncomingEventLog, OutgoingAction
-
-# Ochrana proti zahlcení: kolik událostí smí jedno číslo vyvolat za dané
-# časové okno, než se dočasně zablokuje.
-RATE_LIMIT_WINDOW_MINUTES = 10
-RATE_LIMIT_MAX_EVENTS = 20
-AUTO_BLOCK_COOLDOWN_MINUTES = 30
+from dashboard.models import AutomationRule, BlockedNumber, IncomingEventLog, OutgoingAction, SecurityRule
 
 
 def normalize_phone_number(raw_number):
     text = (raw_number or '').strip()
     return ''.join(ch for ch in text if ch.isdigit() or ch == '+')
+
+
+def get_security_rule(user):
+    """Vrátí (a při prvním použití založí) pevné bezpečnostní pravidlo uživatele."""
+    rule, _ = SecurityRule.objects.get_or_create(owner=user)
+    return rule
 
 
 def is_number_blocked(user, normalized_source):
@@ -25,31 +25,31 @@ def is_number_blocked(user, normalized_source):
     ).exists()
 
 
-def _check_rate_limit_and_block(user, normalized_source):
+def _check_rate_limit_and_block(user, normalized_source, security_rule):
     """Vrátí důvod zablokování (str), pokud číslo právě překročilo limit, jinak None."""
     if not normalized_source:
         return None
 
-    window_start = timezone.now() - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)
+    window_start = timezone.now() - timedelta(minutes=security_rule.rate_limit_window_minutes)
     recent_count = IncomingEventLog.objects.filter(
         owner=user,
         source_number=normalized_source,
         created_at__gte=window_start,
     ).count()
 
-    if recent_count <= RATE_LIMIT_MAX_EVENTS:
+    if recent_count <= security_rule.rate_limit_max_events:
         return None
 
     reason = (
-        f'Automaticky zablokováno – více než {RATE_LIMIT_MAX_EVENTS} '
-        f'událostí za {RATE_LIMIT_WINDOW_MINUTES} min.'
+        f'Automaticky zablokováno – více než {security_rule.rate_limit_max_events} '
+        f'událostí za {security_rule.rate_limit_window_minutes} min.'
     )
     BlockedNumber.objects.update_or_create(
         owner=user,
         number=normalized_source,
         defaults={
             'reason': reason,
-            'expires_at': timezone.now() + timedelta(minutes=AUTO_BLOCK_COOLDOWN_MINUTES),
+            'expires_at': timezone.now() + timedelta(minutes=security_rule.auto_block_cooldown_minutes),
         },
     )
     return reason
@@ -143,18 +143,25 @@ def process_incoming_event(user, event_type, source_number, message_body, source
         message_body=message_body or '',
     )
 
+    security_rule = get_security_rule(user)
+
+    # Ruční blokace platí vždy - je to explicitní rozhodnutí administrátora,
+    # nezávislé na přepínači automatické ochrany.
     if is_number_blocked(user, normalized_source):
         event_log.processed = True
         event_log.result_summary = f'Číslo {normalized_source} je blokované – událost ignorována, pravidla se nevyhodnocují.'
         event_log.save(update_fields=['processed', 'result_summary'])
         return event_log, 0, 0
 
-    block_reason = _check_rate_limit_and_block(user, normalized_source)
-    if block_reason:
-        event_log.processed = True
-        event_log.result_summary = f'{block_reason} Tato a další události z tohoto čísla se dočasně ignorují.'
-        event_log.save(update_fields=['processed', 'result_summary'])
-        return event_log, 0, 0
+    # Automatická ochrana proti zahlcení jde vypnout přes SecurityRule.active
+    # (Django Admin) - ruční blokace výše tím není dotčená.
+    if security_rule.active:
+        block_reason = _check_rate_limit_and_block(user, normalized_source, security_rule)
+        if block_reason:
+            event_log.processed = True
+            event_log.result_summary = f'{block_reason} Tato a další události z tohoto čísla se dočasně ignorují.'
+            event_log.save(update_fields=['processed', 'result_summary'])
+            return event_log, 0, 0
 
     summaries = []
     matched_count = 0
