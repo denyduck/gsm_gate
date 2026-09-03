@@ -126,7 +126,11 @@ Objekty reprezentují zařízení/zdroje událostí.
 - smazat objekt,
 - otevřít detail objektu,
 - vygenerovat/regenerovat API token,
-- exportovat integrační konfiguraci.
+- exportovat integrační konfiguraci,
+- odeslat **testovací volání** – skutečný HTTP požadavek na `api/device-events/ingest/` se skutečným tokenem objektu, výsledek (HTTP stav + odpověď) se zobrazí přímo v administraci,
+- vygenerovat **QR spouštěč** – QR kód s odkazem obsahujícím API token objektu; naskenování telefonem (bez přihlášení) odešle požadavek a vyhodnotí pravidla stejně jako API volání. Text zprávy lze přizpůsobit parametrem `?msg=`. Regenerace API klíče odkaz/QR kód zneplatní.
+
+Odkaz/QR kód spouštěče funguje jako sdílené tajemství (token je součástí URL) – je potřeba s ním zacházet jako s heslem, protože kdokoliv s odkazem může objekt spustit.
 
 ## 11) Gateway status a konfigurace
 

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{% if ok %}Událost odeslána{% else %}Neplatný odkaz{% endif %}{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4" style="max-width: 560px;">
+    {% if ok %}
+        <span class="status-badge"><i class="bi bi-qr-code-scan"></i> QR spouštěč</span>
+        <h1 class="hero-title"><i class="bi bi-{{ obj.icon }} me-2"></i>{{ obj.name }}</h1>
+        <p class="hero-subtitle">Událost byla přijata a vyhodnocena.</p>
+
+        <div class="table-wrap table-responsive mt-3">
+            <table class="table table-striped align-middle mb-0">
+                <tbody>
+                    <tr><th>Čas</th><td>{{ created_at|date:"d.m.Y H:i:s" }}</td></tr>
+                    <tr><th>Odpovídající pravidla</th><td>{{ matched_count }}</td></tr>
+                    <tr><th>Zařazené akce</th><td>{{ queued_count }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        {% if matched_count == 0 %}
+            <div class="alert alert-warning mt-3 mb-0">Žádné aktivní pravidlo na tuto událost nereaguje. Zkontroluj pravidla objektu v administraci brány.</div>
+        {% endif %}
+    {% else %}
+        <span class="status-badge"><i class="bi bi-x-octagon"></i> Neplatný odkaz</span>
+        <h1 class="hero-title">Odkaz nefunguje</h1>
+        <p class="hero-subtitle">Tento QR kód / odkaz je neplatný nebo byl jeho API klíč zneplatněn (např. regenerací). Požádej správce brány o nový.</p>
+    {% endif %}
+</section>
+{% endblock %}

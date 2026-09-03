@@ -97,5 +97,31 @@
   -H "X-Device-Token: {{ api_credential.token }}" \
   -d '{"event_type":"SMS","source_number":"{{ obj.id }}","message_body":"{{ obj.status_label|default:"test event" }}"}'</pre>
     </div>
+
+    <div class="p-3 border rounded mt-3">
+        <div class="fw-semibold mb-2">Testovací volání</div>
+        <p class="small text-muted-soft">Odešle skutečný HTTP požadavek na endpoint výše (se skutečným tokenem) a ukáže reálnou odpověď - ověří tak celou cestu, ne jen vyhodnocení pravidel.</p>
+        <form method="post" action="{% url 'device_object_test_call' obj.id %}" class="d-flex gap-2 flex-wrap align-items-start">
+            {% csrf_token %}
+            <input type="text" name="message" class="form-control" style="max-width: 360px;" placeholder="Text testovací zprávy (nepovinné)">
+            <button type="submit" class="btn btn-app-primary"><i class="bi bi-send"></i> Odeslat testovací požadavek</button>
+        </form>
+    </div>
+</section>
+
+<section class="app-panel mt-4">
+    <div class="panel-header"><h2 class="panel-title">QR spouštěč</h2></div>
+    <p class="small text-muted-soft px-1">
+        Naskenováním tímto QR kódem se z telefonu (bez přihlášení) odešle požadavek na objekt a vyhodnotí se pravidla stejně jako u API volání.
+        Odkaz obsahuje API token objektu jako sdílené tajemství - chraň ho jako heslo. Regenerace API klíče výše odkaz/QR kód zneplatní a vygeneruje nový.
+    </p>
+    <div class="d-flex gap-4 flex-wrap align-items-center p-3">
+        <img src="{% url 'device_object_qr_code' obj.id %}" alt="QR kód spouštěče objektu {{ obj.name }}" style="width: 200px; height: 200px; background: #fff; padding: 8px; border-radius: 8px;">
+        <div>
+            <div class="fw-semibold mb-1">Odkaz spouštěče</div>
+            <div class="mono small">{{ request.scheme }}://{{ request.get_host }}{% url 'device_object_trigger' api_credential.token %}</div>
+            <div class="small text-muted-soft mt-2">Volitelně lze text zprávy přizpůsobit parametrem <span class="mono">?msg=text</span> v odkazu.</div>
+        </div>
+    </div>
 </section>
 {% endblock %}

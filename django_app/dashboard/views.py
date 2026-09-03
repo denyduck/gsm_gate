@@ -1,8 +1,12 @@
 # logika pro zobrazení dashboardu a správu čísel
 # jinja2 šablony jsou v django_app/dashboard/templates/dashboard/
 
+import io
 import json
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
+import qrcode
 from django import forms
 from django.forms import modelform_factory
 from django.shortcuts import render, redirect, get_object_or_404
@@ -546,6 +550,99 @@ def device_object_export_config(request, pk):
     )
     response['Content-Disposition'] = f'attachment; filename="device_object_{obj.id}_config.json"'
     return response
+
+
+@login_required
+@permission_required('dashboard.view_deviceobject', raise_exception=True)
+@require_http_methods(['POST'])
+def device_object_test_call(request, pk):
+    """Skutečně zavolá reálný ingest endpoint reálným HTTP požadavkem se
+    skutečným tokenem objektu - ověří tak celou cestu (token, síť, ALLOWED_HOSTS
+    apod.), ne jen interní logiku vyhodnocení pravidel."""
+    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    credential, _ = DeviceObjectApiCredential.objects.get_or_create(
+        device_object=obj,
+        defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
+    )
+
+    test_message = request.POST.get('message', '').strip() or f'Testovací požadavek z detailu objektu „{obj.name}“.'
+    payload = json.dumps({
+        'event_type': 'API',
+        'source_number': str(obj.id),
+        'message_body': test_message,
+    }).encode('utf-8')
+
+    ingest_url = request.build_absolute_uri(reverse('device_event_ingest_api'))
+    req = urllib_request.Request(
+        ingest_url,
+        data=payload,
+        headers={'Content-Type': 'application/json', 'X-Device-Token': credential.token},
+        method='POST',
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=8) as resp:
+            body = resp.read().decode('utf-8')
+            messages.success(request, f'Testovací požadavek proběhl úspěšně (HTTP {resp.status}): {body}')
+    except urllib_error.HTTPError as exc:
+        body = exc.read().decode('utf-8')
+        messages.error(request, f'Testovací požadavek selhal (HTTP {exc.code}): {body}')
+    except Exception as exc:
+        messages.error(request, f'Testovací požadavek selhal: {exc}')
+
+    return redirect('device_object_detail', pk=obj.pk)
+
+
+@login_required
+@permission_required('dashboard.view_deviceobject', raise_exception=True)
+def device_object_qr_code(request, pk):
+    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    credential, _ = DeviceObjectApiCredential.objects.get_or_create(
+        device_object=obj,
+        defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
+    )
+
+    trigger_url = request.build_absolute_uri(reverse('device_object_trigger', args=[credential.token]))
+
+    img = qrcode.make(trigger_url, box_size=8, border=2)
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+
+    response = HttpResponse(buffer.getvalue(), content_type='image/png')
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+def device_object_trigger(request, token):
+    """Veřejný (bez přihlášení) spouštěč pro naskenovaný QR kód / fyzické
+    tlačítko - token v URL slouží jako sdílené tajemství (obdoba bearer
+    tokenu), takže odkaz/QR kód je potřeba chránit jako heslo."""
+    credential = DeviceObjectApiCredential.objects.filter(token=token, active=True).select_related('device_object__owner').first()
+
+    if credential is None:
+        return render(request, 'dashboard/device_object_trigger_result.html', {'ok': False}, status=404)
+
+    obj = credential.device_object
+    message_body = request.GET.get('msg', '').strip() or f'Spuštěno naskenováním QR kódu objektu „{obj.name}“.'
+
+    event_log, matched_count, queued_count = process_incoming_event(
+        user=obj.owner,
+        event_type='API',
+        source_number=str(obj.id),
+        message_body=message_body,
+        source_device_object=obj,
+    )
+
+    credential.last_used_at = event_log.created_at
+    credential.save(update_fields=['last_used_at'])
+
+    context = {
+        'ok': True,
+        'obj': obj,
+        'matched_count': matched_count,
+        'queued_count': queued_count,
+        'created_at': event_log.created_at,
+    }
+    return render(request, 'dashboard/device_object_trigger_result.html', context)
 
 
 @csrf_exempt

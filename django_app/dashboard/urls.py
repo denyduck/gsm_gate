@@ -40,7 +40,10 @@ urlpatterns = [
     path('objects/<int:pk>/delete/', views.device_object_delete, name='device_object_delete'),
     path('objects/<int:pk>/api-key/regenerate/', views.device_object_regenerate_api_key, name='device_object_regenerate_api_key'),
     path('objects/<int:pk>/api-config/export/', views.device_object_export_config, name='device_object_export_config'),
+    path('objects/<int:pk>/test-call/', views.device_object_test_call, name='device_object_test_call'),
+    path('objects/<int:pk>/qr-code/', views.device_object_qr_code, name='device_object_qr_code'),
 
     path('api/device-events/ingest/', views.device_event_ingest_api, name='device_event_ingest_api'),
+    path('t/<str:token>/', views.device_object_trigger, name='device_object_trigger'),
 
 ]
