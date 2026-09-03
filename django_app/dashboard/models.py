@@ -6,6 +6,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 
 # tabulka pro skupiny čísel
@@ -346,6 +347,27 @@ class AutomationRule(models.Model):
             raise ValidationError('Pro akci "Předat na číslo" je nutné vyplnit cílové číslo.')
         if self.use_message_flag and not self.message_flag.strip():
             raise ValidationError('Pokud je zapnutý filtr podle příznaku, vyplňte příznak v SMS.')
+
+
+class BlockedNumber(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blocked_numbers', verbose_name='Vlastník')
+    number = models.CharField('Telefonní číslo', max_length=30)
+    reason = models.CharField('Důvod', max_length=255, blank=True)
+    created_at = models.DateTimeField('Vytvořeno', auto_now_add=True)
+    expires_at = models.DateTimeField('Platí do', null=True, blank=True, help_text='Prázdné = trvalá blokace.')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Blokované číslo'
+        verbose_name_plural = 'Blokovaná čísla'
+        unique_together = [('owner', 'number')]
+
+    def __str__(self):
+        return f"{self.number} ({self.owner.username})"
+
+    @property
+    def is_active(self):
+        return self.expires_at is None or self.expires_at > timezone.now()
 
 
 class IncomingEventLog(models.Model):

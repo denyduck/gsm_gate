@@ -1,6 +1,12 @@
 # Formulář pro přidání/úpravu telefonního čísla
 from django import forms
-from .models import DeviceObject, PhoneNumber, Group, GatewaySettings, AutomationRule  # ← správný model
+from .models import BlockedNumber, DeviceObject, PhoneNumber, Group, GatewaySettings, AutomationRule  # ← správný model
+
+
+class BlockedNumberForm(forms.ModelForm):
+    class Meta:
+        model = BlockedNumber
+        fields = ['number', 'reason']
 
 class PhoneNumberForm(forms.ModelForm):
     class Meta:

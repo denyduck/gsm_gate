@@ -1,11 +1,58 @@
-from django.db.models import Q
+from datetime import timedelta
 
-from dashboard.models import AutomationRule, IncomingEventLog, OutgoingAction
+from django.db.models import Q
+from django.utils import timezone
+
+from dashboard.models import AutomationRule, BlockedNumber, IncomingEventLog, OutgoingAction
+
+# Ochrana proti zahlcení: kolik událostí smí jedno číslo vyvolat za dané
+# časové okno, než se dočasně zablokuje.
+RATE_LIMIT_WINDOW_MINUTES = 10
+RATE_LIMIT_MAX_EVENTS = 20
+AUTO_BLOCK_COOLDOWN_MINUTES = 30
 
 
 def normalize_phone_number(raw_number):
     text = (raw_number or '').strip()
     return ''.join(ch for ch in text if ch.isdigit() or ch == '+')
+
+
+def is_number_blocked(user, normalized_source):
+    if not normalized_source:
+        return False
+    return BlockedNumber.objects.filter(owner=user, number=normalized_source).filter(
+        Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+    ).exists()
+
+
+def _check_rate_limit_and_block(user, normalized_source):
+    """Vrátí důvod zablokování (str), pokud číslo právě překročilo limit, jinak None."""
+    if not normalized_source:
+        return None
+
+    window_start = timezone.now() - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)
+    recent_count = IncomingEventLog.objects.filter(
+        owner=user,
+        source_number=normalized_source,
+        created_at__gte=window_start,
+    ).count()
+
+    if recent_count <= RATE_LIMIT_MAX_EVENTS:
+        return None
+
+    reason = (
+        f'Automaticky zablokováno – více než {RATE_LIMIT_MAX_EVENTS} '
+        f'událostí za {RATE_LIMIT_WINDOW_MINUTES} min.'
+    )
+    BlockedNumber.objects.update_or_create(
+        owner=user,
+        number=normalized_source,
+        defaults={
+            'reason': reason,
+            'expires_at': timezone.now() + timedelta(minutes=AUTO_BLOCK_COOLDOWN_MINUTES),
+        },
+    )
+    return reason
 
 
 def rule_log_label(rule):
@@ -87,12 +134,27 @@ def collect_target_numbers(rule):
 
 
 def process_incoming_event(user, event_type, source_number, message_body, source_device_object=None):
+    normalized_source = normalize_phone_number(source_number)
+
     event_log = IncomingEventLog.objects.create(
         owner=user,
         event_type=event_type,
-        source_number=normalize_phone_number(source_number),
+        source_number=normalized_source,
         message_body=message_body or '',
     )
+
+    if is_number_blocked(user, normalized_source):
+        event_log.processed = True
+        event_log.result_summary = f'Číslo {normalized_source} je blokované – událost ignorována, pravidla se nevyhodnocují.'
+        event_log.save(update_fields=['processed', 'result_summary'])
+        return event_log, 0, 0
+
+    block_reason = _check_rate_limit_and_block(user, normalized_source)
+    if block_reason:
+        event_log.processed = True
+        event_log.result_summary = f'{block_reason} Tato a další události z tohoto čísla se dočasně ignorují.'
+        event_log.save(update_fields=['processed', 'result_summary'])
+        return event_log, 0, 0
 
     summaries = []
     matched_count = 0

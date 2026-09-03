@@ -41,6 +41,7 @@ nav:
   - Architektura: architektura.md
   - Funkcionalita: funkcionalita.md
   - Role a oprávnění: role-a-opravneni.md
+  - Zabezpečení proti zahlcení SMS: zabezpeceni-sms.md
   - API objektů zařízení: api-objekty-zarizeni.md
   - Provozní scénáře: provozni-scenare.md
   - Modem – hardware a diagnostika: modem-diagnostika.md

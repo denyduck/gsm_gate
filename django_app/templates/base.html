@@ -87,6 +87,9 @@
                 {% if perms.dashboard.view_incomingeventlog %}
                     <a class="nav-link-app" href="{% url 'event_logs' %}">Logy</a>
                 {% endif %}
+                {% if perms.dashboard.view_blockednumber %}
+                    <a class="nav-link-app" href="{% url 'blocked_numbers' %}">Blokovaná čísla</a>
+                {% endif %}
                 {% if perms.dashboard.view_outgoingaction %}
                     <a class="nav-link-app" href="{% url 'outgoing_actions' %}">Odchozí akce</a>
                 {% endif %}

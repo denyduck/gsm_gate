@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import (
+    BlockedNumber,
     PhoneNumber,
     Group,
     DeviceObject,
@@ -25,6 +26,7 @@ from .models import (
     OutgoingAction,
 )
 from .forms import (
+    BlockedNumberForm,
     PhoneNumberForm,
     GroupForm,
     BulkNumberGroupAssignForm,
@@ -32,7 +34,12 @@ from .forms import (
     AutomationRuleForm,
     IncomingEventSimulationForm,
 )
-from .services.rules_engine import process_incoming_event
+from .services.rules_engine import (
+    normalize_phone_number,
+    process_incoming_event,
+    RATE_LIMIT_MAX_EVENTS,
+    RATE_LIMIT_WINDOW_MINUTES,
+)
 
 
 # Zobrazení dashboardu s čísly uživatele
@@ -783,6 +790,45 @@ def incoming_simulator_view(request):
 def event_logs_view(request):
     logs = IncomingEventLog.objects.filter(owner=request.user).prefetch_related('actions')[:100]
     return render(request, 'dashboard/event_logs.html', {'logs': logs})
+
+
+@login_required
+@permission_required('dashboard.view_blockednumber', raise_exception=True)
+def blocked_numbers_view(request):
+    if request.method == 'POST':
+        form = BlockedNumberForm(request.POST)
+        if form.is_valid():
+            number = normalize_phone_number(form.cleaned_data['number'])
+            if number:
+                BlockedNumber.objects.update_or_create(
+                    owner=request.user,
+                    number=number,
+                    defaults={'reason': form.cleaned_data['reason'], 'expires_at': None},
+                )
+                messages.success(request, f'Číslo {number} bylo zablokováno.')
+            return redirect('blocked_numbers')
+    else:
+        form = BlockedNumberForm()
+
+    numbers = BlockedNumber.objects.filter(owner=request.user)
+    context = {
+        'form': form,
+        'numbers': numbers,
+        'rate_limit_window': RATE_LIMIT_WINDOW_MINUTES,
+        'rate_limit_max': RATE_LIMIT_MAX_EVENTS,
+    }
+    return render(request, 'dashboard/blocked_numbers.html', context)
+
+
+@login_required
+@permission_required('dashboard.delete_blockednumber', raise_exception=True)
+def blocked_number_delete(request, pk):
+    blocked = get_object_or_404(BlockedNumber, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        number = blocked.number
+        blocked.delete()
+        messages.success(request, f'Číslo {number} bylo odblokováno.')
+    return redirect('blocked_numbers')
 
 
 @login_required

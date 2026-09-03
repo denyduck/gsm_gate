@@ -43,6 +43,7 @@ Aplikace používá kombinaci:
 - **Odchozí akce**: `view_outgoingaction`
 - **Gateway settings**: `view_gatewaysettings`, `change_gatewaysettings`
 - **Objekty zařízení**: `view_deviceobject`, `add_deviceobject`, `change_deviceobject`, `delete_deviceobject`
+- **Blokovaná čísla**: `view_blockednumber`, `add_blockednumber`, `delete_blockednumber` (role `Blokovaná čísla - správa`, přidáno i do `Operátor` a `Jen čtení` – viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md))
 
 ## Důležité chování v UI
 
