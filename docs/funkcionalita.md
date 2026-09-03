@@ -75,7 +75,7 @@ Výstupem je souhrn zpracování (kolik položek změněno, přeskočeno, vytvo�
 
 - název, popis, aktivita,
 - priorita (pořadí vyhodnocování),
-- typ události (SMS/CALL/API/kombinace),
+- typ události (SMS/CALL/API/kombinace/bezpečnostní událost – viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)),
 - podmínka (ANY/EXACT/GROUP),
 - zdrojové číslo/skupiny/objekty,
 - reakce (`IGNORE`, `NOTIFY_NUM`, `NOTIFY_GRP`, `FORWARD`),

@@ -70,6 +70,7 @@ def event_type_matches(rule_event_type, incoming_event_type):
         'API': {'API'},
         'SMS_API': {'SMS', 'API'},
         'ANY': {'SMS', 'API'},
+        'SECURITY': {'SECURITY'},
     }
 
     allowed_types = mapping.get(normalized_rule_type, {normalized_rule_type})
@@ -161,8 +162,29 @@ def process_incoming_event(user, event_type, source_number, message_body, source
             event_log.processed = True
             event_log.result_summary = f'{block_reason} Tato a další události z tohoto čísla se dočasně ignorují.'
             event_log.save(update_fields=['processed', 'result_summary'])
+
+            # Samostatná bezpečnostní událost, na kterou mohou reagovat
+            # pravidla s event_type='SECURITY' (např. upozornit administrátora).
+            # Jde o nový IncomingEventLog, ne pokračování téhle - jinak by ho
+            # o pár řádků výš znovu chytil is_number_blocked() a nic by se
+            # nevyhodnotilo.
+            _fire_security_event(user, normalized_source, block_reason)
             return event_log, 0, 0
 
+    return _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object)
+
+
+def _fire_security_event(user, source_number, reason):
+    security_log = IncomingEventLog.objects.create(
+        owner=user,
+        event_type='SECURITY',
+        source_number=source_number,
+        message_body=reason,
+    )
+    return _evaluate_rules(user, security_log, 'SECURITY', source_number, reason)
+
+
+def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None):
     summaries = []
     matched_count = 0
     queued_count = 0

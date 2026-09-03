@@ -253,6 +253,7 @@ class AutomationRule(models.Model):
         ('API', 'Příchozí API událost'),
         ('SMS_API', 'SMS i API událost'),
         ('ANY', 'SMS i API událost'),
+        ('SECURITY', 'Bezpečnostní událost (zablokování čísla)'),
     ]
 
     MATCH_TYPE_CHOICES = [
@@ -405,6 +406,7 @@ class IncomingEventLog(models.Model):
     EVENT_TYPE_CHOICES = [
         ('SMS', 'Příchozí SMS'),
         ('API', 'Příchozí API událost'),
+        ('SECURITY', 'Bezpečnostní událost (zablokování čísla)'),
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incoming_event_logs', verbose_name='Vlastník')

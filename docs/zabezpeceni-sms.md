@@ -27,6 +27,14 @@ Toto je reprezentované modelem `SecurityRule` (`dashboard/models.py`) – **sin
 
 **Pravidlo nejde smazat** ani přidat další – v Django Adminu (`dashboard/admin.py`, `SecurityRuleAdmin`) je `has_add_permission`/`has_delete_permission` natvrdo `False`. Jde jen **zapnout/vypnout a upravit prahy**, a to výhradně přes Django Admin (`/admin/dashboard/securityrule/`), tedy jen jako **superuser** – v běžné appce se pravidlo pouze zobrazuje (stránka Pravidla), needá se odtud editovat.
 
+### 3) Navázání vlastního pravidla na bezpečnostní událost
+
+Když automatická ochrana číslo zablokuje, vygeneruje se navíc **samostatná událost typu `SECURITY`** (`IncomingEventLog.event_type = 'SECURITY'`) – nezávislá na původní zablokované události. Na tenhle typ události lze navázat běžné `AutomationRule` stejně jako na SMS/API (např. poslat e-mail/Teams notifikaci administrátorovi).
+
+**Důležité:** `SECURITY` se **nezahrnuje** do `event_type='ANY'` (to zůstává jen SMS+API, jako doteď) – pravidlo musí mít `event_type` nastavený explicitně na `Bezpečnostní událost`, jinak se nespustí. Zabraňuje to tomu, aby se stávající "ANY" pravidla nečekaně spustila i na bezpečnostní události.
+
+Po nasazení se každému existujícímu uživateli automaticky založí vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`event_type=SECURITY`, akce `NOTIFY_NUM`) – je ale **vypnuté**, dokud si v jeho detailu nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál a ručně ho nezaktivuješ na stránce Pravidla.
+
 ## Datový model
 
 `SecurityRule` (`dashboard/models.py`) – viz tabulka výše.
@@ -53,6 +61,11 @@ Toto je reprezentované modelem `SecurityRule` (`dashboard/models.py`) – **sin
 2. Pošli rychle za sebou víc událostí, než je nastavený práh, ze stejného čísla (např. simulátorem příchozích událostí, aby se nemuselo reálně poslat tolik SMS).
 3. Ověř, že se číslo objevilo na stránce "Blokovaná čísla" s `expires_at` podle nastaveného cooldownu a důvodem "Automaticky zablokováno...".
 4. Ověř v logu, že další události mají `result_summary` s hláškou o překročení limitu.
+
+**Reakce na bezpečnostní událost:**
+1. Na stránce Pravidla otevři "Výchozí: Upozornění na bezpečnostní blokaci", nastav cílová čísla/skupiny nebo zapni e-mail/Teams kanál, ulož a aktivuj.
+2. Vyvolej automatickou blokaci (viz krok výše).
+3. Ověř, že vznikla odchozí akce (notifikace) navázaná na tohle pravidlo – v logu událostí by měla přibýt **další, samostatná** položka s typem "Bezpečnost" (`event_type=SECURITY`), odlišná od původní zablokované SMS/API události.
 
 **Vypnutí/úprava pravidla (jen superuser):**
 1. Přihlas se do `/admin/dashboard/securityrule/`.

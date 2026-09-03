@@ -40,6 +40,8 @@
                             <span class="pill">Volání</span>
                         {% elif log.event_type == 'API' %}
                             <span class="pill">API</span>
+                        {% elif log.event_type == 'SECURITY' %}
+                            <span class="pill"><i class="bi bi-shield-exclamation"></i> Bezpečnost</span>
                         {% else %}
                             <span class="pill">{{ log.get_event_type_display }}</span>
                         {% endif %}
