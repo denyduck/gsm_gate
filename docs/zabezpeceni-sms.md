@@ -33,9 +33,11 @@ Když automatická ochrana číslo zablokuje, vygeneruje se navíc **samostatná
 
 **Důležité:** `SECURITY` se **nezahrnuje** do `event_type='ANY'` (to zůstává jen SMS+API, jako doteď) – pravidlo musí mít `event_type` nastavený explicitně na `Bezpečnostní událost`, jinak se nespustí. Zabraňuje to tomu, aby se stávající "ANY" pravidla nečekaně spustila i na bezpečnostní události.
 
-Po nasazení se každému existujícímu uživateli automaticky založí vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`event_type=SECURITY`, akce `NOTIFY_NUM`) – je ale **vypnuté**, dokud si v jeho detailu nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál a ručně ho nezaktivuješ.
+Vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`event_type=SECURITY`, akce `NOTIFY_NUM`) se zakládá **líně** – funkcí `get_or_create_default_security_notification_rule()` v `rules_engine.py`, volanou z `rules_list_view()` při každé návštěvě stránky Pravidla. Není spoléháno jen na datovou migraci (`0039_...py`), protože ta prochází pouze uživatele existující v okamžiku spuštění migrace – na čerstvém nasazení, kde `migrate` proběhne dřív než `createsuperuser`, by tak pro jediný (první) účet pravidlo nikdy nevzniklo. Díky lazy `get_or_create` vznikne pravidlo pro **kohokoliv**, bez ohledu na to, kdy byl jeho účet založený. Nově vzniklé pravidlo je **vypnuté**, dokud si v jeho detailu nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál a ručně ho nezaktivuješ.
 
-**Tohle pravidlo je chráněné** (`AutomationRule.is_protected = True`) – stejná logika jako u `SecurityRule`: na stránce Pravidla/v detailu se u něj místo tlačítek "Upravit"/"Smazat" zobrazí jen badge "Chráněné" a (pro superusera) odkaz do Django Adminu. `rule_edit`/`rule_delete` views navíc chráněné pravidlo odmítnou i při přímém volání URL (server-side kontrola, ne jen skryté tlačítko), a v Django Adminu je `has_delete_permission` pro tenhle konkrétní záznam zablokovaný taky – smazat ho nejde odnikud, jen zapnout/vypnout a nastavit cíle/kanály přes Django Admin.
+**Tohle pravidlo je chráněné** (`AutomationRule.is_protected = True`) – stejná logika jako u `SecurityRule`: na stránce Pravidla/v detailu se u něj místo tlačítek "Upravit"/"Smazat" zobrazí jen badge "Chráněné" a (pro superusera) odkaz do Django Adminu. `rule_edit`/`rule_delete` views navíc chráněné pravidlo odmítnou i při přímém volání URL (server-side kontrola, ne jen skryté tlačítko).
+
+**Admin registrace:** `AutomationRule` je registrovaný v `gsm_gate/admin.py` (`AutomationRuleAdmin`), ne v `dashboard/admin.py` – tam je jen `SecurityRuleAdmin`. Ochrana `is_protected` proti smazání je doplněná přímo do existující `has_delete_permission()` v `gsm_gate/admin.py`. **Nezakládat druhou `@admin.register(AutomationRule)`** nikde jinde – Django admin dovolí zaregistrovat model jen jednou, jinak appka spadne hned při startu (`AlreadyRegistered`).
 
 ## Datový model
 
@@ -71,8 +73,9 @@ Po nasazení se každému existujícímu uživateli automaticky založí vzorov�
 
 **Vypnutí/úprava pravidla (jen superuser):**
 1. Přihlas se do `/admin/dashboard/securityrule/`.
-2. Uprav `active` (zapnuto/vypnuto) nebo prahy přímo v seznamu (`list_editable`) nebo v detailu záznamu.
-3. Přidat nový řádek ani smazat existující nejde – tlačítka pro to admin nenabízí.
+2. Uprav `active` (zapnuto/vypnuto) nebo prahy – buď přímo v seznamu (`list_editable`), nebo spolehlivěji v detailu záznamu (klikni na řádek, ne jen na checkbox).
+3. **Nezapomeň kliknout na tlačítko "Uložit"/"Save"** – u editace přímo v seznamu (`list_editable`) samotné zaškrtnutí checkboxu nic neuloží, dokud se pod tabulkou neklikne na Uložit. Tohle je nejčastější příčina, proč se zapnutí/vypnutí "neprojeví" – změna se ve skutečnosti vůbec neuložila do databáze (dá se ověřit přes shell: `AutomationRule.objects.get(name='...').active`).
+4. Přidat nový řádek ani smazat existující nejde – tlačítka pro to admin nenabízí.
 
 ## Omezení a co tahle ochrana neřeší
 
