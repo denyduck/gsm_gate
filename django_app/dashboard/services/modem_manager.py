@@ -44,22 +44,49 @@ def _run_mmcli(args: List[str], timeout: float = 20.0) -> dict:
         return {}
 
 
-def _sms_index_from_path(path: str) -> int:
+def _index_from_path(path: str) -> int:
     return int(path.rsplit('/', 1)[-1])
+
+
+# Hodnoty MMModemLock, které znamenají "SIM není zamčená" - liší se podle
+# verze ModemManager/mmcli (u našeho zařízení se ukázalo "--").
+_NO_LOCK_VALUES = ('--', 'none', '')
 
 
 class ModemManagerClient:
     """Klient pro modem řízený přes ModemManager/mmcli (Teltonika Calyx a další)."""
 
-    def __init__(self, modem_index: Optional[int] = None):
+    def __init__(self, modem_index: Optional[int] = None, pin_code: Optional[str] = None):
         self._modem_index = modem_index
+        self._pin_code = pin_code or None
 
     def connect(self):
         self._modem_index = self._resolve_modem_index()
         data = _run_mmcli(['-m', str(self._modem_index)])
-        state = data.get('modem', {}).get('generic', {}).get('state')
+        generic = data.get('modem', {}).get('generic', {})
+
+        unlock_required = generic.get('unlock-required')
+        if unlock_required not in _NO_LOCK_VALUES:
+            if not self._pin_code:
+                raise ModemError(
+                    f'SIM vyžaduje odemčení ({unlock_required}), ale v nastavení brány není vyplněný PIN.'
+                )
+            self._unlock_sim(self._pin_code)
+            data = _run_mmcli(['-m', str(self._modem_index)])
+            generic = data.get('modem', {}).get('generic', {})
+
+        state = generic.get('state')
         if state not in ('registered', 'connected'):
             raise ModemError(f'Modem není registrovaný v síti (aktuální stav: {state}).')
+
+    def _unlock_sim(self, pin_code: str):
+        modem_idx = self._resolve_modem_index()
+        detail = _run_mmcli(['-m', str(modem_idx)])
+        sim_path = detail.get('modem', {}).get('generic', {}).get('sim')
+        if not sim_path:
+            raise ModemError('Nepodařilo se zjistit cestu k SIM kartě pro odemčení PIN.')
+        sim_idx = _index_from_path(sim_path)
+        _run_mmcli(['-i', str(sim_idx), f'--pin={pin_code}'])
 
     def close(self):
         # ModemManager běží nezávisle jako systémová služba, není co zavírat.
@@ -74,23 +101,25 @@ class ModemManagerClient:
         if not modems:
             raise ModemError('ModemManager nevidí žádný modem (mmcli -L je prázdné).')
 
-        self._modem_index = _sms_index_from_path(modems[0])
+        self._modem_index = _index_from_path(modems[0])
         return self._modem_index
 
-    def send_sms(self, phone_number: str, text: str):
+    def send_sms(self, phone_number: str, text: str, request_delivery_report: bool = False):
         modem_idx = self._resolve_modem_index()
 
         if "'" in text or "'" in phone_number:
             raise ModemError('Text zprávy ani číslo nesmí obsahovat apostrof (omezení mmcli parseru).')
 
         create_arg = f"text='{text}',number='{phone_number}'"
+        if request_delivery_report:
+            create_arg += ',delivery-report-request=yes'
         data = _run_mmcli(['-m', str(modem_idx), f'--messaging-create-sms={create_arg}'])
 
         sms_path = data.get('modem', {}).get('messaging', {}).get('created-sms')
         if not sms_path:
             raise ModemError(f'mmcli nevrátil cestu k nově vytvořené SMS: {data}')
 
-        sms_idx = _sms_index_from_path(sms_path)
+        sms_idx = _index_from_path(sms_path)
         send_result = _run_mmcli(['-s', str(sms_idx), '--send'])
 
         # --send při úspěchu často nevrátí žádný JSON (viz _run_mmcli) - v tom
@@ -120,7 +149,7 @@ class ModemManagerClient:
 
         messages: List[IncomingSms] = []
         for path in sms_paths:
-            idx = _sms_index_from_path(path)
+            idx = _index_from_path(path)
             try:
                 detail = _run_mmcli(['-s', str(idx)])
             except ModemError:

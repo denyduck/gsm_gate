@@ -187,35 +187,20 @@ class DeviceObjectApiCredential(models.Model):
 
 
 class GatewaySettings(models.Model):
-    NETWORK_MODE_CHOICES = [
-        ('AUTO', 'Automaticky'),
-        ('LTE_M', 'LTE-M'),
-        ('NB_IOT', 'NB-IoT'),
-        ('GSM', 'GSM'),
-    ]
-
-    SMS_STORAGE_CHOICES = [
-        ('SIM', 'SIM'),
-        ('MODEM', 'Modem'),
-        ('BOTH', 'SIM + Modem'),
-    ]
-
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='gateway_settings', verbose_name='Uživatel')
-    serial_port = models.CharField('Sériový port', max_length=100, default='/dev/ttyUSB0')
-    baud_rate = models.PositiveIntegerField('Přenosová rychlost (baud)', default=115200)
-    pin_code = models.CharField('PIN SIM', max_length=16, blank=True)
-    apn = models.CharField('APN', max_length=100, blank=True)
-    network_mode = models.CharField('Síťový režim', max_length=10, choices=NETWORK_MODE_CHOICES, default='AUTO')
-    sms_storage = models.CharField('Úložiště SMS', max_length=10, choices=SMS_STORAGE_CHOICES, default='SIM')
-    delivery_reports = models.BooleanField('Doručenky', default=True)
-    allow_incoming_sms = models.BooleanField('Povolit příchozí SMS', default=True)
-    auto_start_gateway = models.BooleanField('Automatické spuštění brány', default=True)
-    heartbeat_interval_sec = models.PositiveIntegerField(
-        'Interval heartbeat (s)',
-        default=60,
-        validators=[MinValueValidator(10), MaxValueValidator(3600)],
+    pin_code = models.CharField(
+        'PIN SIM',
+        max_length=16,
+        blank=True,
+        help_text='Vyplň, jen pokud SIM karta vyžaduje PIN. Worker ho použije k odemčení modemu.',
     )
-    webhook_url = models.URLField('Webhook URL', blank=True)
+    delivery_reports = models.BooleanField(
+        'Vyžadovat doručenky',
+        default=True,
+        help_text='Při odeslání SMS požádá síť o potvrzení doručení příjemci.',
+    )
+    allow_incoming_sms = models.BooleanField('Povolit příchozí SMS', default=True)
+    webhook_url = models.URLField('Webhook URL (Teams)', blank=True)
     updated_at = models.DateTimeField('Naposledy změněno', auto_now=True)
 
     last_signal_quality = models.PositiveIntegerField('Poslední síla signálu (%)', null=True, blank=True)

@@ -129,9 +129,9 @@ class UserGroupVisibilityOverrideAdmin(admin.ModelAdmin):
 
 @admin.register(GatewaySettings)
 class GatewaySettingsAdmin(admin.ModelAdmin):
-    list_display = ('user', 'serial_port', 'network_mode', 'auto_start_gateway', 'updated_at')
-    list_filter = ('network_mode', 'auto_start_gateway', 'allow_incoming_sms', 'delivery_reports')
-    search_fields = ('user__username', 'serial_port', 'apn')
+    list_display = ('user', 'allow_incoming_sms', 'delivery_reports', 'last_signal_quality', 'updated_at')
+    list_filter = ('allow_incoming_sms', 'delivery_reports')
+    search_fields = ('user__username',)
 
 
 class AutomationRuleAdminForm(forms.ModelForm):

@@ -137,11 +137,9 @@ Objekty reprezentují zařízení/zdroje událostí.
 
 ### Konfigurace
 
-- sériový port, baud rate *(pole zůstávají v modelu z dob SIM7000E, aktuální hardware (ModemManager/mmcli) je nepoužívá – viz [Modem – hardware a diagnostika](modem-diagnostika.md))*,
-- SIM PIN,
-- APN,
-- režim sítě,
-- úložiště SMS,
-- heartbeat interval,
-- webhook URL,
-- volby povolení příchozích SMS a doručenek.
+Zúženo jen na to, co appka reálně používá (ModemManager/mmcli si port, rychlost, APN i síťový režim spravuje sám – viz [Modem – hardware a diagnostika](modem-diagnostika.md)):
+
+- **SIM PIN** – vyplní se, jen pokud SIM kartu chrání PIN; worker ho použije k automatickému odemčení modemu při připojení.
+- **Vyžadovat doručenky** – při odeslání SMS požádá síť o potvrzení doručení příjemci (`delivery-report-request` v PDU).
+- **Povolit příchozí SMS** – řídí, jestli se pro uživatele vůbec vyhodnocují pravidla na příchozí SMS.
+- **Webhook URL** – cíl pro Teams notifikace.

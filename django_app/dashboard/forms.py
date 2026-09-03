@@ -209,39 +209,19 @@ class GatewaySettingsForm(forms.ModelForm):
     class Meta:
         model = GatewaySettings
         fields = [
-            'serial_port',
-            'baud_rate',
             'pin_code',
-            'apn',
-            'network_mode',
-            'sms_storage',
             'delivery_reports',
             'allow_incoming_sms',
-            'auto_start_gateway',
-            'heartbeat_interval_sec',
             'webhook_url',
         ]
         labels = {
-            'serial_port': 'Sériový port modemu',
-            'baud_rate': 'Přenosová rychlost (baud)',
             'pin_code': 'PIN SIM (volitelné)',
-            'apn': 'APN (volitelné)',
-            'network_mode': 'Síťový režim',
-            'sms_storage': 'Úložiště SMS',
             'delivery_reports': 'Vyžadovat doručenky',
             'allow_incoming_sms': 'Povolit příchozí SMS',
-            'auto_start_gateway': 'Automaticky spouštět gateway',
-            'heartbeat_interval_sec': 'Interval heartbeat (s)',
-            'webhook_url': 'Webhook URL (volitelné)',
+            'webhook_url': 'Webhook URL pro Teams (volitelné)',
         }
         widgets = {
-            'serial_port': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '/dev/ttyUSB0'}),
-            'baud_rate': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '115200'}),
             'pin_code': forms.PasswordInput(render_value=True, attrs={'class': 'form-control'}),
-            'apn': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'internet'}),
-            'network_mode': forms.Select(attrs={'class': 'form-select'}),
-            'sms_storage': forms.Select(attrs={'class': 'form-select'}),
-            'heartbeat_interval_sec': forms.NumberInput(attrs={'class': 'form-control', 'min': 10, 'max': 3600}),
             'webhook_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://example.local/webhook'}),
         }
 

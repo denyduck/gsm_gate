@@ -8,10 +8,8 @@
     <p class="hero-subtitle">Souhrn aktuální konfigurace a provozních přepínačů brány.</p>
 
     <div class="row g-3">
-        <div class="col-md-3"><div class="card-stat"><div class="label">Sériový port</div><div class="value mono">{{ gateway_settings.serial_port }}</div></div></div>
-        <div class="col-md-3"><div class="card-stat"><div class="label">Přenosová rychlost</div><div class="value">{{ gateway_settings.baud_rate }}</div></div></div>
-        <div class="col-md-3"><div class="card-stat"><div class="label">Kontakty</div><div class="value">{{ numbers_count }}</div></div></div>
-        <div class="col-md-3"><div class="card-stat"><div class="label">Skupiny</div><div class="value">{{ groups_count }}</div></div></div>
+        <div class="col-md-6"><div class="card-stat"><div class="label">Kontakty</div><div class="value">{{ numbers_count }}</div></div></div>
+        <div class="col-md-6"><div class="card-stat"><div class="label">Skupiny</div><div class="value">{{ groups_count }}</div></div></div>
     </div>
 </section>
 
@@ -50,12 +48,6 @@
     <div class="row g-3">
         <div class="col-md-4">
             <div class="module-card">
-                <h6>Automatické spuštění brány</h6>
-                <p>{% if gateway_settings.auto_start_gateway %}Zapnuto{% else %}Vypnuto{% endif %}</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="module-card">
                 <h6>Příchozí SMS</h6>
                 <p>{% if gateway_settings.allow_incoming_sms %}Povoleno{% else %}Zakázáno{% endif %}</p>
             </div>
@@ -64,6 +56,12 @@
             <div class="module-card">
                 <h6>Doručenky</h6>
                 <p>{% if gateway_settings.delivery_reports %}Zapnuto{% else %}Vypnuto{% endif %}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="module-card">
+                <h6>PIN SIM nastaven</h6>
+                <p>{% if gateway_settings.pin_code %}Ano{% else %}Ne{% endif %}</p>
             </div>
         </div>
     </div>

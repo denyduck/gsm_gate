@@ -27,7 +27,12 @@ class WorkerResult:
 
 class GsmWorkerService:
     def __init__(self):
-        self.client = ModemManagerClient()
+        self.client = ModemManagerClient(pin_code=self._get_configured_pin_code())
+
+    @staticmethod
+    def _get_configured_pin_code():
+        settings_obj = GatewaySettings.objects.exclude(pin_code='').first()
+        return settings_obj.pin_code if settings_obj else None
 
     def cycle(self) -> WorkerResult:
         close_old_connections()
@@ -110,7 +115,11 @@ class GsmWorkerService:
                 if not target:
                     raise ModemError('Neplatné cílové číslo')
 
-                self.client.send_sms(target, action.payload_message)
+                self.client.send_sms(
+                    target,
+                    action.payload_message,
+                    request_delivery_report=self._wants_delivery_report(action),
+                )
                 self._mark_action_result(action, 'SENT', f'SMS byla úspěšně odeslána na {target}.')
                 sent_count += 1
             except Exception as exc:
@@ -118,6 +127,11 @@ class GsmWorkerService:
                 failed_count += 1
 
         return sent_count, failed_count
+
+    @staticmethod
+    def _wants_delivery_report(action: OutgoingAction) -> bool:
+        gateway = GatewaySettings.objects.filter(user=action.owner).first()
+        return bool(gateway and gateway.delivery_reports)
 
     def _mark_action_result(self, action: OutgoingAction, status: str, detail: str) -> None:
         action.status = status

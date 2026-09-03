@@ -105,6 +105,15 @@ systemctl restart ModemManager
 journalctl -u ModemManager -f
 ```
 
+### SIM PIN
+
+Pokud SIM karta vyžaduje PIN, `ModemManagerClient.connect()` (v `modem_manager.py`) ho automaticky odemkne pomocí PIN kódu z **Nastavení GSM brány** (pole "PIN SIM") přes `mmcli -i <sim> --pin=<kód>`. Pokud PIN chybí v nastavení a SIM je zamčená, `connect()` skončí jasnou `ModemError` ("SIM vyžaduje odemčení, ale v nastavení brány není vyplněný PIN") místo matoucího "modem není registrovaný". Ruční ověření/odemčení mimo appku:
+
+```bash
+mmcli -m 0 -J   # modem.generic.unlock-required - "--"/"none" = odemčeno
+mmcli -i 0 --pin=1234
+```
+
 ## Známé zvláštnosti mmcli JSON výstupu
 
 Zjištěno empiricky během integrace (ne z oficiální dokumentace – Teltonika/ModemManager dokumentace tohle nezmiňuje). Berte jako ověřenou realitu na naší verzi ModemManageru, ne obecnou pravdu:
