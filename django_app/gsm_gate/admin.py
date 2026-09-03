@@ -193,8 +193,8 @@ class AutomationRuleAdminForm(forms.ModelForm):
 @admin.register(AutomationRule)
 class AutomationRuleAdmin(admin.ModelAdmin):
     form = AutomationRuleAdminForm
-    list_display = ('name', 'owner', 'event_type', 'match_type', 'action', 'use_message_flag', 'message_flag', 'priority', 'active')
-    list_filter = ('event_type', 'match_type', 'action', 'active', 'use_message_flag')
+    list_display = ('name', 'owner', 'event_type', 'match_type', 'action', 'use_message_flag', 'message_flag', 'priority', 'active', 'is_protected')
+    list_filter = ('event_type', 'match_type', 'action', 'active', 'use_message_flag', 'is_protected')
     search_fields = ('name', 'description', 'owner__username', 'source_number', 'forward_to_number', 'message_flag')
     ordering = ('priority', 'id')
     filter_horizontal = ('source_groups', 'source_objects', 'target_numbers', 'target_groups', 'users')
@@ -220,6 +220,8 @@ class AutomationRuleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.is_protected:
+            return False
         if not super().has_delete_permission(request, obj):
             return False
         if obj is None or request.user.is_superuser:
