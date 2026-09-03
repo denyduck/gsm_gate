@@ -12,11 +12,18 @@
         {% if can_simulate_events %}
             <a href="{% url 'incoming_simulator' %}?event_type={% if rule.event_type == 'ANY' %}SMS{% else %}{{ rule.event_type }}{% endif %}&source_number={{ rule.source_number|urlencode }}" class="btn btn-app-outline">Spustit simulaci</a>
         {% endif %}
-        {% if can_change_rule %}
-            <a href="{% url 'rule_edit' rule.id %}" class="btn btn-app-primary">Upravit</a>
-        {% endif %}
-        {% if can_delete_rule %}
-            <a href="{% url 'rule_delete' rule.id %}" class="btn btn-outline-danger">Smazat</a>
+        {% if rule.is_protected %}
+            <span class="badge text-bg-secondary" title="Nejde smazat ani upravit v appce, jen přes Django Admin"><i class="bi bi-lock-fill"></i> Chráněné systémové pravidlo</span>
+            {% if user.is_superuser %}
+                <a href="/admin/dashboard/automationrule/{{ rule.id }}/change/" class="btn btn-app-outline">Upravit v Django Admin</a>
+            {% endif %}
+        {% else %}
+            {% if can_change_rule %}
+                <a href="{% url 'rule_edit' rule.id %}" class="btn btn-app-primary">Upravit</a>
+            {% endif %}
+            {% if can_delete_rule %}
+                <a href="{% url 'rule_delete' rule.id %}" class="btn btn-outline-danger">Smazat</a>
+            {% endif %}
         {% endif %}
     </div>
 </section>

@@ -33,7 +33,9 @@ Když automatická ochrana číslo zablokuje, vygeneruje se navíc **samostatná
 
 **Důležité:** `SECURITY` se **nezahrnuje** do `event_type='ANY'` (to zůstává jen SMS+API, jako doteď) – pravidlo musí mít `event_type` nastavený explicitně na `Bezpečnostní událost`, jinak se nespustí. Zabraňuje to tomu, aby se stávající "ANY" pravidla nečekaně spustila i na bezpečnostní události.
 
-Po nasazení se každému existujícímu uživateli automaticky založí vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`event_type=SECURITY`, akce `NOTIFY_NUM`) – je ale **vypnuté**, dokud si v jeho detailu nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál a ručně ho nezaktivuješ na stránce Pravidla.
+Po nasazení se každému existujícímu uživateli automaticky založí vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`event_type=SECURITY`, akce `NOTIFY_NUM`) – je ale **vypnuté**, dokud si v jeho detailu nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál a ručně ho nezaktivuješ.
+
+**Tohle pravidlo je chráněné** (`AutomationRule.is_protected = True`) – stejná logika jako u `SecurityRule`: na stránce Pravidla/v detailu se u něj místo tlačítek "Upravit"/"Smazat" zobrazí jen badge "Chráněné" a (pro superusera) odkaz do Django Adminu. `rule_edit`/`rule_delete` views navíc chráněné pravidlo odmítnou i při přímém volání URL (server-side kontrola, ne jen skryté tlačítko), a v Django Adminu je `has_delete_permission` pro tenhle konkrétní záznam zablokovaný taky – smazat ho nejde odnikud, jen zapnout/vypnout a nastavit cíle/kanály přes Django Admin.
 
 ## Datový model
 

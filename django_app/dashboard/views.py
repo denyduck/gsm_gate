@@ -639,14 +639,14 @@ def gateway_settings_view(request):
 @permission_required('dashboard.view_automationrule', raise_exception=True)
 def rules_list_view(request):
     rules = AutomationRule.objects.filter(owner=request.user).prefetch_related('target_numbers', 'target_groups').order_by('priority', 'id')
-    rule_ids = list(rules.values_list('id', flat=True))
+    unprotected_rule_ids = list(rules.exclude(is_protected=True).values_list('id', flat=True))
     return render(
         request,
         'dashboard/rules_list.html',
         {
             'rules': rules,
-            'editable_rule_ids': rule_ids,
-            'deletable_rule_ids': rule_ids,
+            'editable_rule_ids': unprotected_rule_ids,
+            'deletable_rule_ids': unprotected_rule_ids,
             'security_rule': get_security_rule(request.user),
             'can_view_rule': request.user.has_perm('dashboard.view_automationrule'),
             'can_add_rule': request.user.has_perm('dashboard.add_automationrule'),
@@ -712,6 +712,10 @@ def rule_create(request):
 def rule_update(request, pk):
     rule = get_object_or_404(AutomationRule, pk=pk, owner=request.user)
 
+    if rule.is_protected:
+        messages.error(request, 'Chráněné systémové pravidlo lze upravit jen přes Django Admin.')
+        return redirect('rules_list')
+
     if request.method == 'POST':
         form = AutomationRuleForm(request.POST, instance=rule, user=request.user)
         if form.is_valid():
@@ -728,6 +732,11 @@ def rule_update(request, pk):
 @permission_required('dashboard.delete_automationrule', raise_exception=True)
 def rule_delete(request, pk):
     rule = get_object_or_404(AutomationRule, pk=pk, owner=request.user)
+
+    if rule.is_protected:
+        messages.error(request, 'Chráněné systémové pravidlo nejde smazat.')
+        return redirect('rules_list')
+
     if request.method == 'POST':
         rule.delete()
         messages.success(request, 'Pravidlo bylo smazáno.')

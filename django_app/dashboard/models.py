@@ -275,6 +275,11 @@ class AutomationRule(models.Model):
     description = models.CharField('Popis', max_length=255, blank=True)
     active = models.BooleanField('Aktivní', default=True)
     priority = models.PositiveIntegerField('Priorita', default=100)
+    is_protected = models.BooleanField(
+        'Chráněné systémové pravidlo',
+        default=False,
+        help_text='Nejde smazat ani upravit v appce – jen zapnout/vypnout a nastavit přes Django Admin.',
+    )
 
     event_type = models.CharField('Typ události', max_length=20, choices=EVENT_TYPE_CHOICES, default='ANY')
     match_type = models.CharField('Typ podmínky', max_length=10, choices=MATCH_TYPE_CHOICES, default='ANY')

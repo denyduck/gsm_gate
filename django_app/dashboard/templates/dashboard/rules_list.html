@@ -73,6 +73,9 @@
                         {% if rule.owner_id == request.user.id %}
                             <span class="badge text-bg-success ms-1">Jste vlastník</span>
                         {% endif %}
+                        {% if rule.is_protected %}
+                            <span class="badge text-bg-secondary ms-1" title="Nejde smazat ani upravit v appce, jen přes Django Admin"><i class="bi bi-lock-fill"></i> Chráněné</span>
+                        {% endif %}
                         <br>
                         <small class="text-muted-soft">{{ rule.description }}</small>
                     </td>
@@ -113,6 +116,9 @@
                             {% endif %}
                             {% if can_change_rule and rule.id in editable_rule_ids %}
                                 <a href="{% url 'rule_edit' rule.id %}" class="btn btn-sm btn-app-outline">Upravit</a>
+                            {% endif %}
+                            {% if rule.is_protected and user.is_superuser %}
+                                <a href="/admin/dashboard/automationrule/{{ rule.id }}/change/" class="btn btn-sm btn-app-outline">Upravit v Django Admin</a>
                             {% endif %}
                             {% if can_delete_rule and rule.id in deletable_rule_ids %}
                                 <a href="{% url 'rule_delete' rule.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
