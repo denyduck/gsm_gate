@@ -34,7 +34,12 @@ from .forms import (
     AutomationRuleForm,
     IncomingEventSimulationForm,
 )
-from .services.rules_engine import get_security_rule, normalize_phone_number, process_incoming_event
+from .services.rules_engine import (
+    get_or_create_default_security_notification_rule,
+    get_security_rule,
+    normalize_phone_number,
+    process_incoming_event,
+)
 
 
 # Zobrazení dashboardu s čísly uživatele
@@ -638,6 +643,7 @@ def gateway_settings_view(request):
 @login_required
 @permission_required('dashboard.view_automationrule', raise_exception=True)
 def rules_list_view(request):
+    get_or_create_default_security_notification_rule(request.user)
     rules = AutomationRule.objects.filter(owner=request.user).prefetch_related('target_numbers', 'target_groups').order_by('priority', 'id')
     unprotected_rule_ids = list(rules.exclude(is_protected=True).values_list('id', flat=True))
     return render(

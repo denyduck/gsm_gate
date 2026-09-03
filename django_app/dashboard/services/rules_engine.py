@@ -17,6 +17,36 @@ def get_security_rule(user):
     return rule
 
 
+DEFAULT_SECURITY_NOTIFICATION_RULE_NAME = 'Výchozí: Upozornění na bezpečnostní blokaci'
+
+
+def get_or_create_default_security_notification_rule(user):
+    """Vrátí (a při prvním použití založí) chráněné vzorové pravidlo pro
+    reakci na SECURITY událost. Líně, ne jen v datové migraci - jinak by
+    chybělo účtům založeným až po jejím spuštění (viz 0039_...py)."""
+    rule, _ = AutomationRule.objects.get_or_create(
+        owner=user,
+        name=DEFAULT_SECURITY_NOTIFICATION_RULE_NAME,
+        defaults={
+            'description': (
+                'Reaguje na automatické nebo ruční zablokování čísla '
+                '(ochrana proti zahlcení SMS/API). Vypnuto, dokud si '
+                'nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál.'
+            ),
+            'active': False,
+            'priority': 10,
+            'event_type': 'SECURITY',
+            'match_type': 'ANY',
+            'action': 'NOTIFY_NUM',
+            'include_original_message': True,
+            'custom_message': 'Bezpečnostní upozornění: brána zablokovala podezřelé číslo.',
+            'stop_processing': True,
+            'is_protected': True,
+        },
+    )
+    return rule
+
+
 def is_number_blocked(user, normalized_source):
     if not normalized_source:
         return False
