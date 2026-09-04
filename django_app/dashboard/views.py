@@ -47,6 +47,7 @@ from .forms import (
 from .services import backup as backup_service
 from .services import reset as reset_service
 from .services import selftest as selftest_service
+from .services import telemetry as telemetry_service
 from .services.rules_engine import (
     get_or_create_default_security_notification_rule,
     get_security_rule,
@@ -1153,4 +1154,26 @@ def self_test_run_view(request):
         messages.error(request, f'Sebediagnostika našla {counts["ERROR"]} chyb(u) - viz výsledky níže.')
 
     return redirect('self_test')
+
+
+@login_required
+@permission_required('dashboard.view_outgoingaction', raise_exception=True)
+def telemetry_view(request):
+    user = request.user
+
+    daily_labels, daily_values = telemetry_service.daily_sms_series(user)
+    rule_labels, rule_values = telemetry_service.sms_by_rule(user)
+    target_labels, target_values = telemetry_service.sms_by_target_number(user)
+    source_labels, source_values = telemetry_service.events_by_source_number(user)
+    group_labels, group_values = telemetry_service.sms_by_group(user)
+
+    context = {
+        'summary': telemetry_service.summary_counts(user),
+        'daily_chart': {'labels': daily_labels, 'values': daily_values},
+        'rule_chart': {'labels': rule_labels, 'values': rule_values},
+        'target_chart': {'labels': target_labels, 'values': target_values},
+        'source_chart': {'labels': source_labels, 'values': source_values},
+        'group_chart': {'labels': group_labels, 'values': group_values},
+    }
+    return render(request, 'dashboard/telemetry.html', context)
 

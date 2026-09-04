@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Telemetrie{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-graph-up"></i> Telemetrie</span>
+    <h1 class="hero-title">Telemetrie a statistiky brány</h1>
+    <p class="hero-subtitle">Přehled odeslaných SMS a příchozích událostí – podle pravidla, čísla i skupiny. Počítají se jen skutečně odeslané SMS (stav „Odesláno“), ne čekající/selhané.</p>
+
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card-stat"><div class="label"><i class="bi bi-send me-1"></i>Celkem SMS akcí</div><div class="value">{{ summary.total_sms }}</div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat"><div class="label"><i class="bi bi-check-circle me-1 text-success"></i>Odesláno</div><div class="value">{{ summary.sent }}</div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat"><div class="label"><i class="bi bi-x-circle me-1 text-danger"></i>Selhalo</div><div class="value">{{ summary.failed }}</div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stat"><div class="label"><i class="bi bi-hourglass-split me-1"></i>Čeká na odeslání</div><div class="value">{{ summary.pending }}</div></div>
+        </div>
+    </div>
+    <div class="row g-3 mt-1">
+        <div class="col-md-3">
+            <div class="card-stat"><div class="label"><i class="bi bi-inbox me-1"></i>Příchozí události celkem</div><div class="value">{{ summary.total_incoming_events }}</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Odeslané SMS za posledních 30 dní</h2></div>
+    <div class="p-3">
+        {% if daily_chart.values %}
+            <canvas id="dailyChart" height="90"></canvas>
+        {% else %}
+            <div class="text-muted-soft">Zatím žádná odeslaná SMS.</div>
+        {% endif %}
+    </div>
+</section>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <section class="app-panel mb-4">
+            <div class="panel-header"><h2 class="panel-title">Podle pravidla</h2></div>
+            <div class="p-3">
+                {% if rule_chart.labels %}
+                    <canvas id="ruleChart"></canvas>
+                {% else %}
+                    <div class="text-muted-soft">Zatím žádná SMS odeslaná přes pravidlo.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+    <div class="col-md-6">
+        <section class="app-panel mb-4">
+            <div class="panel-header"><h2 class="panel-title">Podle skupiny</h2></div>
+            <div class="p-3">
+                {% if group_chart.labels %}
+                    <canvas id="groupChart"></canvas>
+                {% else %}
+                    <div class="text-muted-soft">Zatím žádná data (cílová čísla nejsou v žádné skupině, nebo ještě nic neodešlo).</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+    <div class="col-md-6">
+        <section class="app-panel mb-4">
+            <div class="panel-header"><h2 class="panel-title">Top cílová čísla (odchozí SMS)</h2></div>
+            <div class="p-3">
+                {% if target_chart.labels %}
+                    <canvas id="targetChart"></canvas>
+                {% else %}
+                    <div class="text-muted-soft">Zatím žádná data.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+    <div class="col-md-6">
+        <section class="app-panel mb-4">
+            <div class="panel-header"><h2 class="panel-title">Top zdrojová čísla (příchozí události)</h2></div>
+            <div class="p-3">
+                {% if source_chart.labels %}
+                    <canvas id="sourceChart"></canvas>
+                {% else %}
+                    <div class="text-muted-soft">Zatím žádná data.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+
+{{ daily_chart|json_script:"daily-chart-data" }}
+{{ rule_chart|json_script:"rule-chart-data" }}
+{{ target_chart|json_script:"target-chart-data" }}
+{{ source_chart|json_script:"source-chart-data" }}
+{{ group_chart|json_script:"group-chart-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        function parseData(id) {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            return JSON.parse(el.textContent);
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+        const textColor = isDark ? '#a8b1c7' : '#5f6d86';
+
+        Chart.defaults.color = textColor;
+        Chart.defaults.borderColor = gridColor;
+        Chart.defaults.font.family = "'Manrope', 'Segoe UI', Arial, sans-serif";
+
+        const daily = parseData('daily-chart-data');
+        const dailyCanvas = document.getElementById('dailyChart');
+        if (daily && dailyCanvas && daily.labels.length) {
+            new Chart(dailyCanvas, {
+                type: 'line',
+                data: {
+                    labels: daily.labels,
+                    datasets: [{
+                        label: 'Odeslané SMS',
+                        data: daily.values,
+                        borderColor: '#5f7cff',
+                        backgroundColor: 'rgba(95, 124, 255, 0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                    }],
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                },
+            });
+        }
+
+        function renderBarChart(canvasId, dataId, label, color) {
+            const data = parseData(dataId);
+            const canvas = document.getElementById(canvasId);
+            if (!data || !canvas || !data.labels.length) return;
+
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: label,
+                        data: data.values,
+                        backgroundColor: color,
+                        borderRadius: 6,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+                },
+            });
+        }
+
+        renderBarChart('ruleChart', 'rule-chart-data', 'Odeslané SMS', '#5f7cff');
+        renderBarChart('groupChart', 'group-chart-data', 'Odeslané SMS', '#36c38a');
+        renderBarChart('targetChart', 'target-chart-data', 'Odeslané SMS', '#f0b93a');
+        renderBarChart('sourceChart', 'source-chart-data', 'Příchozí události', '#ff6b81');
+    })();
+</script>
+{% endblock scripts %}

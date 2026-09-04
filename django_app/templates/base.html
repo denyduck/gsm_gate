@@ -92,6 +92,7 @@
                 {% endif %}
                 {% if perms.dashboard.view_outgoingaction %}
                     <a class="nav-link-app" href="{% url 'outgoing_actions' %}">Odchozí akce</a>
+                    <a class="nav-link-app" href="{% url 'telemetry' %}">Telemetrie</a>
                 {% endif %}
                 {% if perms.dashboard.view_gatewaysettings %}
                     <a class="nav-link-app" href="{% url 'gateway_status' %}">Stav</a>

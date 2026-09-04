@@ -116,6 +116,19 @@ Umožňuje:
 - stavové informace (`PENDING`, `DONE`, `FAILED` apod.),
 - čas zpracování a diagnostický detail.
 
+## 9b) Telemetrie
+
+Stránka „Telemetrie" (vyžaduje `dashboard.view_outgoingaction`, stejné oprávnění jako Odchozí akce) shrnuje provoz brány do grafů (Chart.js):
+
+- souhrnné počty – celkem SMS akcí, odesláno/selhalo/čeká, celkem příchozích událostí,
+- graf odeslaných SMS za posledních 30 dní,
+- podle pravidla – které pravidlo odeslalo kolik SMS,
+- podle skupiny – kolik SMS šlo číslům v dané skupině (číslo ve víc skupinách se počítá do každé z nich),
+- top cílová čísla – kam se posílá nejvíc SMS,
+- top zdrojová čísla – odkud přichází nejvíc událostí.
+
+Počítají se jen skutečně odeslané SMS (`status='SENT'`), ne čekající/selhané – to je vidět zvlášť v souhrnných počtech. Data jsou scoped na přihlášeného uživatele (`owner`), stejně jako zbytek appky.
+
 ## 10) Objekty zařízení
 
 Objekty reprezentují zařízení/zdroje událostí.

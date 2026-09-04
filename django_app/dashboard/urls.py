@@ -55,4 +55,6 @@ urlpatterns = [
     path('self-test/run/', views.self_test_run_view, name='self_test_run'),
     path('self-test/<int:pk>/', views.self_test_detail_view, name='self_test_detail'),
 
+    path('telemetrie/', views.telemetry_view, name='telemetry'),
+
 ]
