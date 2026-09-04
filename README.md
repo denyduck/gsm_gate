@@ -79,6 +79,7 @@ Tři služby ve `scripts/` zajišťují automatický běh po restartu/havárii:
 | `calyx-usb-serial.service` | Zaregistruje Calyx modem u kernel USB driveru po každém bootu (bez tohohle `/dev/ttyUSB*` po restartu nevznikne). |
 | `gsm-gate-compose.service` | Po startu Dockeru spustí celý compose stack **včetně** `gsm_worker` (ten je v profilu `rpi`, běžný auto-start by ho vynechal). |
 | `gsm-watchdog.service` + `.timer` | Každé 2 minuty kontroluje stav modemu, při zaseknutí restartuje `ModemManager`, při přetrvávajícím problému restartuje RPi. |
+| `gsm-backup.service` + `.timer` (volitelné) | Jednou denně vyexportuje data brány do `django_app/backups/` a smaže zálohy starší 14 dní. Slouží jako doplněk k ručnímu exportu v appce (`Zálohování` v menu, jen pro superusera) - viz [Nasazení a obnova](docs/nasazeni-a-obnova.md). |
 
 ```bash
 sudo cp scripts/calyx-usb-serial.service /etc/systemd/system/
@@ -91,6 +92,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now calyx-usb-serial.service
 sudo systemctl enable --now gsm-gate-compose.service
 sudo systemctl enable --now gsm-watchdog.timer
+```
+
+Volitelně, pravidelné zálohy dat:
+
+```bash
+sudo cp scripts/gsm-backup.service scripts/gsm-backup.timer /etc/systemd/system/
+sudo cp scripts/gsm_backup.sh /usr/local/bin/gsm_backup.sh
+sudo chmod +x /usr/local/bin/gsm_backup.sh
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now gsm-backup.timer
 ```
 
 ### 4) Ověření

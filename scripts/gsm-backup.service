@@ -1,0 +1,8 @@
+[Unit]
+Description=GSM Gate - pravidelný export dat do JSON zálohy
+After=gsm-gate-compose.service
+Requires=gsm-gate-compose.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gsm_backup.sh

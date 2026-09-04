@@ -147,3 +147,25 @@ Zúženo jen na to, co appka reálně používá (ModemManager/mmcli si port, ry
 - **Vyžadovat doručenky** – při odeslání SMS požádá síť o potvrzení doručení příjemci (`delivery-report-request` v PDU).
 - **Povolit příchozí SMS** – řídí, jestli se pro uživatele vůbec vyhodnocují pravidla na příchozí SMS.
 - **Webhook URL** – cíl pro Teams notifikace.
+
+## 12) Zálohování
+
+Stránka „Zálohování“ (jen pro superusera, viz menu) používá Django `dumpdata`/`loaddata` – žádnou vlastní serializaci.
+
+### Export
+
+- **Export všech dat** – čísla, skupiny, objekty, API klíče, pravidla, blokovaná čísla, bezpečnostní nastavení, gateway nastavení, historie událostí/akcí + uživatelské účty (kvůli vazbám vlastníků).
+- **Export jen nastavení** – jen `GatewaySettings` + `SecurityRule`, bez historie a ostatních objektů.
+
+Uživatelské účty se v exportu ukládají přes tzv. natural key (uživatelské jméno, ne interní ID) – import tak funguje i na instanci, kde má stejný admin jiné interní ID.
+
+### Import (obnova)
+
+- Nahrání JSON exportu zpět do databáze, transakčně (při chybě se nic nezmění).
+- Určeno hlavně pro obnovu na čerstvě nasazené bráně (prázdná databáze) – na existující data může přepsat záznamy se stejným ID.
+
+### Plánované zálohy
+
+Management příkaz `python manage.py export_backup --kind data|settings --output-dir <cesta>` dělá to samé jako tlačítko v appce, ale zapisuje timestamped soubor na disk – vhodné pro systemd timer (`scripts/gsm-backup.service` + `.timer`, viz [Nasazení a obnova](nasazeni-a-obnova.md)). Výstupní adresář je uvnitř bind-mountovaného `django_app/`, takže soubory jsou vidět přímo na hostu.
+
+Zálohy obsahují citlivá data (SIM PIN v čistém textu, API tokeny objektů) – je potřeba je ukládat jen na bezpečné místo.

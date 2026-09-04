@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Zálohování{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-hdd-network"></i> Zálohování</span>
+    <h1 class="hero-title">Export a import dat brány</h1>
+    <p class="hero-subtitle">Dostupné jen pro superusera. Export slouží k pravidelnému zálohování a k obnově po havárii (viz <span class="mono">docs/nasazeni-a-obnova.md</span>).</p>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Export</h2></div>
+    <div class="p-3">
+        <div class="mb-3">
+            <div class="fw-semibold">Export všech dat</div>
+            <p class="small text-muted-soft mb-2">Čísla, skupiny, objekty, API klíče, pravidla, blokovaná čísla, bezpečnostní nastavení, gateway nastavení a historie událostí/akcí.</p>
+            <a href="{% url 'backup_export' 'data' %}" class="btn btn-app-primary"><i class="bi bi-download"></i> Stáhnout zálohu dat</a>
+        </div>
+        <div>
+            <div class="fw-semibold">Export jen nastavení</div>
+            <p class="small text-muted-soft mb-2">Jen nastavení gateway a bezpečnostní pravidlo (PIN, doručenky, webhook, limity proti zahlcení) - bez historie a bez ostatních objektů.</p>
+            <a href="{% url 'backup_export' 'settings' %}" class="btn btn-app-outline"><i class="bi bi-download"></i> Stáhnout zálohu nastavení</a>
+        </div>
+    </div>
+    <div class="alert alert-warning mx-3 mb-3">
+        Soubor obsahuje citlivé údaje (SIM PIN, API tokeny objektů) - ulož ho jen na bezpečné místo.
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Import (obnova)</h2></div>
+    <div class="p-3">
+        <p class="small text-muted-soft">
+            Nahraje dříve stažený JSON export zpět do databáze. Určeno hlavně pro obnovu na čerstvě nasazené bráně (prázdná databáze) -
+            při importu na existující data může dojít k přepsání záznamů se stejným ID. Import je transakční: pokud selže, nic se nezmění.
+        </p>
+        <form method="post" action="{% url 'backup_import' %}" enctype="multipart/form-data" class="d-flex gap-2 flex-wrap align-items-center">
+            {% csrf_token %}
+            <input type="file" name="backup_file" accept="application/json" class="form-control" style="max-width: 360px;" required>
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-upload"></i> Importovat zálohu</button>
+        </form>
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Pravidelné zálohování</h2></div>
+    <div class="p-3">
+        <p class="small text-muted-soft mb-2">
+            Pro automatické pravidelné zálohy použij management příkaz přímo v kontejneru (lze naplánovat přes systemd timer stejně jako watchdog - viz <span class="mono">scripts/</span>):
+        </p>
+        <pre class="mb-0">docker compose exec -T web python manage.py export_backup --kind data --output-dir /usr/src/app/backups</pre>
+        <p class="small text-muted-soft mt-2 mb-0">
+            Adresář <span class="mono">backups/</span> je uvnitř bind-mountovaného <span class="mono">django_app/</span>, takže soubory najdeš přímo na hostu - odtud si je synchronizuj (rsync/rclone/cloud sync) tam, kam potřebuješ.
+        </p>
+    </div>
+</section>
+{% endblock %}

@@ -28,6 +28,9 @@ postgres_data/
 # GSM modem lock
 *.lock
 
+# Zálohy vytvořené export_backup / backup UI
+django_app/backups/
+
 # IDE
 .vscode/
 .idea/

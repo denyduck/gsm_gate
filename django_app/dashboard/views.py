@@ -3,18 +3,23 @@
 
 import io
 import json
+import os
+import tempfile
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 import qrcode
 from django import forms
+from django.core import management
+from django.core.exceptions import PermissionDenied
 from django.forms import modelform_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -38,6 +43,7 @@ from .forms import (
     AutomationRuleForm,
     IncomingEventSimulationForm,
 )
+from .services import backup as backup_service
 from .services.rules_engine import (
     get_or_create_default_security_notification_rule,
     get_security_rule,
@@ -993,4 +999,68 @@ def outgoing_actions_view(request):
         'gateway_settings': gateway_settings,
     }
     return render(request, 'dashboard/outgoing_actions.html', context)
+
+
+# Zálohování - export/import dat pomocí Django dumpdata/loaddata (osvědčený
+# formát, žádná vlastní serializace, sdíleno s management příkazem
+# export_backup pro plánované zálohy - viz services/backup.py). Jen pro
+# superusera - dotýká se dat napříč všemi uživateli, ne jen vlastníka.
+
+@login_required
+def backup_view(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Zálohování je dostupné jen pro superusera.')
+    return render(request, 'dashboard/backup.html', {})
+
+
+@login_required
+def backup_export(request, kind):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Zálohování je dostupné jen pro superusera.')
+
+    model_labels = backup_service.MODEL_SETS.get(kind)
+    if model_labels is None:
+        raise Http404('Neznámý typ zálohy.')
+
+    content = backup_service.dump_models(model_labels)
+    filename = f'gsm_gate_{kind}_backup_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json'
+
+    response = HttpResponse(content, content_type='application/json; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@require_http_methods(['POST'])
+def backup_import(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Import zálohy je dostupný jen pro superusera.')
+
+    upload = request.FILES.get('backup_file')
+    if not upload:
+        messages.error(request, 'Nebyl vybrán žádný soubor k importu.')
+        return redirect('backup')
+
+    try:
+        raw = upload.read().decode('utf-8')
+        json.loads(raw)
+    except Exception as exc:
+        messages.error(request, f'Soubor není platný JSON export: {exc}')
+        return redirect('backup')
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp_file:
+            tmp_file.write(raw)
+            tmp_path = tmp_file.name
+
+        management.call_command('loaddata', tmp_path)
+        messages.success(request, 'Import zálohy proběhl úspěšně.')
+    except Exception as exc:
+        messages.error(request, f'Import zálohy selhal, žádná data se nezměnila: {exc}')
+    finally:
+        if tmp_path:
+            os.remove(tmp_path)
+
+    return redirect('backup')
 

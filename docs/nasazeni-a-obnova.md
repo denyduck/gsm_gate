@@ -53,6 +53,31 @@ systemctl list-timers gsm-watchdog.timer
 systemctl is-enabled calyx-usb-serial.service gsm-gate-compose.service gsm-watchdog.timer
 ```
 
+### Volitelně: pravidelné zálohování dat
+
+Systémové služby výše zajistí, že brána po havárii sama naběhne s **prázdnou databází** (kód je z gitu, data ne). Pro obnovu dat (čísla, skupiny, pravidla, objekty, nastavení) po výměně SD karty/havárii disku je potřeba záloha dat – viz [Funkcionalita – Zálohování](funkcionalita.md#12-zálohování) a stránka „Zálohování“ v appce (jen pro superusera).
+
+Automatické denní zálohy do `django_app/backups/` (odtud si je synchronizuj tam, kam potřebuješ – rsync/rclone/cloud sync):
+
+```bash
+sudo cp scripts/gsm-backup.service scripts/gsm-backup.timer /etc/systemd/system/
+sudo cp scripts/gsm_backup.sh /usr/local/bin/gsm_backup.sh
+sudo chmod +x /usr/local/bin/gsm_backup.sh
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now gsm-backup.timer
+```
+
+### Obnova dat ze zálohy
+
+Po čerstvém nasazení (kroky 1–4 výše, prázdná databáze):
+
+1. Přihlas se jako superuser.
+2. V menu „Zálohování“ nahraj poslední JSON export (tlačítko „Importovat zálohu“).
+3. Import běží v transakci – pokud selže, žádná data se nezmění.
+
+Import je bezpečný jen na prázdnou/čerstvou databázi. Na databázi s existujícími daty může přepsat záznamy se stejným ID – před importem na běžící bránu radši ověř obsah souboru.
+
 ## Běžná aktualizace kódu (ne po výměně SD karty/RPi)
 
 Systémové služby z kroku 3 se instalují **jen jednou** na dané fyzické zařízení – nejsou to soubory, které by se aplikovaly samy při `git pull`. Pro běžný update kódu na už nastaveném zařízení stačí:
