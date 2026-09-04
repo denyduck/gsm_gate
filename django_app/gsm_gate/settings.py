@@ -21,7 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t0%wq!9&yzf6t5(ovu0(v^-8g3y9wf3_$m4r^+t7_@is7#h@=!'
+# Musí jít přes DJANGO_SECRET_KEY env proměnnou (.env, viz .env.example) -
+# fallback níže je jen pro pohodlný lokální vývoj bez .env a je záměrně
+# rozpoznatelný jako nebezpečný (Django ho i sám hlásí přes manage.py check
+# --deploy, protože začíná "django-insecure-").
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-CHANGE-ME-please-set-DJANGO_SECRET_KEY-env-var',
+)
 
 # Verze appky a autor - zobrazuje se v patičce (base.html) přes context
 # processor dashboard.context_processors.app_info. APP_AUTHOR je zatím
@@ -30,9 +37,10 @@ APP_VERSION = '1.0.0'
 APP_AUTHOR = ''
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Bezpečný default je vypnuto - zapíná se explicitně přes DJANGO_DEBUG=True v .env.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,*').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     'CSRF_TRUSTED_ORIGINS',
     'http://localhost:8000,http://127.0.0.1:8000'

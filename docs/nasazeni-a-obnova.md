@@ -20,7 +20,20 @@ git clone https://github.com/denyduck/gsm_gate.git
 cd gsm_gate
 ```
 
-## 3) Instalace systemd služeb (jednorázově, host)
+## 3) Konfigurace prostředí (.env)
+
+```bash
+cp .env.example .env
+```
+
+V `.env` uprav:
+- `DJANGO_SECRET_KEY` – vygeneruj vlastní (`docker compose run --rm web python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`) a vlož do `.env`. Bez vlastního klíče appka běží na nebezpečném vývojovém fallbacku (rozpoznatelný podle prefixu `django-insecure-`, `manage.py check --deploy` na něj upozorní).
+- `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` – IP/hostname, přes které bránu otvíráš (výchozí v `docker-compose.yml` je `10.10.10.234` – uprav, pokud se změnila).
+- `DJANGO_DEBUG` – nech `False` (produkce). `True` jen dočasně při ladění – odhaluje tracebacky/cesty/SQL komukoliv.
+
+`.env` je v `.gitignore` (obsahuje tajný klíč) – po výměně SD karty/RPi ho je potřeba znovu vytvořit, `git pull` ho nepřinese.
+
+## 4) Instalace systemd služeb (jednorázově, host)
 
 Tři služby ve `scripts/` zajišťují, že po restartu/havárii naběhne vše samo, bez ručního zásahu:
 
@@ -43,7 +56,7 @@ sudo systemctl enable --now gsm-gate-compose.service
 sudo systemctl enable --now gsm-watchdog.timer
 ```
 
-## 4) Ověření
+## 5) Ověření
 
 ```bash
 mmcli -m 0                              # modem by měl mít state: registered

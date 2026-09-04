@@ -29,7 +29,25 @@ Django test client používá host `testserver`, který nemusí být v `ALLOWED_
 - pro smoke test použít `Client(HTTP_HOST='localhost')`,
 - případně přidat test host do `ALLOWED_HOSTS` pro testovací prostředí.
 
-## 3) Chybějící DB sloupce po update
+## 3) `DisallowedHost` při otevření brány v prohlížeči
+
+### Příčina
+
+Od zavedení `.env` (`ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS`, viz [Nasazení a obnova](nasazeni-a-obnova.md#3-konfigurace-prostředí-env)) appka odmítne požadavek na jakoukoliv IP/hostname, který v `ALLOWED_HOSTS` není – typicky po změně IP adresy RPi (DHCP) nebo po čerstvém nasazení bez `.env`.
+
+### Řešení
+
+```bash
+grep ALLOWED_HOSTS .env
+```
+
+Uprav `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` v `.env` na aktuální IP/hostname a restartuj:
+
+```bash
+docker compose up -d --build web
+```
+
+## 4) Chybějící DB sloupce po update
 
 ### Příznak
 
@@ -42,7 +60,7 @@ docker compose exec web python manage.py showmigrations dashboard
 docker compose exec web python manage.py migrate
 ```
 
-## 4) Worker neodesílá SMS
+## 5) Worker neodesílá SMS
 
 ### Kontrola
 
@@ -59,7 +77,7 @@ docker compose --profile rpi run --rm gsm_worker python manage.py gsm_gateway_wo
 
 Podrobný diagnostický postup krok za krokem (včetně `mmcli` příkazů a watchdogu) viz [Modem – hardware a diagnostika](modem-diagnostika.md).
 
-## 5) Objekt API neposílá události
+## 6) Objekt API neposílá události
 
 ### Kontrola
 
@@ -68,7 +86,7 @@ Podrobný diagnostický postup krok za krokem (včetně `mmcli` příkazů a wat
 - správný JSON payload,
 - dostupnost serveru ze sítě zařízení.
 
-## 6) Build dokumentace
+## 7) Build dokumentace
 
 Spuštění lokálně přes samostatný compose:
 
