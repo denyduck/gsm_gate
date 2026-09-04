@@ -223,6 +223,7 @@ def _queue_first_contact_notice(rule, user, event_log, target):
     NOTIFY_SMS/FORWARD_INFO akce pro tenhle cíl - jinak by check `.exists()`
     už viděl tu právě vytvořenou akci a first-contact by se nikdy nespustil."""
     if not rule.notify_first_contact:
+        logger.info('Pravidlo "%s" (id=%s): notify_first_contact je vypnuté, info SMS se přeskakuje.', rule.name, rule.id)
         return False
 
     already_contacted = OutgoingAction.objects.filter(rule=rule, target_number=target).exists()
@@ -265,6 +266,10 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
 
         matched_count += 1
         log_rule_name = rule_log_label(rule)
+        logger.info(
+            'Pravidlo "%s" (id=%s) se shoduje: action=%s, notify_first_contact=%s.',
+            rule.name, rule.id, rule.action, rule.notify_first_contact,
+        )
 
         if rule.action == 'IGNORE':
             summaries.append(f'Pravidlo "{log_rule_name}": událost ignorována.')
@@ -313,12 +318,12 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             # Nezávislé na notify_via_sms - první kontakt je vlastní
             # zaškrtávátko, ne podřízené kanálu SMS. Admin může chtít hlavní
             # notifikaci jen e-mailem/Teams a přesto poslat jednorázovou
-            # info SMS novému číslu.
-            if rule.notify_first_contact:
-                for target in targets:
-                    if _queue_first_contact_notice(rule, user, event_log, target):
-                        queued_count += 1
-                        rule_queued_count += 1
+            # info SMS novému číslu. Vypnuté/přeskočené případy řeší a loguje
+            # _queue_first_contact_notice sama, žádná vnější podmínka tady.
+            for target in targets:
+                if _queue_first_contact_notice(rule, user, event_log, target):
+                    queued_count += 1
+                    rule_queued_count += 1
 
             if rule.notify_via_sms:
                 if not targets:
