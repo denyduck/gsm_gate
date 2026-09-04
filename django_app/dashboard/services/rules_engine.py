@@ -1,9 +1,12 @@
+import logging
 from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
 
 from dashboard.models import AutomationRule, BlockedNumber, IncomingEventLog, OutgoingAction, SecurityRule
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_phone_number(raw_number):
@@ -224,6 +227,10 @@ def _queue_first_contact_notice(rule, user, event_log, target):
 
     already_contacted = OutgoingAction.objects.filter(rule=rule, target_number=target).exists()
     if already_contacted:
+        logger.info(
+            'Pravidlo "%s" (id=%s): číslo %s už bylo tímto pravidlem dřív kontaktováno, info SMS se nezařazuje.',
+            rule.name, rule.id, target,
+        )
         return False
 
     message = rule.first_contact_message.strip() if rule.first_contact_message else ''
@@ -239,6 +246,7 @@ def _queue_first_contact_notice(rule, user, event_log, target):
         payload_message=message,
         status='PENDING',
     )
+    logger.info('Pravidlo "%s" (id=%s): zařazena info SMS pro první kontakt čísla %s.', rule.name, rule.id, target)
     return True
 
 
@@ -302,15 +310,21 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
 
             rule_queued_count = 0
 
+            # Nezávislé na notify_via_sms - první kontakt je vlastní
+            # zaškrtávátko, ne podřízené kanálu SMS. Admin může chtít hlavní
+            # notifikaci jen e-mailem/Teams a přesto poslat jednorázovou
+            # info SMS novému číslu.
+            if rule.notify_first_contact:
+                for target in targets:
+                    if _queue_first_contact_notice(rule, user, event_log, target):
+                        queued_count += 1
+                        rule_queued_count += 1
+
             if rule.notify_via_sms:
                 if not targets:
                     summaries.append(f'Pravidlo "{log_rule_name}": kanál SMS přeskočen, protože chybí cílová čísla/skupiny.')
                 else:
                     for target in targets:
-                        if _queue_first_contact_notice(rule, user, event_log, target):
-                            queued_count += 1
-                            rule_queued_count += 1
-
                         OutgoingAction.objects.create(
                             owner=user,
                             event_log=event_log,
