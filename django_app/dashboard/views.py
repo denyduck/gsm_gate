@@ -49,6 +49,7 @@ from .services import reset as reset_service
 from .services import selftest as selftest_service
 from .services import telemetry as telemetry_service
 from .services.rules_engine import (
+    fire_first_contact_on_save,
     get_or_create_default_security_notification_rule,
     get_security_rule,
     normalize_phone_number,
@@ -812,7 +813,12 @@ def rule_create(request):
             rule.owner = request.user
             rule.save()
             form.save_m2m()
-            messages.success(request, 'Pravidlo bylo vytvořeno.')
+
+            queued = fire_first_contact_on_save(rule)
+            if queued:
+                messages.success(request, f'Pravidlo bylo vytvořeno. Informační SMS zařazena pro {queued} číslo/čísel.')
+            else:
+                messages.success(request, 'Pravidlo bylo vytvořeno.')
             return redirect('rules_list')
     else:
         form = AutomationRuleForm(user=request.user)
@@ -833,7 +839,12 @@ def rule_update(request, pk):
         form = AutomationRuleForm(request.POST, instance=rule, user=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Pravidlo bylo upraveno.')
+
+            queued = fire_first_contact_on_save(rule)
+            if queued:
+                messages.success(request, f'Pravidlo bylo upraveno. Informační SMS zařazena pro {queued} číslo/čísel.')
+            else:
+                messages.success(request, 'Pravidlo bylo upraveno.')
             return redirect('rules_list')
     else:
         form = AutomationRuleForm(instance=rule, user=request.user)

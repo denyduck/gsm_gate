@@ -304,10 +304,22 @@ class AutomationRule(models.Model):
     custom_message = models.CharField('Vlastní text', max_length=320, blank=True)
     stop_processing = models.BooleanField('Zastavit další vyhodnocení', default=True)
 
+    FIRST_CONTACT_TIMING_CHOICES = [
+        ('ON_TRIGGER', 'Až se pravidlo poprvé spustí na dané číslo'),
+        ('ON_SAVE', 'Hned po vytvoření/uložení pravidla'),
+    ]
+
     notify_first_contact = models.BooleanField(
         'Odeslat informační SMS při prvním kontaktu čísla',
         default=False,
         help_text='Když tohle pravidlo osloví dané cílové číslo poprvé, pošle navíc jednorázovou informační SMS (text níže).',
+    )
+    first_contact_timing = models.CharField(
+        'Kdy odeslat informační SMS',
+        max_length=20,
+        choices=FIRST_CONTACT_TIMING_CHOICES,
+        default='ON_TRIGGER',
+        help_text='"Hned po uložení" pošle SMS ihned všem aktuálním cílovým číslům, ne až při skutečné události.',
     )
     first_contact_message = models.CharField(
         'Text informační SMS',
@@ -409,6 +421,7 @@ class IncomingEventLog(models.Model):
         ('SMS', 'Příchozí SMS'),
         ('API', 'Příchozí API událost'),
         ('SECURITY', 'Bezpečnostní událost (zablokování čísla)'),
+        ('SYSTEM', 'Systémová událost (např. uložení pravidla)'),
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incoming_event_logs', verbose_name='Vlastník')

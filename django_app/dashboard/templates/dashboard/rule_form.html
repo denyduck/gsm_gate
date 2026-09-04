@@ -360,7 +360,11 @@
 
                         <div id="notify-first-contact-wrap" class="col-md-6 form-check mt-4">
                             {{ form.notify_first_contact }} <label class="form-check-label ms-2">{{ form.notify_first_contact.label }}</label>
-                            <div class="form-text">Při prvním kontaktu čísla tímto pravidlem pošle navíc jednorázovou informační SMS.</div>
+                            <div class="form-text">Pošle navíc jednorázovou informační SMS - buď hned po uložení pravidla, nebo až pravidlo poprvé zareaguje na dané číslo (viz volba níže).</div>
+                        </div>
+                        <div id="first-contact-timing-wrap" class="col-md-6">
+                            <label class="form-label">{{ form.first_contact_timing.label }}</label>
+                            {{ form.first_contact_timing }}
                         </div>
                         <div id="first-contact-message-wrap" class="col-md-6">
                             <label class="form-label">{{ form.first_contact_message.label }}</label>
@@ -1211,9 +1215,12 @@
 
         const notifyFirstContactField = document.getElementById('id_notify_first_contact');
         const firstContactMessageWrap = document.getElementById('first-contact-message-wrap');
+        const firstContactTimingWrap = document.getElementById('first-contact-timing-wrap');
 
         function updateFirstContactVisibility() {
-            setVisible(firstContactMessageWrap, !!(notifyFirstContactField && notifyFirstContactField.checked));
+            const enabled = !!(notifyFirstContactField && notifyFirstContactField.checked);
+            setVisible(firstContactMessageWrap, enabled);
+            setVisible(firstContactTimingWrap, enabled);
         }
 
         if (notifyFirstContactField) {

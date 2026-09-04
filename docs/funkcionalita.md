@@ -81,7 +81,9 @@ Výstupem je souhrn zpracování (kolik položek změněno, přeskočeno, vytvo�
 - reakce (`IGNORE`, `NOTIFY_NUM`, `NOTIFY_GRP`, `FORWARD`),
 - notifikační kanály a volitelný vlastní text,
 - příznak zprávy (`message_flag`) pro jemné filtrování,
-- **informační SMS při prvním kontaktu** (`notify_first_contact` + `first_contact_message`) – když pravidlo (u akcí `NOTIFY_NUM`/`NOTIFY_GRP`/`FORWARD`) poprvé osloví konkrétní cílové číslo, zařadí navíc jednorázovou SMS s vysvětlením (např. „byl jsi zařazen do automatizace X, důvod: ...“). Jestli číslo už bylo tímto pravidlem někdy kontaktováno, se pozná podle historie `OutgoingAction` (`rule` + `target_number`) – bez vyplněného textu se použije výchozí zpráva s názvem pravidla.
+- **informační SMS při prvním kontaktu** (`notify_first_contact` + `first_contact_timing` + `first_contact_message`) – u akcí `NOTIFY_NUM`/`NOTIFY_GRP`/`FORWARD` zařadí navíc jednorázovou SMS s vysvětlením (např. „byl jsi zařazen do automatizace X, důvod: ...“) danému cílovému číslu. Jestli číslo už bylo tímto pravidlem někdy kontaktováno, se pozná podle historie `OutgoingAction` (`rule` + `target_number`) – bez vyplněného textu se použije výchozí zpráva s názvem pravidla. `first_contact_timing` určuje KDY se odešle:
+    - `ON_TRIGGER` (výchozí) – až pravidlo poprvé reálně zareaguje na událost a osloví dané číslo.
+    - `ON_SAVE` – hned po vytvoření/uložení pravidla, všem aktuálně nastaveným cílovým číslům najednou (bez čekání na skutečnou událost). Vytvoří se k tomu syntetický `IncomingEventLog` s `event_type='SYSTEM'`, protože `OutgoingAction.event_log` je povinné pole. Opakované uložení pravidla neobtěžuje už kontaktovaná čísla znovu – dedup je stejný jako u `ON_TRIGGER`, jen nově přidaná cílová čísla dostanou SMS.
 
 ### Životní cyklus
 

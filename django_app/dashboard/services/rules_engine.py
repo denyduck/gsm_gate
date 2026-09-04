@@ -251,6 +251,67 @@ def _queue_first_contact_notice(rule, user, event_log, target):
     return True
 
 
+def resolve_rule_targets(rule):
+    """Vrátí normalizovaná cílová čísla pravidla podle jeho akce - stejná
+    logika jako uvnitř _evaluate_rules, sdílená i s fire_first_contact_on_save
+    (odeslání informační SMS hned po uložení pravidla, ne až při události)."""
+    targets = []
+
+    if rule.action == 'NOTIFY_NUM':
+        for phone in rule.target_numbers.filter(active=True):
+            normalized = normalize_phone_number(phone.number)
+            if normalized:
+                targets.append(normalized)
+    elif rule.action == 'NOTIFY_GRP':
+        for group in rule.target_groups.all():
+            for phone in group.phone_numbers.filter(active=True):
+                normalized = normalize_phone_number(phone.number)
+                if normalized:
+                    targets.append(normalized)
+    elif rule.action == 'FORWARD':
+        for phone in rule.target_numbers.filter(active=True):
+            normalized = normalize_phone_number(phone.number)
+            if normalized:
+                targets.append(normalized)
+        if not targets:
+            legacy_target = normalize_phone_number(rule.forward_to_number)
+            if legacy_target:
+                targets = [legacy_target]
+
+    return sorted(set(targets))
+
+
+def fire_first_contact_on_save(rule):
+    """Pro pravidla s first_contact_timing='ON_SAVE' - zavolat z
+    views.rule_create/rule_update hned po uložení pravidla. Používá stejný
+    dedup (OutgoingAction historie) jako běžné posílání za běhu, takže
+    opakované uložení pravidla znovu neobtěžuje už kontaktovaná čísla,
+    jen nově přidaná."""
+    if not rule.notify_first_contact or rule.first_contact_timing != 'ON_SAVE':
+        return 0
+
+    targets = resolve_rule_targets(rule)
+    if not targets:
+        logger.info('Pravidlo "%s" (id=%s): ON_SAVE info SMS - žádná cílová čísla, nic se nezařazuje.', rule.name, rule.id)
+        return 0
+
+    event_log = IncomingEventLog.objects.create(
+        owner=rule.owner,
+        event_type='SYSTEM',
+        source_number='',
+        message_body=f'Vytvořeno/upraveno pravidlo „{rule.name}“ - informační SMS se posílá hned po uložení.',
+        processed=True,
+        result_summary=f'Automaticky vygenerováno při uložení pravidla „{rule.name}“ (first_contact_timing=ON_SAVE).',
+    )
+
+    queued = 0
+    for target in targets:
+        if _queue_first_contact_notice(rule, rule.owner, event_log, target):
+            queued += 1
+
+    return queued
+
+
 def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None):
     summaries = []
     matched_count = 0
@@ -319,11 +380,13 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             # zaškrtávátko, ne podřízené kanálu SMS. Admin může chtít hlavní
             # notifikaci jen e-mailem/Teams a přesto poslat jednorázovou
             # info SMS novému číslu. Vypnuté/přeskočené případy řeší a loguje
-            # _queue_first_contact_notice sama, žádná vnější podmínka tady.
-            for target in targets:
-                if _queue_first_contact_notice(rule, user, event_log, target):
-                    queued_count += 1
-                    rule_queued_count += 1
+            # _queue_first_contact_notice sama. Jen ON_TRIGGER - ON_SAVE se
+            # odbaví jednorázově ve views.rule_create/rule_update, ne tady.
+            if rule.first_contact_timing == 'ON_TRIGGER':
+                for target in targets:
+                    if _queue_first_contact_notice(rule, user, event_log, target):
+                        queued_count += 1
+                        rule_queued_count += 1
 
             if rule.notify_via_sms:
                 if not targets:
@@ -399,7 +462,7 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                     payload = f'{payload}\nObsah: {message_body}'
 
                 for target in targets:
-                    if _queue_first_contact_notice(rule, user, event_log, target):
+                    if rule.first_contact_timing == 'ON_TRIGGER' and _queue_first_contact_notice(rule, user, event_log, target):
                         queued_count += 1
 
                     OutgoingAction.objects.create(
