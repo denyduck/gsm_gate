@@ -118,14 +118,33 @@ def sms_by_group(user, limit=10):
     return labels, values
 
 
+# Přepínač období pro graf síly signálu (jako u cenových grafů) - klíč je to,
+# co appka i JS posílají jako ?range=..., hodnota je počet hodin zpět
+# (None = bez omezení, "max" = od nejstaršího záznamu).
+SIGNAL_RANGE_HOURS = {
+    '1h': 1,
+    '10h': 10,
+    '24h': 24,
+    '3d': 72,
+    '7d': 168,
+    'max': None,
+}
+SIGNAL_RANGE_DEFAULT = '24h'
+
+
 def signal_quality_series(user, hours=24):
     """Vrací (labels, values) pro graf síly signálu. `None` v values je
     záměrně - Chart.js ho v line grafu vykreslí jako mezeru (výpadek),
-    ne jako nulu."""
-    since = timezone.now() - timedelta(hours=hours)
-    readings = SignalReading.objects.filter(owner=user, recorded_at__gte=since).order_by('recorded_at')
+    ne jako nulu. `hours=None` = bez časového omezení (celá historie)."""
+    readings = SignalReading.objects.filter(owner=user)
+    if hours is not None:
+        since = timezone.now() - timedelta(hours=hours)
+        readings = readings.filter(recorded_at__gte=since)
+    readings = readings.order_by('recorded_at')
 
-    labels = [reading.recorded_at.strftime('%d.%m. %H:%M') for reading in readings]
+    # u delších období je vhodnější v labelu i datum, u krátkých stačí čas
+    date_format = '%d.%m. %H:%M' if hours is None or hours > 24 else '%H:%M'
+    labels = [reading.recorded_at.strftime(date_format) for reading in readings]
     values = [reading.quality for reading in readings]
     return labels, values
 

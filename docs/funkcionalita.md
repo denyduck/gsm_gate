@@ -134,6 +134,8 @@ Počítají se jen skutečně odeslané SMS (`status='SENT'`), ne čekající/se
 
 `gsm_worker` zapisuje `SignalReading` při každém cyklu (`dashboard/services/gsm_worker.py`), ale s throttlingem – max. jeden záznam za 5 minut, kromě přechodů výpadek/obnovení, které se zaznamenají hned. Bez throttlingu by při výchozím 10s intervalu workeru tabulka rostla o tisíce řádků denně.
 
+Graf síly signálu má přepínač období (podobně jako u cenových grafů) – 1 h / 10 h / 24 h / 3 dny / 7 dní / Max (celá dostupná historie). Přepnutí nedělá reload stránky – JS si data pro nové období natáhne přes `GET /dashboard/api/telemetrie/signal/?range=...` (`views.telemetry_signal_series_api`) a graf jen překreslí. Platné hodnoty `range` a výchozí období jsou v `telemetry_service.SIGNAL_RANGE_HOURS`/`SIGNAL_RANGE_DEFAULT` – jedno místo pro server i šablonu (tlačítka se generují z tohohle slovníku).
+
 `quality=None` znamená výpadek (modem nebyl v daném cyklu dostupný, typicky když `connect()` selže dřív, než se stihne zpracovat fronta) – v grafu se zobrazí jako mezera, v tabulce výpadků jako souvislý úsek. Ruční smazání historie jde přes „Reset dat" na stránce Zálohování (kategorie „Historie síly signálu").
 
 **Známé omezení:** teplota CPU a vytížení samotné Raspberry Pi tady nejsou – `web`/`gsm_worker` kontejnery nemají mount hostitelských `/proc`/`/sys` cest. Šlo by doplnit přidáním bind mountu do `docker-compose.yml`, ale je to vědomě mimo rozsah, dokud o to někdo nepožádá (další přístup kontejneru k hostiteli navíc).

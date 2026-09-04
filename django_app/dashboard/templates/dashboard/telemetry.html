@@ -48,14 +48,27 @@
 </section>
 
 <section class="app-panel mb-4">
-    <div class="panel-header"><h2 class="panel-title">Síla signálu modemu (24 h)</h2></div>
+    <div class="panel-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2 class="panel-title mb-0">Síla signálu modemu</h2>
+        <div class="btn-group btn-group-sm flex-wrap" role="group" id="signalRangeButtons">
+            {% for range_key in signal_ranges %}
+                <button type="button" class="btn btn-app-outline{% if range_key == signal_range_default %} active{% endif %}" data-range="{{ range_key }}">
+                    {% if range_key == '1h' %}1 h
+                    {% elif range_key == '10h' %}10 h
+                    {% elif range_key == '24h' %}24 h
+                    {% elif range_key == '3d' %}3 dny
+                    {% elif range_key == '7d' %}7 dní
+                    {% elif range_key == 'max' %}Max
+                    {% else %}{{ range_key }}
+                    {% endif %}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
     <div class="p-3">
-        {% if signal_chart.values %}
-            <canvas id="signalChart" height="90"></canvas>
-            <p class="text-muted-soft small mt-2 mb-0">Mezera v grafu = výpadek (modem nebyl v tom cyklu dostupný). Zaznamenává se max. jednou za 5 minut, kromě přechodů výpadek/obnovení.</p>
-        {% else %}
-            <div class="text-muted-soft">Zatím žádná data – worker ještě neproběhl s touhle verzí, nebo je vypnutý.</div>
-        {% endif %}
+        <canvas id="signalChart" height="90" class="{% if not signal_chart.values %}d-none{% endif %}"></canvas>
+        <div id="signalChartEmpty" class="text-muted-soft {% if signal_chart.values %}d-none{% endif %}">Pro tohle období nejsou žádná data.</div>
+        <p class="text-muted-soft small mt-2 mb-0">Mezera v grafu = výpadek (modem nebyl v tom cyklu dostupný). Zaznamenává se max. jednou za 5 minut, kromě přechodů výpadek/obnovení.</p>
     </div>
 </section>
 
@@ -222,16 +235,35 @@
         renderBarChart('targetChart', 'target-chart-data', 'Odeslané SMS', '#f0b93a');
         renderBarChart('sourceChart', 'source-chart-data', 'Příchozí události', '#ff6b81');
 
-        const signal = parseData('signal-chart-data');
-        const signalCanvas = document.getElementById('signalChart');
-        if (signal && signalCanvas && signal.labels.length) {
-            new Chart(signalCanvas, {
+        let signalChartInstance = null;
+
+        function renderSignalChart(labels, values) {
+            const canvas = document.getElementById('signalChart');
+            const emptyMsg = document.getElementById('signalChartEmpty');
+            if (!canvas) return;
+
+            if (!labels || !labels.length) {
+                canvas.classList.add('d-none');
+                if (emptyMsg) emptyMsg.classList.remove('d-none');
+                return;
+            }
+            canvas.classList.remove('d-none');
+            if (emptyMsg) emptyMsg.classList.add('d-none');
+
+            if (signalChartInstance) {
+                signalChartInstance.data.labels = labels;
+                signalChartInstance.data.datasets[0].data = values;
+                signalChartInstance.update();
+                return;
+            }
+
+            signalChartInstance = new Chart(canvas, {
                 type: 'line',
                 data: {
-                    labels: signal.labels,
+                    labels: labels,
                     datasets: [{
                         label: 'Síla signálu (%)',
-                        data: signal.values,
+                        data: values,
                         borderColor: '#36c38a',
                         backgroundColor: 'rgba(54, 195, 138, 0.15)',
                         fill: true,
@@ -246,6 +278,25 @@
                 },
             });
         }
+
+        function loadSignalRange(rangeKey) {
+            fetch('{% url "telemetry_signal_series_api" %}?range=' + encodeURIComponent(rangeKey))
+                .then((resp) => resp.json())
+                .then((data) => renderSignalChart(data.labels, data.values))
+                .catch(() => {});
+        }
+
+        const signalRangeButtons = document.querySelectorAll('#signalRangeButtons [data-range]');
+        signalRangeButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                signalRangeButtons.forEach((btn) => btn.classList.remove('active'));
+                button.classList.add('active');
+                loadSignalRange(button.dataset.range);
+            });
+        });
+
+        const initialSignal = parseData('signal-chart-data');
+        if (initialSignal) renderSignalChart(initialSignal.labels, initialSignal.values);
     })();
 </script>
 {% endblock scripts %}

@@ -1178,6 +1178,20 @@ def telemetry_view(request):
         'signal_chart': {'labels': signal_labels, 'values': signal_values},
         'signal_outages': telemetry_service.signal_outages(user),
         'disk_usage': telemetry_service.device_disk_usage(),
+        'signal_ranges': list(telemetry_service.SIGNAL_RANGE_HOURS.keys()),
+        'signal_range_default': telemetry_service.SIGNAL_RANGE_DEFAULT,
     }
     return render(request, 'dashboard/telemetry.html', context)
+
+
+@login_required
+@permission_required('dashboard.view_outgoingaction', raise_exception=True)
+def telemetry_signal_series_api(request):
+    range_key = request.GET.get('range', telemetry_service.SIGNAL_RANGE_DEFAULT)
+    if range_key not in telemetry_service.SIGNAL_RANGE_HOURS:
+        range_key = telemetry_service.SIGNAL_RANGE_DEFAULT
+
+    hours = telemetry_service.SIGNAL_RANGE_HOURS[range_key]
+    labels, values = telemetry_service.signal_quality_series(request.user, hours=hours)
+    return JsonResponse({'labels': labels, 'values': values})
 

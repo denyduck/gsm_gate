@@ -56,5 +56,6 @@ urlpatterns = [
     path('self-test/<int:pk>/', views.self_test_detail_view, name='self_test_detail'),
 
     path('telemetrie/', views.telemetry_view, name='telemetry'),
+    path('api/telemetrie/signal/', views.telemetry_signal_series_api, name='telemetry_signal_series_api'),
 
 ]

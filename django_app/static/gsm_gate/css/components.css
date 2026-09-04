@@ -862,6 +862,12 @@ a.pill-link:hover {
     background: var(--primary-soft);
 }
 
+.btn-app-outline.active {
+    border-color: var(--primary);
+    color: #fff;
+    background: var(--primary);
+}
+
 /* Bootstrap komponenty (badge/alert/pre/details/border) - Bootstrap sama
    nezná náš vlastní přepínač light/dark (data-theme na <html>), jen svůj
    vlastní data-bs-theme, který nikde nenastavujeme. Bez týhle sekce by
