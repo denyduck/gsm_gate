@@ -3,6 +3,7 @@
 
 import io
 import json
+import logging
 import os
 import tempfile
 from urllib import error as urllib_error
@@ -45,6 +46,7 @@ from .forms import (
     IncomingEventSimulationForm,
 )
 from .services import backup as backup_service
+from .services import ratelimit
 from .services import reset as reset_service
 from .services import selftest as selftest_service
 from .services import telemetry as telemetry_service
@@ -55,6 +57,20 @@ from .services.rules_engine import (
     normalize_phone_number,
     process_incoming_event,
 )
+
+logger = logging.getLogger(__name__)
+
+# device_event_ingest_api: kolik neplatných pokusů (chybějící/špatný token)
+# z jedné IP za sebou tolerovat, než ji na chvíli zablokovat.
+DEVICE_INGEST_MAX_FAILURES = 20
+DEVICE_INGEST_WINDOW_SECONDS = 60
+
+
+def _client_ip(request):
+    # Bez reverse proxy před gunicornem (viz docs/architektura.md) nejde
+    # X-Forwarded-For důvěřovat - klient by si ho mohl posílat sám a limit
+    # takhle obcházet. REMOTE_ADDR je tady spolehlivý zdroj.
+    return request.META.get('REMOTE_ADDR', 'unknown')
 
 
 # Zobrazení dashboardu s čísly uživatele
@@ -659,13 +675,24 @@ def device_object_trigger(request, token):
 @csrf_exempt
 @require_http_methods(['POST'])
 def device_event_ingest_api(request):
+    client_ip = _client_ip(request)
+    fail_key = f'device_ingest_fail:{client_ip}'
+
+    if ratelimit.get_failure_count(fail_key) >= DEVICE_INGEST_MAX_FAILURES:
+        logger.warning('device_event_ingest_api: IP %s zablokována po %s neplatných pokusech.', client_ip, DEVICE_INGEST_MAX_FAILURES)
+        return JsonResponse({'ok': False, 'error': 'Too many invalid requests, try again later'}, status=429)
+
     token = request.headers.get('X-Device-Token', '').strip()
     if not token:
+        ratelimit.register_failure(fail_key, DEVICE_INGEST_WINDOW_SECONDS)
         return JsonResponse({'ok': False, 'error': 'Missing X-Device-Token header'}, status=401)
 
     credential = DeviceObjectApiCredential.objects.filter(token=token, active=True).select_related('device_object__owner').first()
     if credential is None:
+        ratelimit.register_failure(fail_key, DEVICE_INGEST_WINDOW_SECONDS)
         return JsonResponse({'ok': False, 'error': 'Invalid API token'}, status=401)
+
+    ratelimit.reset_failures(fail_key)
 
     try:
         payload = json.loads(request.body.decode('utf-8') if request.body else '{}')

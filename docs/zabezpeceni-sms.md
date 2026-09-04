@@ -39,6 +39,16 @@ Vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`even
 
 **Admin registrace:** `AutomationRule` je registrovaný v `gsm_gate/admin.py` (`AutomationRuleAdmin`), ne v `dashboard/admin.py` – tam je jen `SecurityRuleAdmin`. Ochrana `is_protected` proti smazání je doplněná přímo do existující `has_delete_permission()` v `gsm_gate/admin.py`. **Nezakládat druhou `@admin.register(AutomationRule)`** nikde jinde – Django admin dovolí zaregistrovat model jen jednou, jinak appka spadne hned při startu (`AlreadyRegistered`).
 
+### 4) Rate limit na API ingest a zámek proti brute-force na přihlášení
+
+Dvě samostatné ochrany, nezávislé na `SecurityRule` výše (ta chrání až *po* úspěšném ověření tokenu/přihlášení, tyhle chrání *před* ním):
+
+**`api/device-events/ingest/`** (`device_event_ingest_api` ve `views.py`) – po 20 neplatných pokusech (chybějící/špatný `X-Device-Token`) z jedné IP za 60 sekund appka další pokusy z té IP na minutu odmítá s `429 Too Many Requests`, bez dotazu do DB. Platný token počítadlo vynuluje. Limit je vůči IP z `REMOTE_ADDR` – `X-Forwarded-For` se záměrně nepoužívá, appka běží bez reverse proxy přímo na gunicornu (viz [Architektura](architektura.md)), takže by šel snadno podvrhnout a limit obejít.
+
+**Přihlášení** (`accounts/forms.py`, `LockoutAuthenticationForm`) – po 10 neúspěšných pokusech ze stejné dvojice IP+uživatelské jméno za 5 minut appka další pokusy na tu kombinaci odmítne bez ohledu na to, jestli je heslo správné. Kombinace IP+jméno (ne jen jedno z nich) je záměr: čistě podle IP by šlo zablokovat celou sdílenou síť kvůli jednomu útočníkovi, čistě podle jména by šel cizí účet zamknout jen znalostí přihlašovacího jména, bez hesla, odkudkoliv.
+
+Obě používají stejný sdílený cache-based počítač (`dashboard/services/ratelimit.py`) – u výchozího Django LocMemCache je počítadlo **per-proces**, takže při 3 gunicorn workerech (`GUNICORN_WORKERS`) je efektivní limit až 3x vyšší, než čísla výše říkají. Pro tuhle velikost nasazení akceptovaný kompromis bez potřeby Redis/Memcached; při přechodu na sdílený cache backend by se chování zpřesnilo samo, bez úprav kódu.
+
 ## Datový model
 
 `SecurityRule` (`dashboard/models.py`) – viz tabulka výše.
