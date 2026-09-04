@@ -851,15 +851,94 @@ a.pill-link:hover {
 }
 
 .btn-app-outline {
-    border: 1px solid #3d4a6b;
-    color: #dde4fb;
+    border: 1px solid var(--input-border);
+    color: var(--text-main);
     background: transparent;
 }
 
 .btn-app-outline:hover {
-    border-color: #6a84ff;
-    color: #eff3ff;
-    background: rgba(95, 124, 255, 0.11);
+    border-color: var(--primary);
+    color: var(--text-main);
+    background: var(--primary-soft);
+}
+
+/* Bootstrap komponenty (badge/alert/pre/details/border) - Bootstrap sama
+   nezná náš vlastní přepínač light/dark (data-theme na <html>), jen svůj
+   vlastní data-bs-theme, který nikde nenastavujeme. Bez týhle sekce by
+   tyhle prvky vždy vypadaly podle výchozího (světlého) Bootstrap stylu,
+   bez ohledu na to, jaký režim appka právě má - proto vlastní přepsání
+   přes stejné CSS proměnné jako zbytek appky. */
+
+.badge.text-bg-success {
+    background-color: var(--success) !important;
+    color: var(--success-contrast) !important;
+}
+
+.badge.text-bg-warning {
+    background-color: var(--warning) !important;
+    color: var(--warning-contrast) !important;
+}
+
+.badge.text-bg-danger {
+    background-color: var(--danger) !important;
+    color: var(--danger-contrast) !important;
+}
+
+.badge.text-bg-primary {
+    background-color: var(--primary) !important;
+    color: #ffffff !important;
+}
+
+.badge.text-bg-secondary {
+    background-color: var(--bg-elev-2) !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border);
+}
+
+.alert {
+    border-radius: var(--radius-sm, 10px);
+    border-width: 1px;
+    border-style: solid;
+}
+
+.alert-success {
+    color: var(--text-main);
+    background-color: var(--success-soft);
+    border-color: var(--success);
+}
+
+.alert-warning {
+    color: var(--text-main);
+    background-color: var(--warning-soft);
+    border-color: var(--warning);
+}
+
+.alert-danger,
+.alert-error {
+    color: var(--text-main);
+    background-color: var(--danger-soft);
+    border-color: var(--danger);
+}
+
+html[data-theme='dark'] .alert .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+pre {
+    background: var(--bg-elev-2);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 8px);
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+}
+
+details summary {
+    color: var(--text-main);
+}
+
+.border {
+    border-color: var(--border) !important;
 }
 
 @media (max-width: 768px) {
