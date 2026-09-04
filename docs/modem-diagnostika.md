@@ -159,6 +159,8 @@ V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen p
 
 ## Postup při diagnostice „SMS nechodí“ (checklist)
 
+0. **Nejrychlejší první pohled**: stránka **Telemetrie** v appce – graf síly signálu a tabulka výpadků za poslední hodiny často rovnou ukážou, jestli šlo o výpadek signálu/modemu, bez nutnosti hrabat se v logu. Stránka **Sebediagnostika** k tomu přidá konkrétní doporučení (kategorie "Provoz").
+
 1. **Běží worker a dokončuje cykly bez chyb?**
    ```bash
    docker compose --profile rpi ps

@@ -76,7 +76,7 @@ Výstupem je souhrn zpracování (kolik položek změněno, přeskočeno, vytvo�
 - název, popis, aktivita,
 - priorita (pořadí vyhodnocování),
 - typ události – `SMS`, `API`, `SMS_API` (kombinace obou) nebo `SECURITY` (bezpečnostní událost, viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)). Dřív existovala i hodnota `ANY` se stejným popiskem jako `SMS_API` a identickým chováním – čistá duplicita v rozbalovacím seznamu. Migrace `0046` existující pravidla s `ANY` převedla na `SMS_API` a hodnotu `ANY` z voleb odstranila,
-- podmínka (ANY/EXACT/GROUP),
+- podmínka na zdroj – `match_type`: `ANY`/`EXACT`/`GROUP` (jiné pole než typ události výše – tady `ANY` zůstává beze změny, znamená "libovolné zdrojové číslo"),
 - zdrojové číslo/skupiny/objekty,
 - reakce (`IGNORE`, `NOTIFY_NUM`, `NOTIFY_GRP`, `FORWARD`),
 - notifikační kanály a volitelný vlastní text,
@@ -111,14 +111,16 @@ Umožňuje:
 - detail události,
 - vazba na pravidla/akce,
 - auditní stopa pro troubleshooting.
+- typy událostí (`IncomingEventLog.event_type`): `SMS`, `API`, `SECURITY` (viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)) a `SYSTEM` – syntetický záznam, který appka sama vytvoří jen jako nosič pro informační SMS odeslanou hned po uložení pravidla (`first_contact_timing=ON_SAVE`, viz sekce 6 výše), nejde o skutečnou příchozí událost.
 
 ## 9) Odchozí akce
 
 - fronta akcí čekajících na zpracování,
-- stavové informace (`PENDING`, `DONE`, `FAILED` apod.),
+- stavové informace (`OutgoingAction.status`: `PENDING`, `SENT`, `FAILED`),
+- typy akcí (`action_type`): `NOTIFY_SMS`, `NOTIFY_EMAIL`, `NOTIFY_TEAMS`, `FORWARD_INFO`, `DEVICE_PULL`, `INFO_SMS` (informační SMS při prvním kontaktu, viz sekce 6),
 - čas zpracování a diagnostický detail.
 
-## 9b) Telemetrie
+## 10) Telemetrie
 
 Stránka „Telemetrie" (vyžaduje `dashboard.view_outgoingaction`, stejné oprávnění jako Odchozí akce) shrnuje provoz brány do grafů (Chart.js):
 
@@ -142,7 +144,7 @@ Graf síly signálu má přepínač období (podobně jako u cenových grafů) �
 
 **Známé omezení:** teplota CPU a vytížení samotné Raspberry Pi tady nejsou – `web`/`gsm_worker` kontejnery nemají mount hostitelských `/proc`/`/sys` cest. Šlo by doplnit přidáním bind mountu do `docker-compose.yml`, ale je to vědomě mimo rozsah, dokud o to někdo nepožádá (další přístup kontejneru k hostiteli navíc).
 
-## 10) Objekty zařízení
+## 11) Objekty zařízení
 
 Objekty reprezentují zařízení/zdroje událostí.
 
@@ -165,7 +167,7 @@ Odkaz/QR kód spouštěče funguje jako sdílené tajemství (token je součást
 
 Formulář pravidla (pole „Zdrojové objekty") dřív nabízel jen objekty, které uživatel **vlastní** (`owner`) – objekty sdílené (`users`) mu chyběly, i když je mohl reálně používat v jiných částech appky. Teď se v dropdownu zobrazují objekty vlastněné NEBO sdílené s přihlášeným uživatelem (`Q(owner=user) | Q(users=user)`), stejně jako už fungovalo pro cílová čísla a skupiny.
 
-## 11) Gateway status a konfigurace
+## 12) Gateway status a konfigurace
 
 ### Stav
 
@@ -181,7 +183,7 @@ Zúženo jen na to, co appka reálně používá (ModemManager/mmcli si port, ry
 - **Povolit příchozí SMS** – řídí, jestli se pro uživatele vůbec vyhodnocují pravidla na příchozí SMS.
 - **Webhook URL** – cíl pro Teams notifikace.
 
-## 12) Zálohování
+## 13) Zálohování
 
 Stránka „Zálohování“ (jen pro superusera, viz menu) používá Django `dumpdata`/`loaddata` – žádnou vlastní serializaci.
 
@@ -189,6 +191,8 @@ Stránka „Zálohování“ (jen pro superusera, viz menu) používá Django `d
 
 - **Export všech dat** – čísla, skupiny, objekty, API klíče, pravidla, blokovaná čísla, bezpečnostní nastavení, gateway nastavení, historie událostí/akcí + uživatelské účty (kvůli vazbám vlastníků).
 - **Export jen nastavení** – jen `GatewaySettings` + `SecurityRule`, bez historie a ostatních objektů.
+
+Záměrně **není** v exportu: `SelfTestRun` (historie Sebediagnostiky) a `SignalReading` (historie síly signálu) – provozní/diagnostická telemetrie, ne konfigurace k obnovení po havárii (`backup_service.MODEL_SETS` v `dashboard/services/backup.py`).
 
 Uživatelské účty se v exportu ukládají přes tzv. natural key (uživatelské jméno, ne interní ID) – import tak funguje i na instanci, kde má stejný admin jiné interní ID.
 
@@ -216,7 +220,7 @@ Každá akce vyžaduje potvrzení – napsat do pole přesně text `SMAZAT` – 
 
 Management příkaz `python manage.py prune_old_data [--logs-days N] [--signal-days N]` maže **staré** záznamy podle stáří, ne celé kategorie: `IncomingEventLog` (a přes cascade i navázané `OutgoingAction`) starší než `RETENTION_DAYS_LOGS` dní (výchozí 90) a `SignalReading` starší než `RETENTION_DAYS_SIGNAL_HISTORY` dní (výchozí 30). Obě hodnoty jdou nastavit v `.env`. Určeno pro pravidelný běh přes `scripts/gsm-prune.service` + `.timer` (denně, viz [Nasazení a obnova](nasazeni-a-obnova.md)) – doplněk k ručnímu "Reset dat" výše, ne náhrada.
 
-## 13) Sebediagnostika
+## 14) Sebediagnostika
 
 Stránka „Sebediagnostika" (jen pro superusera) spustí sadu kontrol (`dashboard/services/selftest.py`) a u každé vrátí stav (OK/Varování/Chyba), zprávu a konkrétní doporučení k nápravě:
 
@@ -233,7 +237,7 @@ Signál modemu se testuje nepřímo (přes stáří `last_signal_checked_at`, kt
 - Každé spuštění se uloží jako `SelfTestRun` s počty OK/Varování/Chyba. Hlavní stránka ukazuje poslední běh v plném detailu + kompaktní historii (posledních 20 běhů); kliknutím na „Detail" se zobrazí libovolný starší běh ve stejném seskupeném formátu.
 - Kontroly zapisují i do standardního Python logu (`docker compose logs web`) – varování/chyby na úrovni WARNING/ERROR, souhrn na INFO.
 
-## 14) Odkazy na dokumentaci v appce
+## 15) Odkazy na dokumentaci v appce
 
 Proměnná `MKDOCS_BASE_URL` (`.env`, výchozí `http://10.10.10.234:8010`) nastavuje adresu běžícího MkDocs webu. Používá se:
 

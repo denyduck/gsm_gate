@@ -47,7 +47,35 @@ Uprav `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` v `.env` na aktuální IP/hostname 
 docker compose up -d --build web
 ```
 
-## 4) Chybějící DB sloupce po update
+## 4) `Server Error (500)` a `docker compose logs` neukazuje nic
+
+### Příčina
+
+Django defaultně posílá chyby do konzole **jen když `DEBUG=True`** (vestavěný `console` handler má filtr `require_debug_true`). Appka má `DEBUG=False` jako bezpečný default, takže bez explicitní `LOGGING` konfigurace (`gsm_gate/settings.py`) by tracebacky mizely do prázdna – appka to má už vyřešené, ale je dobré vědět proč to funguje.
+
+### Řešení
+
+```bash
+docker compose logs web --tail=80          # 500 chyby z requestů (django.request logger)
+docker compose --profile rpi logs gsm_worker --tail=80   # chyby z workeru
+```
+
+Hledej `Traceback (most recent call last):` – přesný řádek a výjimka jsou tam vždycky, i s `DEBUG=False`.
+
+## 5) `429 Too Many Requests` / "Příliš mnoho neúspěšných pokusů"
+
+### Příčina
+
+Vestavěný rate limit (viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md#4-rate-limit-na-api-ingest-a-zámek-proti-brute-force-na-přihlášení)):
+
+- **API ingest** (`api/device-events/ingest/`) – 20 neplatných pokusů (chybějící/špatný token) z jedné IP za 60 s.
+- **Přihlášení** – 10 neúspěšných pokusů ze stejné dvojice IP+uživatelské jméno za 5 minut.
+
+### Řešení
+
+Počkej na vypršení okna (60 s / 5 min), nebo u API ingestu ověř token na detailu objektu (klidně přes tlačítko "Testovací volání" – validní token vrátí `200`/`201` a počítadlo se vynuluje).
+
+## 6) Chybějící DB sloupce po update
 
 ### Příznak
 
@@ -60,7 +88,7 @@ docker compose exec web python manage.py showmigrations dashboard
 docker compose exec web python manage.py migrate
 ```
 
-## 5) Worker neodesílá SMS
+## 7) Worker neodesílá SMS
 
 ### Kontrola
 
@@ -77,16 +105,19 @@ docker compose --profile rpi run --rm gsm_worker python manage.py gsm_gateway_wo
 
 Podrobný diagnostický postup krok za krokem (včetně `mmcli` příkazů a watchdogu) viz [Modem – hardware a diagnostika](modem-diagnostika.md).
 
-## 6) Objekt API neposílá události
+## 8) Objekt API neposílá události
 
 ### Kontrola
 
 - platný token a aktivní credential,
 - správný endpoint,
-- správný JSON payload,
+- správný JSON payload – `event_type`/`source_number`/`message_body`, viz [API objektů zařízení](api-objekty-zarizeni.md#skutečný-formát-payloadu),
+- appka to neodmítá s `429` (viz bod 5 výše),
 - dostupnost serveru ze sítě zařízení.
 
-## 7) Build dokumentace
+Nejrychlejší ověření: tlačítko **Testovací volání** na detailu objektu – pokud tohle funguje a reálné zařízení ne, problém je na straně zařízení/sítě, ne appky.
+
+## 9) Build dokumentace
 
 Spuštění lokálně přes samostatný compose:
 

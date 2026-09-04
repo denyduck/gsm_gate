@@ -5,10 +5,13 @@ Tato dokumentace popisuje kompletní funkcionalitu systému **GSM Gate**: webovo
 ## Co systém řeší
 
 - správu telefonních čísel a skupin příjemců,
-- řízení přístupů a sdílení dat mezi uživateli,
-- automatické reakce na příchozí události (SMS/volání/API),
+- řízení přístupů a sdílení dat mezi uživateli (čísla, skupiny, objekty),
+- automatické reakce na příchozí události (SMS/volání/API), včetně jednorázové informační SMS při prvním kontaktu čísla,
 - tvorbu a odbavení odchozích akcí (SMS/notifikace/předání),
-- správu objektů zařízení s API tokeny,
+- správu objektů zařízení s API tokeny, testovacím voláním a QR spouštěčem,
+- ochranu proti zahlcení a hrubé síle (rate limiting na API, zámek na přihlášení, blokovaná čísla),
+- telemetrii a monitoring (grafy provozu, historie a výpadky signálu, sebediagnostika),
+- zálohování/obnovu dat a automatickou retenci starých záznamů,
 - centrální konfiguraci GSM brány,
 - provoz přes Docker Compose.
 

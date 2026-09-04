@@ -69,7 +69,7 @@ systemctl is-enabled calyx-usb-serial.service gsm-gate-compose.service gsm-watch
 
 ### Volitelně: pravidelné zálohování dat
 
-Systémové služby výše zajistí, že brána po havárii sama naběhne s **prázdnou databází** (kód je z gitu, data ne). Pro obnovu dat (čísla, skupiny, pravidla, objekty, nastavení) po výměně SD karty/havárii disku je potřeba záloha dat – viz [Funkcionalita – Zálohování](funkcionalita.md#12-zálohování) a stránka „Zálohování“ v appce (jen pro superusera).
+Systémové služby výše zajistí, že brána po havárii sama naběhne s **prázdnou databází** (kód je z gitu, data ne). Pro obnovu dat (čísla, skupiny, pravidla, objekty, nastavení) po výměně SD karty/havárii disku je potřeba záloha dat – viz [Funkcionalita – Zálohování](funkcionalita.md#13-zálohování) a stránka „Zálohování“ v appce (jen pro superusera).
 
 Automatické denní zálohy do `django_app/backups/` (odtud si je synchronizuj tam, kam potřebuješ – rsync/rclone/cloud sync):
 
@@ -80,6 +80,19 @@ sudo chmod +x /usr/local/bin/gsm_backup.sh
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now gsm-backup.timer
+```
+
+### Volitelně: automatická retence starých dat
+
+Doplněk k zálohám výše – maže staré `IncomingEventLog`/`OutgoingAction`/`SignalReading` podle stáří (`RETENTION_DAYS_LOGS`/`RETENTION_DAYS_SIGNAL_HISTORY` v `.env`, výchozí 90/30 dní), ne podle kategorie. Viz [Funkcionalita – Zálohování](funkcionalita.md#13-zálohování).
+
+```bash
+sudo cp scripts/gsm-prune.service scripts/gsm-prune.timer /etc/systemd/system/
+sudo cp scripts/gsm_prune.sh /usr/local/bin/gsm_prune.sh
+sudo chmod +x /usr/local/bin/gsm_prune.sh
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now gsm-prune.timer
 ```
 
 ### Obnova dat ze zálohy
@@ -110,5 +123,6 @@ Pokud update mění i `scripts/*.service`/`*.timer`, je potřeba je znovu zkopí
 - **RPi se restartuje** (výpadek proudu, watchdog reboot, ruční restart) → `gsm-gate-compose.service` po startu Dockeru postaví celý stack znovu, `calyx-usb-serial.service` znovu zaregistruje modem.
 - **Modem se zasekne, ale RPi běží dál** → `gsm-watchdog.timer` to detekuje do 2 minut a eskaluje (restart ModemManageru → restart RPi).
 - **Někdo omylem udělá `docker compose down`** → při dalším startu (nebo příštím rebootu) `gsm-gate-compose.service` stack znovu postaví.
+- **Kontejner se zasekne, ale nespadne** (proces běží, ale nic neděje) → `docker ps`/`docker compose ps` u `web`/`gsm_worker` ukáže `unhealthy` (Docker healthcheck, viz [Architektura](architektura.md#docker-healthchecky)). Restart ručně: `docker compose restart web` / `docker compose --profile rpi restart gsm_worker`.
 
 Podrobnou diagnostiku konkrétních chybových stavů (SMS nechodí, modem neodpovídá, `mmcli` chyby) řeší [Modem – hardware a diagnostika](modem-diagnostika.md).
