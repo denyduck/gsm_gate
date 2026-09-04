@@ -131,6 +131,7 @@
                 <tr><th>Další e-maily</th><td>{{ rule.notification_emails|default:"—" }}</td></tr>
                 <tr><th>Předat na číslo (legacy)</th><td>{{ rule.forward_to_number|default:"—" }}</td></tr>
                 <tr><th>Vlastní text</th><td>{{ rule.custom_message|default:"—" }}</td></tr>
+                <tr><th>Info SMS při prvním kontaktu</th><td>{% if rule.notify_first_contact %}Ano — „{{ rule.first_contact_message|default:"výchozí text" }}“{% else %}Ne{% endif %}</td></tr>
                 <tr><th>Přiložit původní zprávu</th><td>{% if rule.include_original_message %}Ano{% else %}Ne{% endif %}</td></tr>
                 <tr><th>Zastavit další vyhodnocení</th><td>{% if rule.stop_processing %}Ano{% else %}Ne{% endif %}</td></tr>
             </tbody>

@@ -358,6 +358,16 @@
                             {{ form.custom_message }}
                         </div>
 
+                        <div id="notify-first-contact-wrap" class="col-md-6 form-check mt-4">
+                            {{ form.notify_first_contact }} <label class="form-check-label ms-2">{{ form.notify_first_contact.label }}</label>
+                            <div class="form-text">Při prvním kontaktu čísla tímto pravidlem pošle navíc jednorázovou informační SMS.</div>
+                        </div>
+                        <div id="first-contact-message-wrap" class="col-md-6">
+                            <label class="form-label">{{ form.first_contact_message.label }}</label>
+                            {{ form.first_contact_message }}
+                            <div class="form-text">Volitelné - bez vyplnění se použije výchozí text "Byl jsi zařazen do automatizace [název pravidla]".</div>
+                        </div>
+
                         <div class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
                             <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-3" aria-label="Předchozí krok" title="Předchozí krok">
                                 <i class="bi bi-arrow-left-circle-fill fs-3" aria-hidden="true"></i>
@@ -1198,6 +1208,18 @@
                 setFieldValidationState(messageFlagField, messageFlagFeedback, mustFill && !valid);
             });
         }
+
+        const notifyFirstContactField = document.getElementById('id_notify_first_contact');
+        const firstContactMessageWrap = document.getElementById('first-contact-message-wrap');
+
+        function updateFirstContactVisibility() {
+            setVisible(firstContactMessageWrap, !!(notifyFirstContactField && notifyFirstContactField.checked));
+        }
+
+        if (notifyFirstContactField) {
+            notifyFirstContactField.addEventListener('change', updateFirstContactVisibility);
+        }
+        updateFirstContactVisibility();
 
         initializeStepFromErrors();
         updateFormVisibility();

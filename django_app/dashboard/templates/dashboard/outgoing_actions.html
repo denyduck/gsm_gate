@@ -16,6 +16,7 @@
         <a href="{% url 'outgoing_actions' %}" class="btn {% if not active_action_type_filter %}btn-app-primary{% else %}btn-app-outline{% endif %}">Vše</a>
         <a href="{% url 'outgoing_actions' %}?action_type=DEVICE_PULL" class="btn {% if active_action_type_filter == 'DEVICE_PULL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze DEVICE_PULL</a>
         <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_SMS" class="btn {% if active_action_type_filter == 'NOTIFY_SMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze SMS</a>
+        <a href="{% url 'outgoing_actions' %}?action_type=INFO_SMS" class="btn {% if active_action_type_filter == 'INFO_SMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze info SMS</a>
         <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_EMAIL" class="btn {% if active_action_type_filter == 'NOTIFY_EMAIL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze e-mail</a>
         <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_TEAMS" class="btn {% if active_action_type_filter == 'NOTIFY_TEAMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze Teams</a>
     </div>

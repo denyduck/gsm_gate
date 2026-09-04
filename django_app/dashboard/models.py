@@ -304,6 +304,18 @@ class AutomationRule(models.Model):
     custom_message = models.CharField('Vlastní text', max_length=320, blank=True)
     stop_processing = models.BooleanField('Zastavit další vyhodnocení', default=True)
 
+    notify_first_contact = models.BooleanField(
+        'Odeslat informační SMS při prvním kontaktu čísla',
+        default=False,
+        help_text='Když tohle pravidlo osloví dané cílové číslo poprvé, pošle navíc jednorázovou informační SMS (text níže).',
+    )
+    first_contact_message = models.CharField(
+        'Text informační SMS',
+        max_length=320,
+        blank=True,
+        help_text='Např. "Bylo jsi zařazen do automatizace X, důvod: ...". Odešle se jen jednou na dané číslo, při prvním kontaktu tímto pravidlem.',
+    )
+
     created_at = models.DateTimeField('Vytvořeno', auto_now_add=True)
     updated_at = models.DateTimeField('Upraveno', auto_now=True)
 
@@ -423,6 +435,7 @@ class OutgoingAction(models.Model):
         ('NOTIFY_TEAMS', 'Notifikace do Teams'),
         ('FORWARD_INFO', 'Předání na číslo'),
         ('DEVICE_PULL', 'Vyzvednutí požadavku objektu'),
+        ('INFO_SMS', 'Informační SMS (první kontakt)'),
     ]
 
     STATUS_CHOICES = [

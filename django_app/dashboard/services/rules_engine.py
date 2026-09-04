@@ -214,6 +214,35 @@ def _fire_security_event(user, source_number, reason):
     return _evaluate_rules(user, security_log, 'SECURITY', source_number, reason)
 
 
+def _queue_first_contact_notice(rule, user, event_log, target):
+    """Pokud má pravidlo zapnuté notify_first_contact a tohle je první kontakt
+    daného čísla tímto pravidlem (podle historie OutgoingAction), zařadí navíc
+    jednorázovou informační SMS. Musí se zavolat PŘED vytvořením hlavní
+    NOTIFY_SMS/FORWARD_INFO akce pro tenhle cíl - jinak by check `.exists()`
+    už viděl tu právě vytvořenou akci a first-contact by se nikdy nespustil."""
+    if not rule.notify_first_contact:
+        return False
+
+    already_contacted = OutgoingAction.objects.filter(rule=rule, target_number=target).exists()
+    if already_contacted:
+        return False
+
+    message = rule.first_contact_message.strip() if rule.first_contact_message else ''
+    if not message:
+        message = f'Byl jsi zařazen do automatizace „{rule.name}“.'
+
+    OutgoingAction.objects.create(
+        owner=user,
+        event_log=event_log,
+        rule=rule,
+        action_type='INFO_SMS',
+        target_number=target,
+        payload_message=message,
+        status='PENDING',
+    )
+    return True
+
+
 def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None):
     summaries = []
     matched_count = 0
@@ -279,6 +308,10 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                     summaries.append(f'Pravidlo "{log_rule_name}": kanál SMS přeskočen, protože chybí cílová čísla/skupiny.')
                 else:
                     for target in targets:
+                        if _queue_first_contact_notice(rule, user, event_log, target):
+                            queued_count += 1
+                            rule_queued_count += 1
+
                         OutgoingAction.objects.create(
                             owner=user,
                             event_log=event_log,
@@ -348,6 +381,9 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                     payload = f'{payload}\nObsah: {message_body}'
 
                 for target in targets:
+                    if _queue_first_contact_notice(rule, user, event_log, target):
+                        queued_count += 1
+
                     OutgoingAction.objects.create(
                         owner=user,
                         event_log=event_log,

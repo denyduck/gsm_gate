@@ -264,6 +264,8 @@ class AutomationRuleForm(forms.ModelForm):
             'notification_emails',
             'include_original_message',
             'custom_message',
+            'notify_first_contact',
+            'first_contact_message',
             'stop_processing',
         ]
         labels = {
@@ -288,6 +290,8 @@ class AutomationRuleForm(forms.ModelForm):
             'notification_emails': 'Další e-maily pro notifikaci',
             'include_original_message': 'Přiložit původní obsah SMS',
             'custom_message': 'Vlastní text reakce',
+            'notify_first_contact': 'Odeslat informační SMS při prvním kontaktu čísla',
+            'first_contact_message': 'Text informační SMS',
             'stop_processing': 'Zastavit vyhodnocení dalších pravidel',
         }
         widgets = {
@@ -305,6 +309,7 @@ class AutomationRuleForm(forms.ModelForm):
             'forward_to_number': forms.HiddenInput(),
             'notification_emails': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'napr. ops@firma.cz; support@firma.cz'}),
             'custom_message': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Volitelné vlastní znění reakce'}),
+            'first_contact_message': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Např. Byl jsi zařazen do automatizace X, důvod: ...'}),
         }
 
     def __init__(self, *args, **kwargs):
