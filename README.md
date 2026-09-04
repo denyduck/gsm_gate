@@ -149,3 +149,9 @@ Hlavní soubory dokumentace:
 - `docs/provozni-scenare.md`
 - `docs/modem-diagnostika.md`
 - `docs/troubleshooting.md`
+
+## Autor a verze
+
+Aktuální verze: **1.0.0** (viz `APP_VERSION` v `django_app/gsm_gate/settings.py`, zobrazuje se i v patičce appky).
+
+Autor: _doplnit_ (`APP_AUTHOR` v `django_app/gsm_gate/settings.py` – jedno místo, ze kterého se jméno/přezdívka propíše i do patičky appky).

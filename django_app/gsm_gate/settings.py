@@ -23,6 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-t0%wq!9&yzf6t5(ovu0(v^-8g3y9wf3_$m4r^+t7_@is7#h@=!'
 
+# Verze appky a autor - zobrazuje se v patičce (base.html) přes context
+# processor dashboard.context_processors.app_info. APP_AUTHOR je zatím
+# prázdné - doplnit až bude jméno/přezdívka, kterou chceš zobrazovat.
+APP_VERSION = '1.0.0'
+APP_AUTHOR = ''
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -71,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dashboard.context_processors.app_info',
             ],
         },
     },

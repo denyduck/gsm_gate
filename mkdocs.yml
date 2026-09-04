@@ -2,6 +2,7 @@ site_name: GSM Gate Documentation
 site_description: Kompletní dokumentace projektu GSM Gate (Django + ModemManager)
 site_url: http://localhost:8010
 repo_name: gsm_gate
+copyright: "GSM Gate v1.0.0"
 
 theme:
   name: material

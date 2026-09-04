@@ -43,3 +43,9 @@ docker compose --profile rpi up -d --build
 - **Modem – hardware a diagnostika** – aktuální hardware, softwarový stack (ModemManager/mmcli), diagnostické příkazy, watchdog.
 - **Nasazení a obnova po havárii** – kompletní checklist pro novou RPi/výměnu SD karty, co `git pull` sám nezajistí.
 - **Troubleshooting** – nejčastější problémy a řešení.
+
+## Autor a verze
+
+Aktuální verze: **1.0.0** (`APP_VERSION` v `django_app/gsm_gate/settings.py`, zobrazuje se i v patičce appky).
+
+Autor: _doplnit_ (`APP_AUTHOR` v `django_app/gsm_gate/settings.py`).
