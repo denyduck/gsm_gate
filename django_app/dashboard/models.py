@@ -476,6 +476,10 @@ class OutgoingAction(models.Model):
             if not is_rule_owner and not is_assigned_user:
                 raise ValidationError('Vlastník akce musí být vlastník navázaného pravidla nebo jeho přiřazený uživatel.')
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
 
 class SelfTestRun(models.Model):
     """Historie spuštění sebediagnostiky (dashboard/services/selftest.py).
@@ -494,6 +498,14 @@ class SelfTestRun(models.Model):
     ok_count = models.PositiveIntegerField('Počet OK', default=0)
     warn_count = models.PositiveIntegerField('Počet varování', default=0)
     error_count = models.PositiveIntegerField('Počet chyb', default=0)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Sebediagnostika'
+        verbose_name_plural = 'Sebediagnostiky'
+
+    def __str__(self):
+        return f"Sebediagnostika {self.created_at:%d.%m.%Y %H:%M} - {self.get_overall_status_display()}"
 
 
 class SignalReading(models.Model):
@@ -518,15 +530,3 @@ class SignalReading(models.Model):
     def __str__(self):
         value = self.quality if self.quality is not None else 'výpadek'
         return f"{self.recorded_at:%d.%m.%Y %H:%M} - {value}"
-
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'Sebediagnostika'
-        verbose_name_plural = 'Sebediagnostiky'
-
-    def __str__(self):
-        return f"Sebediagnostika {self.created_at:%d.%m.%Y %H:%M} - {self.get_overall_status_display()}"
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        return super().save(*args, **kwargs)
