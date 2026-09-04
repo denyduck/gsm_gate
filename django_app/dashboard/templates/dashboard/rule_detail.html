@@ -10,7 +10,7 @@
     <div class="d-flex flex-nowrap gap-2">
         <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Zpět na pravidla</a>
         {% if can_simulate_events %}
-            <a href="{% url 'incoming_simulator' %}?event_type={% if rule.event_type == 'ANY' %}SMS{% else %}{{ rule.event_type }}{% endif %}&source_number={{ rule.source_number|urlencode }}" class="btn btn-app-outline">Spustit simulaci</a>
+            <a href="{% url 'incoming_simulator' %}?event_type={% if rule.event_type == 'SMS' or rule.event_type == 'CALL' %}{{ rule.event_type }}{% else %}SMS{% endif %}&source_number={{ rule.source_number|urlencode }}" class="btn btn-app-outline">Spustit simulaci</a>
         {% endif %}
         {% if rule.is_protected %}
             <span class="badge text-bg-secondary" title="Nejde smazat ani upravit v appce, jen přes Django Admin"><i class="bi bi-lock-fill"></i> Chráněné systémové pravidlo</span>

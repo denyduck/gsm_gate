@@ -99,7 +99,6 @@ def event_type_matches(rule_event_type, incoming_event_type):
         'SMS': {'SMS'},
         'API': {'API'},
         'SMS_API': {'SMS', 'API'},
-        'ANY': {'SMS', 'API'},
         'SECURITY': {'SECURITY'},
     }
 

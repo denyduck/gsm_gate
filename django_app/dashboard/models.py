@@ -145,6 +145,7 @@ class DeviceObject(models.Model):
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='device_objects', verbose_name='Vlastník')
+    users = models.ManyToManyField(User, related_name='shared_device_objects', blank=True, verbose_name='Uživatelé se sdílením')
     name = models.CharField('Název objektu', max_length=120)
     object_label = models.CharField('Vlastní popisek objektu', max_length=120, blank=True)
     object_type = models.CharField('Typ objektu', max_length=20, choices=OBJECT_TYPE_CHOICES, default='OTHER')
@@ -237,7 +238,6 @@ class AutomationRule(models.Model):
         ('SMS', 'Příchozí SMS'),
         ('API', 'Příchozí API událost'),
         ('SMS_API', 'SMS i API událost'),
-        ('ANY', 'SMS i API událost'),
         ('SECURITY', 'Bezpečnostní událost (zablokování čísla)'),
     ]
 
@@ -266,7 +266,7 @@ class AutomationRule(models.Model):
         help_text='Nejde smazat ani upravit v appce – jen zapnout/vypnout a nastavit přes Django Admin.',
     )
 
-    event_type = models.CharField('Typ události', max_length=20, choices=EVENT_TYPE_CHOICES, default='ANY')
+    event_type = models.CharField('Typ události', max_length=20, choices=EVENT_TYPE_CHOICES, default='SMS_API')
     match_type = models.CharField('Typ podmínky', max_length=10, choices=MATCH_TYPE_CHOICES, default='ANY')
     source_number = models.CharField('Zdrojové číslo', max_length=30, blank=True)
     source_group = models.ForeignKey(
@@ -329,7 +329,7 @@ class AutomationRule(models.Model):
 
     def clean(self):
         super().clean()
-        event_type_includes_api = self.event_type in ('API', 'SMS_API', 'CALL_API', 'ALL')
+        event_type_includes_api = self.event_type in ('API', 'SMS_API')
         if not (self.name or '').strip():
             raise ValidationError('Název pravidla je povinný.')
         if not (self.description or '').strip():

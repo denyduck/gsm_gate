@@ -1,5 +1,6 @@
 # Formulář pro přidání/úpravu telefonního čísla
 from django import forms
+from django.db.models import Q
 from .models import BlockedNumber, DeviceObject, PhoneNumber, Group, GatewaySettings, AutomationRule  # ← správný model
 
 
@@ -323,7 +324,9 @@ class AutomationRuleForm(forms.ModelForm):
         if user is not None and user.is_authenticated:
             user_groups = Group.objects.filter(users=user)
             user_numbers = PhoneNumber.objects.filter(users=user, active=True).order_by('number')
-            user_objects = DeviceObject.objects.filter(owner=user, active=True).order_by('name')
+            user_objects = DeviceObject.objects.filter(
+                Q(owner=user) | Q(users=user), active=True,
+            ).distinct().order_by('name')
             self.fields['source_groups'].queryset = user_groups
             self.fields['target_groups'].queryset = user_groups
             self.fields['target_numbers'].queryset = user_numbers
@@ -426,7 +429,7 @@ class AutomationRuleForm(forms.ModelForm):
         if match_type == 'GROUP' and not source_groups:
             self.add_error('source_groups', 'Pro tento typ match je nutné vybrat alespoň jednu zdrojovou skupinu.')
 
-        if event_type in ('API', 'SMS_API', 'CALL_API', 'ALL') and not source_objects:
+        if event_type in ('API', 'SMS_API') and not source_objects:
             self.add_error('source_objects', 'Pro zvolený typ události je nutné vybrat alespoň jeden zdrojový objekt.')
 
         if use_message_flag and not message_flag:

@@ -330,6 +330,7 @@ class DeviceObjectAdmin(OwnerRestrictedAdminMixin, admin.ModelAdmin):
     list_filter = ('object_type', 'status_flag', 'active')
     search_fields = ('name', 'object_label', 'description', 'owner__username', 'status_label')
     ordering = ('name', 'id')
+    filter_horizontal = ('users',)
 
 
 @admin.register(IncomingEventLog)

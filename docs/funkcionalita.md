@@ -75,7 +75,7 @@ Výstupem je souhrn zpracování (kolik položek změněno, přeskočeno, vytvo�
 
 - název, popis, aktivita,
 - priorita (pořadí vyhodnocování),
-- typ události (SMS/CALL/API/kombinace/bezpečnostní událost – viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)),
+- typ události – `SMS`, `API`, `SMS_API` (kombinace obou) nebo `SECURITY` (bezpečnostní událost, viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)). Dřív existovala i hodnota `ANY` se stejným popiskem jako `SMS_API` a identickým chováním – čistá duplicita v rozbalovacím seznamu. Migrace `0046` existující pravidla s `ANY` převedla na `SMS_API` a hodnotu `ANY` z voleb odstranila,
 - podmínka (ANY/EXACT/GROUP),
 - zdrojové číslo/skupiny/objekty,
 - reakce (`IGNORE`, `NOTIFY_NUM`, `NOTIFY_GRP`, `FORWARD`),
@@ -156,6 +156,12 @@ Objekty reprezentují zařízení/zdroje událostí.
 - vygenerovat **QR spouštěč** – QR kód s odkazem obsahujícím API token objektu; naskenování telefonem (bez přihlášení) odešle požadavek a vyhodnotí pravidla stejně jako API volání. Text zprávy lze přizpůsobit parametrem `?msg=`. Regenerace API klíče odkaz/QR kód zneplatní.
 
 Odkaz/QR kód spouštěče funguje jako sdílené tajemství (token je součástí URL) – je potřeba s ním zacházet jako s heslem, protože kdokoliv s odkazem může objekt spustit.
+
+### Sdílení objektů (od koho pravidlo může vybírat)
+
+`DeviceObject` má (stejně jako `PhoneNumber`/`Group`) pole `users` pro sdílení – přidávat/odebírat sdílené uživatele jde jen přes Django Admin (`filter_horizontal`), stejně jako u čísel a skupin, ne přímo v appce.
+
+Formulář pravidla (pole „Zdrojové objekty") dřív nabízel jen objekty, které uživatel **vlastní** (`owner`) – objekty sdílené (`users`) mu chyběly, i když je mohl reálně používat v jiných částech appky. Teď se v dropdownu zobrazují objekty vlastněné NEBO sdílené s přihlášeným uživatelem (`Q(owner=user) | Q(users=user)`), stejně jako už fungovalo pro cílová čísla a skupiny.
 
 ## 11) Gateway status a konfigurace
 
