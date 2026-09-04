@@ -186,6 +186,49 @@ MESSAGE_TAGS = {
 }
 
 
+# Django defaultně loguje do konzole jen když DEBUG=True (require_debug_true
+# filtr na 'console' handleru) - protože teď máme bezpečný default
+# DEBUG=False, bez tohohle by 500 chyby v `docker compose logs web` nešly
+# vidět vůbec (jen tichý pokus o mail_admins, který navíc není nastavený).
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '[{levelname}] {asctime} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'dashboard': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+
 def _env_bool(name, default='false'):
     return os.environ.get(name, default).strip().lower() in {'1', 'true', 'yes', 'on'}
 
