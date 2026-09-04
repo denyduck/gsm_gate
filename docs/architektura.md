@@ -26,6 +26,12 @@ Datové úložiště je **PostgreSQL**.
 - `gsm_worker` – oddělený worker (profil `rpi`), mluví s modemem přes D-Bus socket namountovaný z hostu (`/run/dbus`), kde běží `ModemManager`,
 - `mkdocs` – dokumentace (samostatný compose soubor).
 
+## Web server
+
+`web` kontejner běží pod **gunicorn** (víc workerů, `GUNICORN_WORKERS` env, výchozí 3), ne pod Django dev serverem. Statické soubory (CSS/JS) servíruje **WhiteNoise** middleware přímo z gunicorn procesu (komprimované, s hashem ve jméně pro cache busting) – žádný samostatný nginx kontejner není potřeba. Vědomé rozhodnutí kvůli jednoduchosti údržby (o kontejner/config vrstvu míň) na téhle velikosti nasazení; nginx by dával smysl hlavně kvůli TLS nebo víc službám za jedním vstupním bodem.
+
+`manage.py collectstatic` běží při každém startu kontejneru (ne jen při buildu) – `STATIC_ROOT` je uvnitř bind-mountované `./django_app`, takže build-time výstup by byl přepsán bind mountem.
+
 ## Doménové entity
 
 - **PhoneNumber** – telefonní číslo s příznakem aktivace, popisem a vazbou na uživatele/skupiny.

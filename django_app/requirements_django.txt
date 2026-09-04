@@ -4,3 +4,5 @@ django-bootstrap5
 django-extensions
 django-widget-tweaks
 qrcode[pil]>=7.4
+gunicorn>=21.2
+whitenoise>=6.6

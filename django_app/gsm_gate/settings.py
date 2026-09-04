@@ -65,6 +65,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -144,11 +145,21 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
-
-
-# STATIC FILES - pro Unfold
-STATIC_URL = '/static/'
 STATIC_ROOT = '/usr/src/app/staticfiles/'
+
+# WhiteNoise servíruje static soubory přímo z gunicorn procesu (komprimované,
+# s hash ve jméně pro cache busting) - žádný samostatný nginx kontejner není
+# potřeba. Vyžaduje `manage.py collectstatic` před startem (viz command v
+# docker-compose.yml - běží při každém startu kontejneru, ne jen při buildu,
+# protože STATIC_ROOT je uvnitř bind-mountované ./django_app).
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

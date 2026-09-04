@@ -62,13 +62,14 @@ services:
       - GSM_MODEM_PORT=${GSM_MODEM_PORT:-/dev/ttyUSB0}
       - GSM_MODEM_BAUD=${GSM_MODEM_BAUD:-115200}
       - GSM_WORKER_INTERVAL=${GSM_WORKER_INTERVAL:-10}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
     depends_on:
       db:
         condition: service_healthy
     networks:
       - gsm_network
 
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py collectstatic --noinput --clear && gunicorn gsm_gate.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3}"
 
   gsm_worker:
     container_name: gsm_worker
