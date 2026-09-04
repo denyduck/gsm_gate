@@ -212,6 +212,10 @@ Na stejné stránce lze data i nevratně smazat, po kategoriích nebo najednou:
 
 Každá akce vyžaduje potvrzení – napsat do pole přesně text `SMAZAT` – plus JS `confirm()` dialog. Mazání je omezené na data vlastněná přihlášeným uživatelem (stejně jako zbytek appky), ne globálně napříč všemi účty.
 
+### Automatická retence (na rozdíl od Reset dat – bez zásahu admina)
+
+Management příkaz `python manage.py prune_old_data [--logs-days N] [--signal-days N]` maže **staré** záznamy podle stáří, ne celé kategorie: `IncomingEventLog` (a přes cascade i navázané `OutgoingAction`) starší než `RETENTION_DAYS_LOGS` dní (výchozí 90) a `SignalReading` starší než `RETENTION_DAYS_SIGNAL_HISTORY` dní (výchozí 30). Obě hodnoty jdou nastavit v `.env`. Určeno pro pravidelný běh přes `scripts/gsm-prune.service` + `.timer` (denně, viz [Nasazení a obnova](nasazeni-a-obnova.md)) – doplněk k ručnímu "Reset dat" výše, ne náhrada.
+
 ## 13) Sebediagnostika
 
 Stránka „Sebediagnostika" (jen pro superusera) spustí sadu kontrol (`dashboard/services/selftest.py`) a u každé vrátí stav (OK/Varování/Chyba), zprávu a konkrétní doporučení k nápravě:

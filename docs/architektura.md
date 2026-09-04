@@ -32,6 +32,13 @@ Datové úložiště je **PostgreSQL**.
 
 `manage.py collectstatic` běží při každém startu kontejneru (ne jen při buildu) – `STATIC_ROOT` je uvnitř bind-mountované `./django_app`, takže build-time výstup by byl přepsán bind mountem.
 
+## Docker healthchecky
+
+`docker compose ps`/`docker ps` teď u `web` a `gsm_worker` ukazuje i `healthy`/`unhealthy`, ne jen `Up` – to samo o sobě nic nerestartuje (`docker-compose.yml` nemá `depends_on: condition: service_healthy` mezi nimi navzájem), ale je to vidět při diagnostice zaseknutého (ne spadlého) kontejneru.
+
+- **`web`** – `GET /healthz/` (`gsm_gate.views.health_check`, bez přihlášení) ověří i připojení k DB (`SELECT 1`). Healthcheck příkaz volá `urllib.request` z Pythonu, ne `curl`/`wget` – `python:3.11-slim` je nemá nainstalované a přidávat balíček jen kvůli tomuhle nestálo za to.
+- **`gsm_worker`** – nemá HTTP server, takže healthcheck kontroluje stáří heartbeat souboru (`/tmp/gsm_worker_heartbeat`), kterého se `gsm_gateway_worker.py` dotkne při každém průchodu smyčkou (úspěšném i neúspěšném – healthcheck se ptá "běží smyčka vůbec", ne "uspěl poslední cyklus"). Práh 120 s dává rezervu i pro cykly, které skončily chybou a čekají 10–15 s před dalším pokusem.
+
 ## Doménové entity
 
 - **PhoneNumber** – telefonní číslo s příznakem aktivace, popisem a vazbou na uživatele/skupiny.

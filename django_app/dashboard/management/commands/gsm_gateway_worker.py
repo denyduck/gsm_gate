@@ -1,5 +1,6 @@
 import logging
 import time
+from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -9,6 +10,18 @@ from dashboard.services.gsm_worker import GsmWorkerService
 from dashboard.services.modem_manager import ModemError
 
 logger = logging.getLogger(__name__)
+
+# Pro Docker healthcheck (docker-compose.yml) - dotkne se souboru při každém
+# průchodu smyčkou, ať úspěšném nebo ne. Healthcheck jen kontroluje stáří
+# souboru (je smyčka vůbec živá?), ne jestli poslední cyklus uspěl.
+HEARTBEAT_PATH = Path('/tmp/gsm_worker_heartbeat')
+
+
+def _touch_heartbeat():
+    try:
+        HEARTBEAT_PATH.touch()
+    except OSError:
+        pass
 
 
 class Command(BaseCommand):
@@ -31,6 +44,8 @@ class Command(BaseCommand):
 
         try:
             while True:
+                _touch_heartbeat()
+
                 try:
                     result = worker.cycle()
                     self.stdout.write(

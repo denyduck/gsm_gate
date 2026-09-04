@@ -59,6 +59,8 @@ services:
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-10.10.10.234,localhost,127.0.0.1}
       - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-http://10.10.10.234:8000,http://localhost:8000,http://127.0.0.1:8000}
       - MKDOCS_BASE_URL=${MKDOCS_BASE_URL:-http://10.10.10.234:8010}
+      - RETENTION_DAYS_LOGS=${RETENTION_DAYS_LOGS:-90}
+      - RETENTION_DAYS_SIGNAL_HISTORY=${RETENTION_DAYS_SIGNAL_HISTORY:-30}
       - GSM_ENABLED=${GSM_ENABLED:-false}
       - GSM_MODEM_PORT=${GSM_MODEM_PORT:-/dev/ttyUSB0}
       - GSM_MODEM_BAUD=${GSM_MODEM_BAUD:-115200}
@@ -69,6 +71,12 @@ services:
         condition: service_healthy
     networks:
       - gsm_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz/', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
     command: sh -c "python manage.py collectstatic --noinput --clear && gunicorn gsm_gate.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3}"
 
@@ -96,6 +104,12 @@ services:
         condition: service_healthy
     command: python manage.py gsm_gateway_worker --interval ${GSM_WORKER_INTERVAL:-10}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/gsm_worker_heartbeat') < 120 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - gsm_network
     profiles:

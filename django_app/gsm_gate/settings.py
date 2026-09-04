@@ -240,6 +240,12 @@ GSM_MODEM_TIMEOUT = float(os.environ.get('GSM_MODEM_TIMEOUT', '3'))
 GSM_WORKER_INTERVAL = int(os.environ.get('GSM_WORKER_INTERVAL', '10'))
 GSM_MAX_ACTIONS_PER_CYCLE = int(os.environ.get('GSM_MAX_ACTIONS_PER_CYCLE', '30'))
 
+# Výchozí retenční doby (dny) pro management příkaz prune_old_data -
+# viz scripts/gsm-prune.timer. Jde jen o defaulty, na běhu jde přepsat
+# přes --logs-days/--signal-days.
+RETENTION_DAYS_LOGS = int(os.environ.get('RETENTION_DAYS_LOGS', '90'))
+RETENTION_DAYS_SIGNAL_HISTORY = int(os.environ.get('RETENTION_DAYS_SIGNAL_HISTORY', '30'))
+
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))

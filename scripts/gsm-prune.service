@@ -1,0 +1,8 @@
+[Unit]
+Description=GSM Gate - retenční mazání starých dat (logy, historie signálu)
+After=gsm-gate-compose.service
+Requires=gsm-gate-compose.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gsm_prune.sh

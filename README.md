@@ -96,6 +96,7 @@ Tři služby ve `scripts/` zajišťují automatický běh po restartu/havárii:
 | `gsm-gate-compose.service` | Po startu Dockeru spustí celý compose stack **včetně** `gsm_worker` (ten je v profilu `rpi`, běžný auto-start by ho vynechal). |
 | `gsm-watchdog.service` + `.timer` | Každé 2 minuty kontroluje stav modemu, při zaseknutí restartuje `ModemManager`, při přetrvávajícím problému restartuje RPi. |
 | `gsm-backup.service` + `.timer` (volitelné) | Jednou denně vyexportuje data brány do `django_app/backups/` a smaže zálohy starší 14 dní. Slouží jako doplněk k ručnímu exportu v appce (`Zálohování` v menu, jen pro superusera) - viz [Nasazení a obnova](docs/nasazeni-a-obnova.md). |
+| `gsm-prune.service` + `.timer` (volitelné) | Jednou denně smaže staré `IncomingEventLog`/`OutgoingAction`/`SignalReading` podle retenční politiky (`RETENTION_DAYS_LOGS`/`RETENTION_DAYS_SIGNAL_HISTORY` v `.env`, výchozí 90/30 dní). Doplněk k ručnímu "Reset dat" na stránce Zálohování. |
 
 ```bash
 sudo cp scripts/calyx-usb-serial.service /etc/systemd/system/
@@ -119,6 +120,17 @@ sudo chmod +x /usr/local/bin/gsm_backup.sh
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now gsm-backup.timer
+```
+
+Volitelně, pravidelné mazání starých dat:
+
+```bash
+sudo cp scripts/gsm-prune.service scripts/gsm-prune.timer /etc/systemd/system/
+sudo cp scripts/gsm_prune.sh /usr/local/bin/gsm_prune.sh
+sudo chmod +x /usr/local/bin/gsm_prune.sh
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now gsm-prune.timer
 ```
 
 ### 5) Ověření
