@@ -229,7 +229,9 @@ def group_results(results):
     co potřebuje pozornost."""
     by_category = {}
     for result in results:
-        by_category.setdefault(result['category'], []).append(result)
+        # .get s fallbackem kvůli starším SelfTestRun záznamům uloženým
+        # před přidáním category/doc_page do výsledků - jinak KeyError.
+        by_category.setdefault(result.get('category', CATEGORY_OPERATIONS), []).append(result)
 
     ordered_names = list(CATEGORY_ORDER) + [name for name in by_category if name not in CATEGORY_ORDER]
 
