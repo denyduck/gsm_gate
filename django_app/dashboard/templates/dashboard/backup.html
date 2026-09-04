@@ -42,6 +42,39 @@
     </div>
 </section>
 
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Reset dat</h2></div>
+    <p class="small text-muted-soft px-3">
+        Nevratné mazání. Doporučeno napřed stáhnout zálohu výše. Pro potvrzení každé akce napiš přesně <span class="mono">{{ reset_confirm_phrase }}</span>.
+        Chráněná systémová pravidla se nikdy nemažou (viz <span class="mono">is_protected</span> u pravidel).
+    </p>
+    <div class="p-3 pt-0 d-flex flex-column gap-2">
+        {% for kind, label in reset_categories %}
+        <form method="post" action="{% url 'data_reset' kind %}" class="d-flex gap-2 flex-wrap align-items-center border rounded p-2"
+              onsubmit="return confirm('Opravdu smazat vše v kategorii „{{ label }}“? Tato akce je nevratná.');">
+            {% csrf_token %}
+            <div class="flex-grow-1 fw-semibold">{{ label }}</div>
+            <input type="text" name="confirm" class="form-control" style="max-width: 160px;" placeholder="napiš {{ reset_confirm_phrase }}" required>
+            <button type="submit" class="btn btn-sm btn-outline-danger">Smazat</button>
+        </form>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Kompletní reset brány</h2></div>
+    <div class="alert alert-danger mx-3 mt-3 mb-0">
+        Smaže úplně všechna čísla, skupiny, objekty (i s API klíči), nechráněná pravidla, blokovaná čísla i celou historii událostí/akcí
+        a vrátí nastavení brány (PIN, doručenky, webhook) i bezpečnostní limity na výchozí hodnoty. Chráněná systémová pravidla zůstanou beze změny.
+    </div>
+    <form method="post" action="{% url 'data_reset' 'all' %}" class="p-3 d-flex gap-2 flex-wrap align-items-center"
+          onsubmit="return confirm('Opravdu provést KOMPLETNÍ reset brány? Smaže se úplně všechno kromě chráněných systémových pravidel. Tato akce je nevratná.');">
+        {% csrf_token %}
+        <input type="text" name="confirm" class="form-control" style="max-width: 160px;" placeholder="napiš {{ reset_confirm_phrase }}" required>
+        <button type="submit" class="btn btn-danger">Kompletně resetovat bránu</button>
+    </form>
+</section>
+
 <section class="app-panel">
     <div class="panel-header"><h2 class="panel-title">Pravidelné zálohování</h2></div>
     <div class="p-3">

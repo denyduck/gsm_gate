@@ -44,6 +44,7 @@ from .forms import (
     IncomingEventSimulationForm,
 )
 from .services import backup as backup_service
+from .services import reset as reset_service
 from .services.rules_engine import (
     get_or_create_default_security_notification_rule,
     get_security_rule,
@@ -1010,7 +1011,12 @@ def outgoing_actions_view(request):
 def backup_view(request):
     if not request.user.is_superuser:
         raise PermissionDenied('Zálohování je dostupné jen pro superusera.')
-    return render(request, 'dashboard/backup.html', {})
+
+    context = {
+        'reset_categories': [(key, label) for key, (label, _func) in reset_service.RESET_ACTIONS.items()],
+        'reset_confirm_phrase': reset_service.CONFIRM_PHRASE,
+    }
+    return render(request, 'dashboard/backup.html', context)
 
 
 @login_required
@@ -1061,6 +1067,30 @@ def backup_import(request):
     finally:
         if tmp_path:
             os.remove(tmp_path)
+
+    return redirect('backup')
+
+
+@login_required
+@require_http_methods(['POST'])
+def data_reset(request, kind):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Reset dat je dostupný jen pro superusera.')
+
+    if request.POST.get('confirm', '').strip().upper() != reset_service.CONFIRM_PHRASE:
+        messages.error(request, f'Pro potvrzení je nutné napsat přesně „{reset_service.CONFIRM_PHRASE}“. Nic nebylo smazáno.')
+        return redirect('backup')
+
+    if kind == 'all':
+        summary = reset_service.reset_all(request.user)
+        detail = ', '.join(f'{label}: {count}' for label, count in summary.items())
+        messages.success(request, f'Kompletní reset brány proběhl. Smazáno – {detail}. Chráněná systémová pravidla a bezpečnostní pravidlo zůstala (jen se resetovaly limity).')
+    elif kind in reset_service.RESET_ACTIONS:
+        label, func = reset_service.RESET_ACTIONS[kind]
+        count = func(request.user)
+        messages.success(request, f'{label}: smazáno {count} záznamů.')
+    else:
+        raise Http404('Neznámý typ resetu.')
 
     return redirect('backup')
 

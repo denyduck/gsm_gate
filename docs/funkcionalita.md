@@ -169,3 +169,12 @@ Uživatelské účty se v exportu ukládají přes tzv. natural key (uživatelsk
 Management příkaz `python manage.py export_backup --kind data|settings --output-dir <cesta>` dělá to samé jako tlačítko v appce, ale zapisuje timestamped soubor na disk – vhodné pro systemd timer (`scripts/gsm-backup.service` + `.timer`, viz [Nasazení a obnova](nasazeni-a-obnova.md)). Výstupní adresář je uvnitř bind-mountovaného `django_app/`, takže soubory jsou vidět přímo na hostu.
 
 Zálohy obsahují citlivá data (SIM PIN v čistém textu, API tokeny objektů) – je potřeba je ukládat jen na bezpečné místo.
+
+### Reset dat
+
+Na stejné stránce lze data i nevratně smazat, po kategoriích nebo najednou:
+
+- **Po kategoriích** – telefonní čísla, skupiny, objekty zařízení (i s API klíči), automatizační pravidla (jen nechráněná – `is_protected` pravidla se nedají smazat, viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)), blokovaná čísla, historie událostí a odchozích akcí.
+- **Kompletní reset brány** – smaže všechno výše najednou a navíc vrátí `GatewaySettings` (PIN, doručenky, webhook) a `SecurityRule` (limity proti zahlcení) na výchozí hodnoty. Chráněná systémová pravidla zůstávají beze změny.
+
+Každá akce vyžaduje potvrzení – napsat do pole přesně text `SMAZAT` – plus JS `confirm()` dialog. Mazání je omezené na data vlastněná přihlášeným uživatelem (stejně jako zbytek appky), ne globálně napříč všemi účty.

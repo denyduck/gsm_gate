@@ -49,5 +49,6 @@ urlpatterns = [
     path('backup/', views.backup_view, name='backup'),
     path('backup/export/<str:kind>/', views.backup_export, name='backup_export'),
     path('backup/import/', views.backup_import, name='backup_import'),
+    path('backup/reset/<str:kind>/', views.data_reset, name='data_reset'),
 
 ]
