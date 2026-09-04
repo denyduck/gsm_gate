@@ -1,10 +1,12 @@
+import shutil
 from datetime import timedelta
 
+from django.conf import settings
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from dashboard.models import IncomingEventLog, OutgoingAction, PhoneNumber
+from dashboard.models import IncomingEventLog, OutgoingAction, PhoneNumber, SignalReading
 from dashboard.services.rules_engine import normalize_phone_number
 
 # Typy odchozích akcí, které reálně znamenají SMS na telefonní číslo (ne
@@ -114,3 +116,52 @@ def sms_by_group(user, limit=10):
     labels = [name for name, _ in top]
     values = [count for _, count in top]
     return labels, values
+
+
+def signal_quality_series(user, hours=24):
+    """Vrací (labels, values) pro graf síly signálu. `None` v values je
+    záměrně - Chart.js ho v line grafu vykreslí jako mezeru (výpadek),
+    ne jako nulu."""
+    since = timezone.now() - timedelta(hours=hours)
+    readings = SignalReading.objects.filter(owner=user, recorded_at__gte=since).order_by('recorded_at')
+
+    labels = [reading.recorded_at.strftime('%d.%m. %H:%M') for reading in readings]
+    values = [reading.quality for reading in readings]
+    return labels, values
+
+
+def signal_outages(user, limit=20):
+    """Souvislé úseky, kdy modem nebyl dostupný (quality=None v historii),
+    seřazené od nejnovějšího - pro tabulku výpadků na Telemetrii."""
+    readings = SignalReading.objects.filter(owner=user).order_by('recorded_at').values('quality', 'recorded_at')
+
+    outages = []
+    current_start = None
+    previous_time = None
+
+    for reading in readings:
+        if reading['quality'] is None:
+            if current_start is None:
+                current_start = reading['recorded_at']
+        elif current_start is not None:
+            outages.append({'start': current_start, 'end': previous_time})
+            current_start = None
+        previous_time = reading['recorded_at']
+
+    if current_start is not None:
+        outages.append({'start': current_start, 'end': None})
+
+    outages.reverse()
+    return outages[:limit]
+
+
+def device_disk_usage():
+    """Aktuální (ne historické) volné místo na disku - stejný zdroj dat
+    jako selftest.check_disk_space, jen bez statusu/doporučení."""
+    usage = shutil.disk_usage(settings.BASE_DIR)
+    return {
+        'total_gb': usage.total / (1024 ** 3),
+        'used_gb': usage.used / (1024 ** 3),
+        'free_gb': usage.free / (1024 ** 3),
+        'used_percent': round(usage.used / usage.total * 100, 1) if usage.total else 0,
+    }

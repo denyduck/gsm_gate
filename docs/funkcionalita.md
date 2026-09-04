@@ -125,9 +125,18 @@ Stránka „Telemetrie" (vyžaduje `dashboard.view_outgoingaction`, stejné opr�
 - podle pravidla – které pravidlo odeslalo kolik SMS,
 - podle skupiny – kolik SMS šlo číslům v dané skupině (číslo ve víc skupinách se počítá do každé z nich),
 - top cílová čísla – kam se posílá nejvíc SMS,
-- top zdrojová čísla – odkud přichází nejvíc událostí.
+- top zdrojová čísla – odkud přichází nejvíc událostí,
+- **přístroj a modem** – aktuální volné místo na disku (host, přes bind mount), graf síly signálu za posledních 24 h a tabulka posledních výpadků.
 
 Počítají se jen skutečně odeslané SMS (`status='SENT'`), ne čekající/selhané – to je vidět zvlášť v souhrnných počtech. Data jsou scoped na přihlášeného uživatele (`owner`), stejně jako zbytek appky.
+
+### Historie síly signálu
+
+`gsm_worker` zapisuje `SignalReading` při každém cyklu (`dashboard/services/gsm_worker.py`), ale s throttlingem – max. jeden záznam za 5 minut, kromě přechodů výpadek/obnovení, které se zaznamenají hned. Bez throttlingu by při výchozím 10s intervalu workeru tabulka rostla o tisíce řádků denně.
+
+`quality=None` znamená výpadek (modem nebyl v daném cyklu dostupný, typicky když `connect()` selže dřív, než se stihne zpracovat fronta) – v grafu se zobrazí jako mezera, v tabulce výpadků jako souvislý úsek. Ruční smazání historie jde přes „Reset dat" na stránce Zálohování (kategorie „Historie síly signálu").
+
+**Známé omezení:** teplota CPU a vytížení samotné Raspberry Pi tady nejsou – `web`/`gsm_worker` kontejnery nemají mount hostitelských `/proc`/`/sys` cest. Šlo by doplnit přidáním bind mountu do `docker-compose.yml`, ale je to vědomě mimo rozsah, dokud o to někdo nepožádá (další přístup kontejneru k hostiteli navíc).
 
 ## 10) Objekty zařízení
 

@@ -1166,6 +1166,7 @@ def telemetry_view(request):
     target_labels, target_values = telemetry_service.sms_by_target_number(user)
     source_labels, source_values = telemetry_service.events_by_source_number(user)
     group_labels, group_values = telemetry_service.sms_by_group(user)
+    signal_labels, signal_values = telemetry_service.signal_quality_series(user)
 
     context = {
         'summary': telemetry_service.summary_counts(user),
@@ -1174,6 +1175,9 @@ def telemetry_view(request):
         'target_chart': {'labels': target_labels, 'values': target_values},
         'source_chart': {'labels': source_labels, 'values': source_values},
         'group_chart': {'labels': group_labels, 'values': group_values},
+        'signal_chart': {'labels': signal_labels, 'values': signal_values},
+        'signal_outages': telemetry_service.signal_outages(user),
+        'disk_usage': telemetry_service.device_disk_usage(),
     }
     return render(request, 'dashboard/telemetry.html', context)
 

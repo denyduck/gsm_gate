@@ -29,6 +29,59 @@
 </section>
 
 <section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Přístroj a modem</h2></div>
+    <p class="text-muted-soft px-3">
+        Teplota CPU a vytížení Raspberry Pi tady zatím nejsou – kontejner na ně nemá přístup (chybí mount hostitelských `/proc`/`/sys` cest).
+        Dej vědět, pokud to chceš doplnit, přidám to do <span class="mono">docker-compose.yml</span>.
+    </p>
+    <div class="row g-3 px-3 pb-3">
+        <div class="col-md-4">
+            <div class="card-stat"><div class="label"><i class="bi bi-hdd me-1"></i>Volné místo na disku</div><div class="value">{{ disk_usage.free_gb|floatformat:1 }} GB</div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card-stat"><div class="label"><i class="bi bi-pie-chart me-1"></i>Využito</div><div class="value">{{ disk_usage.used_percent }} %</div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card-stat"><div class="label"><i class="bi bi-hdd-stack me-1"></i>Celková kapacita</div><div class="value">{{ disk_usage.total_gb|floatformat:1 }} GB</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Síla signálu modemu (24 h)</h2></div>
+    <div class="p-3">
+        {% if signal_chart.values %}
+            <canvas id="signalChart" height="90"></canvas>
+            <p class="text-muted-soft small mt-2 mb-0">Mezera v grafu = výpadek (modem nebyl v tom cyklu dostupný). Zaznamenává se max. jednou za 5 minut, kromě přechodů výpadek/obnovení.</p>
+        {% else %}
+            <div class="text-muted-soft">Zatím žádná data – worker ještě neproběhl s touhle verzí, nebo je vypnutý.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Poslední výpadky signálu</h2></div>
+    {% if signal_outages %}
+        <div class="table-wrap table-responsive m-3">
+            <table class="table table-striped align-middle mb-0">
+                <thead><tr><th>Od</th><th>Do</th><th>Trvání</th></tr></thead>
+                <tbody>
+                    {% for outage in signal_outages %}
+                    <tr>
+                        <td>{{ outage.start|date:"d.m.Y H:i" }}</td>
+                        <td>{% if outage.end %}{{ outage.end|date:"d.m.Y H:i" }}{% else %}<span class="badge text-bg-danger">stále trvá</span>{% endif %}</td>
+                        <td>{{ outage.start|timesince:outage.end }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="p-3 text-muted-soft">Žádné zaznamenané výpadky.</div>
+    {% endif %}
+</section>
+
+<section class="app-panel mb-4">
     <div class="panel-header"><h2 class="panel-title">Odeslané SMS za posledních 30 dní</h2></div>
     <div class="p-3">
         {% if daily_chart.values %}
@@ -95,6 +148,7 @@
 {{ target_chart|json_script:"target-chart-data" }}
 {{ source_chart|json_script:"source-chart-data" }}
 {{ group_chart|json_script:"group-chart-data" }}
+{{ signal_chart|json_script:"signal-chart-data" }}
 {% endblock %}
 
 {% block scripts %}
@@ -167,6 +221,31 @@
         renderBarChart('groupChart', 'group-chart-data', 'Odeslané SMS', '#36c38a');
         renderBarChart('targetChart', 'target-chart-data', 'Odeslané SMS', '#f0b93a');
         renderBarChart('sourceChart', 'source-chart-data', 'Příchozí události', '#ff6b81');
+
+        const signal = parseData('signal-chart-data');
+        const signalCanvas = document.getElementById('signalChart');
+        if (signal && signalCanvas && signal.labels.length) {
+            new Chart(signalCanvas, {
+                type: 'line',
+                data: {
+                    labels: signal.labels,
+                    datasets: [{
+                        label: 'Síla signálu (%)',
+                        data: signal.values,
+                        borderColor: '#36c38a',
+                        backgroundColor: 'rgba(54, 195, 138, 0.15)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 1,
+                        spanGaps: false,
+                    }],
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100, ticks: { precision: 0 } } },
+                },
+            });
+        }
     })();
 </script>
 {% endblock scripts %}

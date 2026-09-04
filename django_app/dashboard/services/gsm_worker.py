@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta
 import json
 import re
 from typing import List
@@ -9,9 +10,14 @@ from django.core.mail import send_mail
 from django.db import close_old_connections
 from django.utils import timezone
 
-from dashboard.models import OutgoingAction, GatewaySettings
+from dashboard.models import OutgoingAction, GatewaySettings, SignalReading
 from dashboard.services.rules_engine import process_incoming_event, normalize_phone_number
 from dashboard.services.modem_manager import ModemManagerClient, ModemError
+
+# Throttling pro SignalReading - i s výchozím 10s cyklem workeru by se bez
+# tohohle historie nafoukla o desítky tisíc řádků denně. Výjimka: přechod
+# (výpadek <-> obnovení) se zaznamená vždy, hned, ať ho graf nezmešká.
+SIGNAL_HISTORY_MIN_INTERVAL = timedelta(minutes=5)
 
 import logging
 
@@ -37,7 +43,15 @@ class GsmWorkerService:
     def cycle(self) -> WorkerResult:
         close_old_connections()
         result = WorkerResult()
-        self.client.connect()
+
+        try:
+            self.client.connect()
+        except ModemError:
+            # I neúspěšné připojení je pro historii signálu důležité - bez
+            # tohohle by výpadek modemu v Telemetrii nešel vůbec vidět
+            # (cyklus by skončil dřív, než se k zápisu vůbec dostal).
+            self._update_signal_quality()
+            raise
 
         result.incoming_processed += self._process_incoming_sms()
         sent, failed = self._process_outgoing_actions()
@@ -48,16 +62,28 @@ class GsmWorkerService:
         return result
 
     def _update_signal_quality(self) -> None:
+        quality = None
         try:
             quality = self.client.get_signal_quality()
         except ModemError as e:
             logger.warning('Nepodařilo se zjistit sílu signálu: %s', e)
-            return
 
-        GatewaySettings.objects.all().update(
-            last_signal_quality=quality,
-            last_signal_checked_at=timezone.now(),
-        )
+        now = timezone.now()
+        for settings_obj in GatewaySettings.objects.all():
+            settings_obj.last_signal_quality = quality
+            settings_obj.last_signal_checked_at = now
+            settings_obj.save(update_fields=['last_signal_quality', 'last_signal_checked_at'])
+            self._record_signal_reading(settings_obj.user, quality)
+
+    @staticmethod
+    def _record_signal_reading(user, quality) -> None:
+        last = SignalReading.objects.filter(owner=user).order_by('-recorded_at').first()
+        if last is not None:
+            changed = last.quality != quality
+            recent_enough = (timezone.now() - last.recorded_at) < SIGNAL_HISTORY_MIN_INTERVAL
+            if recent_enough and not changed:
+                return
+        SignalReading.objects.create(owner=user, quality=quality)
 
     def close(self):
         self.client.close()

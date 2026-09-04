@@ -12,6 +12,7 @@ from dashboard.models import (
     IncomingEventLog,
     PhoneNumber,
     SecurityRule,
+    SignalReading,
 )
 
 CONFIRM_PHRASE = 'SMAZAT'
@@ -49,6 +50,11 @@ def reset_logs(user):
     return count
 
 
+def reset_signal_history(user):
+    count, _ = SignalReading.objects.filter(owner=user).delete()
+    return count
+
+
 def reset_gateway_settings(user):
     GatewaySettings.objects.filter(user=user).update(
         pin_code='',
@@ -76,6 +82,7 @@ RESET_ACTIONS = {
     'rules': ('Automatizační pravidla', reset_rules),
     'blocked': ('Blokovaná čísla', reset_blocked_numbers),
     'logs': ('Historie událostí a odchozích akcí', reset_logs),
+    'signal_history': ('Historie síly signálu', reset_signal_history),
 }
 
 

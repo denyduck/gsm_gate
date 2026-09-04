@@ -495,6 +495,30 @@ class SelfTestRun(models.Model):
     warn_count = models.PositiveIntegerField('Počet varování', default=0)
     error_count = models.PositiveIntegerField('Počet chyb', default=0)
 
+
+class SignalReading(models.Model):
+    """Historie síly signálu modemu - zapisuje gsm_worker při každém cyklu
+    (viz services/gsm_worker.py), max. jednou za pár minut (throttling v
+    _record_signal_reading), aby tabulka nerostla neúměrně rychle. quality=None
+    znamená výpadek (modem nebyl v tom cyklu dostupný) - slouží k detekci
+    výpadků v Telemetrii, ne jen k zobrazení aktuální hodnoty."""
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='signal_readings', verbose_name='Vlastník')
+    quality = models.PositiveIntegerField(
+        'Síla signálu (%)', null=True, blank=True,
+        help_text='Prázdné = modem nebyl v tomto cyklu dostupný (výpadek).',
+    )
+    recorded_at = models.DateTimeField('Zaznamenáno', auto_now_add=True)
+
+    class Meta:
+        ordering = ['-recorded_at']
+        verbose_name = 'Záznam síly signálu'
+        verbose_name_plural = 'Záznamy síly signálu'
+
+    def __str__(self):
+        value = self.quality if self.quality is not None else 'výpadek'
+        return f"{self.recorded_at:%d.%m.%Y %H:%M} - {value}"
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Sebediagnostika'
