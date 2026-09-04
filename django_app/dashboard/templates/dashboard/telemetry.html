@@ -30,11 +30,7 @@
 
 <section class="app-panel mb-4">
     <div class="panel-header"><h2 class="panel-title">Přístroj a modem</h2></div>
-    <p class="text-muted-soft px-3">
-        Teplota CPU a vytížení Raspberry Pi tady zatím nejsou – kontejner na ně nemá přístup (chybí mount hostitelských `/proc`/`/sys` cest).
-        Dej vědět, pokud to chceš doplnit, přidám to do <span class="mono">docker-compose.yml</span>.
-    </p>
-    <div class="row g-3 px-3 pb-3">
+    <div class="row g-3 p-3">
         <div class="col-md-4">
             <div class="card-stat"><div class="label"><i class="bi bi-hdd me-1"></i>Volné místo na disku</div><div class="value">{{ disk_usage.free_gb|floatformat:1 }} GB</div></div>
         </div>
