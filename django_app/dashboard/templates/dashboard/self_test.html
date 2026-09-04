@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Sebediagnostika{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-clipboard2-pulse"></i> Sebediagnostika</span>
+    <h1 class="hero-title">Otestuj bránu sama na sebe</h1>
+    <p class="hero-subtitle">Dostupné jen pro superusera. Zkontroluje databázi, bezpečnostní nastavení, static soubory, worker/modem, frontu akcí a poslední zálohu - a k případným problémům rovnou nabídne doporučení.</p>
+
+    <form method="post" action="{% url 'self_test_run' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-app-primary"><i class="bi bi-play-circle"></i> Spustit test</button>
+    </form>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Historie běhů</h2></div>
+
+    {% if not runs %}
+        <div class="p-3 text-muted-soft">Zatím žádný test neproběhl.</div>
+    {% endif %}
+
+    {% for run in runs %}
+    <div class="p-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="fw-semibold">{{ run.created_at|date:"d.m.Y H:i:s" }}</div>
+            {% if run.overall_status == 'OK' %}
+                <span class="badge text-bg-success">OK</span>
+            {% elif run.overall_status == 'WARN' %}
+                <span class="badge text-bg-warning">Varování</span>
+            {% else %}
+                <span class="badge text-bg-danger">Chyba</span>
+            {% endif %}
+        </div>
+
+        <div class="table-wrap table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Kontrola</th>
+                        <th>Stav</th>
+                        <th>Zpráva</th>
+                        <th>Doporučení</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for check in run.results %}
+                    <tr>
+                        <td>{{ check.name }}</td>
+                        <td>
+                            {% if check.status == 'OK' %}
+                                <span class="badge text-bg-success">OK</span>
+                            {% elif check.status == 'WARN' %}
+                                <span class="badge text-bg-warning">Varování</span>
+                            {% else %}
+                                <span class="badge text-bg-danger">Chyba</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ check.message }}</td>
+                        <td>{{ check.recommendation|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

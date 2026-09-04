@@ -51,4 +51,7 @@ urlpatterns = [
     path('backup/import/', views.backup_import, name='backup_import'),
     path('backup/reset/<str:kind>/', views.data_reset, name='data_reset'),
 
+    path('self-test/', views.self_test_view, name='self_test'),
+    path('self-test/run/', views.self_test_run_view, name='self_test_run'),
+
 ]

@@ -33,6 +33,7 @@ from .models import (
     AutomationRule,
     IncomingEventLog,
     OutgoingAction,
+    SelfTestRun,
 )
 from .forms import (
     BlockedNumberForm,
@@ -45,6 +46,7 @@ from .forms import (
 )
 from .services import backup as backup_service
 from .services import reset as reset_service
+from .services import selftest as selftest_service
 from .services.rules_engine import (
     get_or_create_default_security_notification_rule,
     get_security_rule,
@@ -1093,4 +1095,34 @@ def data_reset(request, kind):
         raise Http404('Neznámý typ resetu.')
 
     return redirect('backup')
+
+
+# Sebediagnostika - jen pro superusera, viz services/selftest.py.
+
+@login_required
+def self_test_view(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
+
+    runs = SelfTestRun.objects.filter(owner=request.user)[:20]
+    return render(request, 'dashboard/self_test.html', {'runs': runs})
+
+
+@login_required
+@require_http_methods(['POST'])
+def self_test_run_view(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
+
+    overall, results = selftest_service.run_self_test(request.user)
+    SelfTestRun.objects.create(owner=request.user, overall_status=overall, results=results)
+
+    if overall == 'OK':
+        messages.success(request, 'Sebediagnostika proběhla bez problémů.')
+    elif overall == 'WARN':
+        messages.warning(request, 'Sebediagnostika našla varování - viz výsledky níže.')
+    else:
+        messages.error(request, 'Sebediagnostika našla chybu - viz výsledky níže.')
+
+    return redirect('self_test')
 

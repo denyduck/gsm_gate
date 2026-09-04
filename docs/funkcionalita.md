@@ -178,3 +178,18 @@ Na stejné stránce lze data i nevratně smazat, po kategoriích nebo najednou:
 - **Kompletní reset brány** – smaže všechno výše najednou a navíc vrátí `GatewaySettings` (PIN, doručenky, webhook) a `SecurityRule` (limity proti zahlcení) na výchozí hodnoty. Chráněná systémová pravidla zůstávají beze změny.
 
 Každá akce vyžaduje potvrzení – napsat do pole přesně text `SMAZAT` – plus JS `confirm()` dialog. Mazání je omezené na data vlastněná přihlášeným uživatelem (stejně jako zbytek appky), ne globálně napříč všemi účty.
+
+## 13) Sebediagnostika
+
+Stránka „Sebediagnostika" (jen pro superusera) spustí sadu kontrol (`dashboard/services/selftest.py`) a u každé vrátí stav (OK/Varování/Chyba), zprávu a konkrétní doporučení k nápravě:
+
+- **Databáze** – funguje připojení k PostgreSQL.
+- **DEBUG režim / SECRET_KEY / ALLOWED_HOSTS** – stejná bezpečnostní trojice, co řeší [Nasazení a obnova](nasazeni-a-obnova.md).
+- **Static soubory** – existuje WhiteNoise manifest (jinak appka poběží bez CSS).
+- **Volné místo na disku** a **poslední záloha** – stáří exportu v `backups/`.
+- **Nastavení brány** – existuje `GatewaySettings` pro účet.
+- **Worker / signál modemu** – jak dávno naposledy worker zapsal sílu signálu (nepřímý test, že `gsm_worker` + modem skutečně žijí – přímé volání `mmcli` z `web` kontejneru není možné, ten nemá mount `/run/dbus`).
+- **Bezpečnostní pravidlo** – existuje a je aktivní.
+- **Fronta odchozích akcí** – zaseknuté (`PENDING` > 10 min) nebo nedávno selhané (`FAILED` za 24 h) akce.
+
+Každé spuštění se uloží jako `SelfTestRun` (celkový stav = nejhorší dílčí stav) – historie posledních 20 běhů je vidět na stejné stránce, takže jde zpětně dohledat, kdy se stav změnil.

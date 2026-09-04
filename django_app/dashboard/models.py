@@ -457,6 +457,30 @@ class OutgoingAction(models.Model):
         if self.event_log_id and self.owner_id and self.event_log.owner_id != self.owner_id:
             raise ValidationError('Vlastník akce musí odpovídat vlastníkovi zdrojové události.')
 
+
+class SelfTestRun(models.Model):
+    """Historie spuštění sebediagnostiky (dashboard/services/selftest.py).
+    Jen pro superusera - viz views.self_test_view/self_test_run_view."""
+
+    STATUS_CHOICES = [
+        ('OK', 'OK'),
+        ('WARN', 'Varování'),
+        ('ERROR', 'Chyba'),
+    ]
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='self_test_runs', verbose_name='Spustil')
+    created_at = models.DateTimeField('Spuštěno', auto_now_add=True)
+    overall_status = models.CharField('Celkový výsledek', max_length=10, choices=STATUS_CHOICES)
+    results = models.JSONField('Výsledky kontrol', default=list)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Sebediagnostika'
+        verbose_name_plural = 'Sebediagnostiky'
+
+    def __str__(self):
+        return f"Sebediagnostika {self.created_at:%d.%m.%Y %H:%M} - {self.get_overall_status_display()}"
+
         if self.rule_id and self.owner_id:
             is_rule_owner = self.rule.owner_id == self.owner_id
             is_assigned_user = self.rule.users.filter(id=self.owner_id).exists()
