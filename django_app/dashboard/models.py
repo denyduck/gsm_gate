@@ -457,6 +457,12 @@ class OutgoingAction(models.Model):
         if self.event_log_id and self.owner_id and self.event_log.owner_id != self.owner_id:
             raise ValidationError('Vlastník akce musí odpovídat vlastníkovi zdrojové události.')
 
+        if self.rule_id and self.owner_id:
+            is_rule_owner = self.rule.owner_id == self.owner_id
+            is_assigned_user = self.rule.users.filter(id=self.owner_id).exists()
+            if not is_rule_owner and not is_assigned_user:
+                raise ValidationError('Vlastník akce musí být vlastník navázaného pravidla nebo jeho přiřazený uživatel.')
+
 
 class SelfTestRun(models.Model):
     """Historie spuštění sebediagnostiky (dashboard/services/selftest.py).
@@ -472,6 +478,9 @@ class SelfTestRun(models.Model):
     created_at = models.DateTimeField('Spuštěno', auto_now_add=True)
     overall_status = models.CharField('Celkový výsledek', max_length=10, choices=STATUS_CHOICES)
     results = models.JSONField('Výsledky kontrol', default=list)
+    ok_count = models.PositiveIntegerField('Počet OK', default=0)
+    warn_count = models.PositiveIntegerField('Počet varování', default=0)
+    error_count = models.PositiveIntegerField('Počet chyb', default=0)
 
     class Meta:
         ordering = ['-created_at']
@@ -480,12 +489,6 @@ class SelfTestRun(models.Model):
 
     def __str__(self):
         return f"Sebediagnostika {self.created_at:%d.%m.%Y %H:%M} - {self.get_overall_status_display()}"
-
-        if self.rule_id and self.owner_id:
-            is_rule_owner = self.rule.owner_id == self.owner_id
-            is_assigned_user = self.rule.users.filter(id=self.owner_id).exists()
-            if not is_rule_owner and not is_assigned_user:
-                raise ValidationError('Vlastník akce musí být vlastník navázaného pravidla nebo jeho přiřazený uživatel.')
 
     def save(self, *args, **kwargs):
         self.full_clean()

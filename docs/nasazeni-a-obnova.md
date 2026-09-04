@@ -30,6 +30,7 @@ V `.env` uprav:
 - `DJANGO_SECRET_KEY` – vygeneruj vlastní (`docker compose run --rm web python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`) a vlož do `.env`. Bez vlastního klíče appka běží na nebezpečném vývojovém fallbacku (rozpoznatelný podle prefixu `django-insecure-`, `manage.py check --deploy` na něj upozorní).
 - `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` – IP/hostname, přes které bránu otvíráš (výchozí v `docker-compose.yml` je `10.10.10.234` – uprav, pokud se změnila).
 - `DJANGO_DEBUG` – nech `False` (produkce). `True` jen dočasně při ladění – odhaluje tracebacky/cesty/SQL komukoliv.
+- `MKDOCS_BASE_URL` – adresa běžícího MkDocs webu (výchozí `http://10.10.10.234:8010`); appka na ni odkazuje v menu a v doporučeních Sebediagnostiky.
 
 `.env` je v `.gitignore` (obsahuje tajný klíč) – po výměně SD karty/RPi ho je potřeba znovu vytvořit, `git pull` ho nepřinese.
 

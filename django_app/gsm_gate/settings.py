@@ -36,6 +36,11 @@ SECRET_KEY = os.environ.get(
 APP_VERSION = '1.0.0'
 APP_AUTHOR = ''
 
+# Adresa běžícího MkDocs webu (docker-compose.mkdocs.yml) - používá se na
+# odkazy "Dokumentace" v patičce/menu a u doporučení v Sebediagnostice.
+# Bez koncového lomítka.
+MKDOCS_BASE_URL = os.environ.get('MKDOCS_BASE_URL', 'http://10.10.10.234:8010').rstrip('/')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 # Bezpečný default je vypnuto - zapíná se explicitně přes DJANGO_DEBUG=True v .env.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')

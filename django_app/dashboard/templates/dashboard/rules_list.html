@@ -42,6 +42,9 @@
         {% if user.is_superuser %}
             <a href="/admin/dashboard/securityrule/" class="btn btn-app-outline">Upravit v Django Admin</a>
         {% endif %}
+        {% if mkdocs_base_url %}
+            <a href="{{ mkdocs_base_url }}/zabezpeceni-sms/" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace: Zabezpečení</a>
+        {% endif %}
     </div>
 </section>
 

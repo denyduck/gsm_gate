@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sebediagnostika – detail běhu{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-clipboard2-pulse"></i> Sebediagnostika</span>
+    <h1 class="hero-title">Běh z {{ run.created_at|date:"d.m.Y H:i:s" }}</h1>
+
+    <div class="d-flex gap-2 mb-3">
+        <span class="badge text-bg-success">{{ run.ok_count }} OK</span>
+        <span class="badge text-bg-warning">{{ run.warn_count }} varování</span>
+        <span class="badge text-bg-danger">{{ run.error_count }} chyb</span>
+    </div>
+
+    <a href="{% url 'self_test' %}" class="btn btn-app-outline">Zpět na sebediagnostiku</a>
+</section>
+
+<section class="app-panel">
+    <div class="p-3">
+        {% include "dashboard/_self_test_results.html" %}
+    </div>
+</section>
+{% endblock %}

@@ -183,13 +183,25 @@ Každá akce vyžaduje potvrzení – napsat do pole přesně text `SMAZAT` – 
 
 Stránka „Sebediagnostika" (jen pro superusera) spustí sadu kontrol (`dashboard/services/selftest.py`) a u každé vrátí stav (OK/Varování/Chyba), zprávu a konkrétní doporučení k nápravě:
 
-- **Databáze** – funguje připojení k PostgreSQL.
-- **DEBUG režim / SECRET_KEY / ALLOWED_HOSTS** – stejná bezpečnostní trojice, co řeší [Nasazení a obnova](nasazeni-a-obnova.md).
-- **Static soubory** – existuje WhiteNoise manifest (jinak appka poběží bez CSS).
-- **Volné místo na disku** a **poslední záloha** – stáří exportu v `backups/`.
-- **Nastavení brány** – existuje `GatewaySettings` pro účet.
-- **Worker / signál modemu** – jak dávno naposledy worker zapsal sílu signálu (nepřímý test, že `gsm_worker` + modem skutečně žijí – přímé volání `mmcli` z `web` kontejneru není možné, ten nemá mount `/run/dbus`).
-- **Bezpečnostní pravidlo** – existuje a je aktivní.
-- **Fronta odchozích akcí** – zaseknuté (`PENDING` > 10 min) nebo nedávno selhané (`FAILED` za 24 h) akce.
+- **Zabezpečení** – DEBUG režim, SECRET_KEY, ALLOWED_HOSTS (stejná trojice co [Nasazení a obnova](nasazeni-a-obnova.md)), stav bezpečnostního pravidla proti zahlcení.
+- **Provoz** – databáze, static soubory (WhiteNoise manifest), volné místo na disku, nastavení brány, worker/signál modemu, fronta odchozích akcí (zaseknuté `PENDING` > 10 min nebo nedávno selhané `FAILED` za 24 h).
+- **Data a zálohy** – stáří posledního exportu v `backups/`.
 
-Každé spuštění se uloží jako `SelfTestRun` (celkový stav = nejhorší dílčí stav) – historie posledních 20 běhů je vidět na stejné stránce, takže jde zpětně dohledat, kdy se stav změnil.
+Signál modemu se testuje nepřímo (přes stáří `last_signal_checked_at`, který zapisuje worker) – přímé volání `mmcli` z `web` kontejneru není možné, ten nemá mount `/run/dbus`.
+
+### Výsledky a historie
+
+- Výsledky jsou seskupené po kategoriích; kategorie, kde je vše OK, se zobrazí sbalená, kategorie s varováním/chybou zůstane rozbalená – ať je hned vidět, co potřebuje pozornost.
+- Ke každé kontrole, kde existuje relevantní stránka v dokumentaci, je odkaz „📖 Dokumentace" (viz `MKDOCS_BASE_URL` níže).
+- Každé spuštění se uloží jako `SelfTestRun` s počty OK/Varování/Chyba. Hlavní stránka ukazuje poslední běh v plném detailu + kompaktní historii (posledních 20 běhů); kliknutím na „Detail" se zobrazí libovolný starší běh ve stejném seskupeném formátu.
+- Kontroly zapisují i do standardního Python logu (`docker compose logs web`) – varování/chyby na úrovni WARNING/ERROR, souhrn na INFO.
+
+## 14) Odkazy na dokumentaci v appce
+
+Proměnná `MKDOCS_BASE_URL` (`.env`, výchozí `http://10.10.10.234:8010`) nastavuje adresu běžícího MkDocs webu. Používá se:
+
+- v hlavičce appky (odkaz „Dokumentace", vidí ho každý přihlášený uživatel),
+- u doporučení v Sebediagnostice,
+- na stránkách Zálohování, Stav brány a Pravidla (odkaz na relevantní stránku dokumentace).
+
+Pokud proměnná není nastavená, odkazy se v appce jednoduše nezobrazí (žádná rozbitá URL).

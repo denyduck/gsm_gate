@@ -5,7 +5,10 @@
 <section class="app-panel mb-4">
     <span class="status-badge"><i class="bi bi-hdd-network"></i> Zálohování</span>
     <h1 class="hero-title">Export a import dat brány</h1>
-    <p class="hero-subtitle">Dostupné jen pro superusera. Export slouží k pravidelnému zálohování a k obnově po havárii (viz <span class="mono">docs/nasazeni-a-obnova.md</span>).</p>
+    <p class="hero-subtitle">Dostupné jen pro superusera. Export slouží k pravidelnému zálohování a k obnově po havárii.</p>
+    {% if mkdocs_base_url %}
+        <a href="{{ mkdocs_base_url }}/nasazeni-a-obnova/" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline"><i class="bi bi-book"></i> Dokumentace: Nasazení a obnova</a>
+    {% endif %}
 </section>
 
 <section class="app-panel mb-4">

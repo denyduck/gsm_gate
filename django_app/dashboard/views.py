@@ -1104,8 +1104,28 @@ def self_test_view(request):
     if not request.user.is_superuser:
         raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
 
-    runs = SelfTestRun.objects.filter(owner=request.user)[:20]
-    return render(request, 'dashboard/self_test.html', {'runs': runs})
+    latest_run = SelfTestRun.objects.filter(owner=request.user).first()
+    history = SelfTestRun.objects.filter(owner=request.user)[1:20]
+
+    context = {
+        'latest_run': latest_run,
+        'grouped_results': selftest_service.group_results(latest_run.results) if latest_run else None,
+        'history': history,
+    }
+    return render(request, 'dashboard/self_test.html', context)
+
+
+@login_required
+def self_test_detail_view(request, pk):
+    if not request.user.is_superuser:
+        raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
+
+    run = get_object_or_404(SelfTestRun, pk=pk, owner=request.user)
+    context = {
+        'run': run,
+        'grouped_results': selftest_service.group_results(run.results),
+    }
+    return render(request, 'dashboard/self_test_detail.html', context)
 
 
 @login_required
@@ -1115,14 +1135,22 @@ def self_test_run_view(request):
         raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
 
     overall, results = selftest_service.run_self_test(request.user)
-    SelfTestRun.objects.create(owner=request.user, overall_status=overall, results=results)
+    counts = selftest_service.summarize_counts(results)
+    SelfTestRun.objects.create(
+        owner=request.user,
+        overall_status=overall,
+        results=results,
+        ok_count=counts['OK'],
+        warn_count=counts['WARN'],
+        error_count=counts['ERROR'],
+    )
 
     if overall == 'OK':
-        messages.success(request, 'Sebediagnostika proběhla bez problémů.')
+        messages.success(request, f'Sebediagnostika proběhla bez problémů ({counts["OK"]} kontrol OK).')
     elif overall == 'WARN':
-        messages.warning(request, 'Sebediagnostika našla varování - viz výsledky níže.')
+        messages.warning(request, f'Sebediagnostika našla {counts["WARN"]} varování - viz výsledky níže.')
     else:
-        messages.error(request, 'Sebediagnostika našla chybu - viz výsledky níže.')
+        messages.error(request, f'Sebediagnostika našla {counts["ERROR"]} chyb(u) - viz výsledky níže.')
 
     return redirect('self_test')
 

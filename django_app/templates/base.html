@@ -106,6 +106,9 @@
                     <a class="nav-link-app" href="{% url 'backup' %}">Zálohování</a>
                     <a class="nav-link-app" href="{% url 'self_test' %}">Sebediagnostika</a>
                 {% endif %}
+                {% if mkdocs_base_url %}
+                    <a class="nav-link-app" href="{{ mkdocs_base_url }}" target="_blank" rel="noopener"><i class="bi bi-book"></i> Dokumentace</a>
+                {% endif %}
                 <span class="chip-user">{{ user.username }}</span>
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}

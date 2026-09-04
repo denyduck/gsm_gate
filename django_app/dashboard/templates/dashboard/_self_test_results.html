@@ -1,0 +1,44 @@
+{% for group in grouped_results %}
+<details class="mb-3" {% if group.has_issues %}open{% endif %}>
+    <summary class="fw-semibold mb-2" style="cursor: pointer;">
+        {{ group.name }}
+        {% if group.has_issues %}
+            <span class="badge text-bg-warning ms-1">vyžaduje pozornost</span>
+        {% else %}
+            <span class="badge text-bg-success ms-1">v pořádku</span>
+        {% endif %}
+    </summary>
+
+    <div class="table-wrap table-responsive mt-2">
+        <table class="table table-sm table-striped align-middle mb-0">
+            <tbody>
+                {% for check in group.results %}
+                <tr>
+                    <td style="width: 1%; white-space: nowrap;">
+                        {% if check.status == 'OK' %}
+                            <span class="badge text-bg-success">OK</span>
+                        {% elif check.status == 'WARN' %}
+                            <span class="badge text-bg-warning">Varování</span>
+                        {% else %}
+                            <span class="badge text-bg-danger">Chyba</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold" style="width: 1%; white-space: nowrap;">{{ check.name }}</td>
+                    <td>
+                        {{ check.message }}
+                        {% if check.recommendation %}
+                            <div class="small text-muted-soft mt-1">💡 {{ check.recommendation }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="width: 1%; white-space: nowrap;">
+                        {% if check.doc_page and mkdocs_base_url %}
+                            <a href="{{ mkdocs_base_url }}/{{ check.doc_page }}/" target="_blank" rel="noopener" class="small"><i class="bi bi-book"></i> Dokumentace</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</details>
+{% endfor %}

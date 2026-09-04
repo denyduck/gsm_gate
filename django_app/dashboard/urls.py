@@ -53,5 +53,6 @@ urlpatterns = [
 
     path('self-test/', views.self_test_view, name='self_test'),
     path('self-test/run/', views.self_test_run_view, name='self_test_run'),
+    path('self-test/<int:pk>/', views.self_test_detail_view, name='self_test_detail'),
 
 ]

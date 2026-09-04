@@ -5,7 +5,7 @@
 <section class="app-panel mb-4">
     <span class="status-badge"><i class="bi bi-clipboard2-pulse"></i> Sebediagnostika</span>
     <h1 class="hero-title">Otestuj bránu sama na sebe</h1>
-    <p class="hero-subtitle">Dostupné jen pro superusera. Zkontroluje databázi, bezpečnostní nastavení, static soubory, worker/modem, frontu akcí a poslední zálohu - a k případným problémům rovnou nabídne doporučení.</p>
+    <p class="hero-subtitle">Dostupné jen pro superusera. Zkontroluje zabezpečení, provoz i data/zálohy a k případným problémům rovnou nabídne doporučení a odkaz na dokumentaci.</p>
 
     <form method="post" action="{% url 'self_test_run' %}">
         {% csrf_token %}
@@ -13,57 +13,56 @@
     </form>
 </section>
 
-<section class="app-panel">
-    <div class="panel-header"><h2 class="panel-title">Historie běhů</h2></div>
-
-    {% if not runs %}
-        <div class="p-3 text-muted-soft">Zatím žádný test neproběhl.</div>
-    {% endif %}
-
-    {% for run in runs %}
-    <div class="p-3 border-bottom">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <div class="fw-semibold">{{ run.created_at|date:"d.m.Y H:i:s" }}</div>
-            {% if run.overall_status == 'OK' %}
-                <span class="badge text-bg-success">OK</span>
-            {% elif run.overall_status == 'WARN' %}
-                <span class="badge text-bg-warning">Varování</span>
-            {% else %}
-                <span class="badge text-bg-danger">Chyba</span>
-            {% endif %}
+{% if latest_run %}
+<section class="app-panel mb-4">
+    <div class="panel-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2 class="panel-title mb-0">Poslední běh – {{ latest_run.created_at|date:"d.m.Y H:i:s" }}</h2>
+        <div class="d-flex gap-2">
+            <span class="badge text-bg-success">{{ latest_run.ok_count }} OK</span>
+            <span class="badge text-bg-warning">{{ latest_run.warn_count }} varování</span>
+            <span class="badge text-bg-danger">{{ latest_run.error_count }} chyb</span>
         </div>
+    </div>
+    <div class="p-3">
+        {% include "dashboard/_self_test_results.html" %}
+    </div>
+</section>
+{% else %}
+<section class="app-panel mb-4">
+    <div class="p-3 text-muted-soft">Zatím žádný test neproběhl - klikni na „Spustit test" výše.</div>
+</section>
+{% endif %}
 
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Historie předchozích běhů</h2></div>
+
+    {% if not history %}
+        <div class="p-3 text-muted-soft">Zatím žádné další běhy.</div>
+    {% else %}
         <div class="table-wrap table-responsive">
-            <table class="table table-sm table-striped align-middle mb-0">
+            <table class="table table-striped align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Kontrola</th>
-                        <th>Stav</th>
-                        <th>Zpráva</th>
-                        <th>Doporučení</th>
+                        <th>Čas</th>
+                        <th>Výsledek</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for check in run.results %}
+                    {% for run in history %}
                     <tr>
-                        <td>{{ check.name }}</td>
+                        <td>{{ run.created_at|date:"d.m.Y H:i:s" }}</td>
                         <td>
-                            {% if check.status == 'OK' %}
-                                <span class="badge text-bg-success">OK</span>
-                            {% elif check.status == 'WARN' %}
-                                <span class="badge text-bg-warning">Varování</span>
-                            {% else %}
-                                <span class="badge text-bg-danger">Chyba</span>
-                            {% endif %}
+                            <span class="badge text-bg-success">{{ run.ok_count }} OK</span>
+                            <span class="badge text-bg-warning">{{ run.warn_count }} varování</span>
+                            <span class="badge text-bg-danger">{{ run.error_count }} chyb</span>
                         </td>
-                        <td>{{ check.message }}</td>
-                        <td>{{ check.recommendation|default:"—" }}</td>
+                        <td><a href="{% url 'self_test_detail' run.pk %}" class="btn btn-sm btn-app-outline">Detail</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-    {% endfor %}
+    {% endif %}
 </section>
 {% endblock %}
