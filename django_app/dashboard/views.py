@@ -920,11 +920,59 @@ def rules_list_view(request):
     get_or_create_default_security_notification_rule(request.user)
     rules = AutomationRule.objects.filter(owner=request.user).prefetch_related('target_numbers', 'target_groups').order_by('priority', 'id')
     unprotected_rule_ids = list(rules.exclude(is_protected=True).values_list('id', flat=True))
+
+    query = request.GET.get('q', '').strip()
+    event_type_filter = request.GET.get('event_type', '')
+    action_filter = request.GET.get('action', '')
+    active_filter = request.GET.get('active', '')
+
+    if query:
+        rules = rules.filter(Q(name__icontains=query) | Q(description__icontains=query))
+    if event_type_filter:
+        rules = rules.filter(event_type=event_type_filter)
+    if action_filter:
+        rules = rules.filter(action=action_filter)
+    if active_filter == '1':
+        rules = rules.filter(active=True)
+    elif active_filter == '0':
+        rules = rules.filter(active=False)
+
+    per_page_raw = request.GET.get('per_page', str(DEFAULT_PAGE_SIZE))
+    total_count = rules.count()
+    if per_page_raw == 'all':
+        per_page = total_count or 1
+    else:
+        try:
+            per_page = int(per_page_raw)
+        except ValueError:
+            per_page = DEFAULT_PAGE_SIZE
+        if per_page not in PAGE_SIZE_CHOICES:
+            per_page = DEFAULT_PAGE_SIZE
+            per_page_raw = str(DEFAULT_PAGE_SIZE)
+
+    paginator = Paginator(rules, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    base_query_params = request.GET.copy()
+    base_query_params.pop('page', None)
+
     return render(
         request,
         'dashboard/rules_list.html',
         {
-            'rules': rules,
+            'page_obj': page_obj,
+            'rules': page_obj.object_list,
+            'total_count': total_count,
+            'base_query': base_query_params.urlencode(),
+            'active_query': query,
+            'active_event_type_filter': event_type_filter,
+            'active_action_filter': action_filter,
+            'active_active_filter': active_filter,
+            'event_type_choices': AutomationRule.EVENT_TYPE_CHOICES,
+            'action_choices': AutomationRule.ACTION_CHOICES,
+            'per_page': per_page_raw,
+            'page_size_choices': PAGE_SIZE_CHOICES,
+            'filters_applied': bool(query or event_type_filter or action_filter or active_filter),
             'editable_rule_ids': unprotected_rule_ids,
             'deletable_rule_ids': unprotected_rule_ids,
             'security_rule': get_security_rule(request.user),

@@ -49,8 +49,117 @@
 </section>
 
 <section class="app-panel">
-    <div class="table-wrap table-responsive">
-        {% if rules %}
+    <div class="panel-header">
+        <h2 class="panel-title">Pravidla ({{ total_count }})</h2>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
+                <button type="button" id="view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i> Dlaždice</button>
+                <button type="button" id="view-toggle-list" class="btn btn-sm btn-app-outline" title="Zobrazit jako seznam"><i class="bi bi-list-ul"></i> Seznam</button>
+            </div>
+        </div>
+    </div>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Hledat</label>
+            <input type="text" name="q" value="{{ active_query }}" class="form-control form-control-sm" placeholder="Název nebo popis...">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Typ události</label>
+            <select name="event_type" class="form-select form-select-sm">
+                <option value="">Všechny typy</option>
+                {% for value, label in event_type_choices %}
+                    <option value="{{ value }}" {% if active_event_type_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Reakce</label>
+            <select name="action" class="form-select form-select-sm">
+                <option value="">Všechny reakce</option>
+                {% for value, label in action_choices %}
+                    <option value="{{ value }}" {% if active_action_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label form-label-sm mb-1">Aktivní</label>
+            <select name="active" class="form-select form-select-sm">
+                <option value="">Vše</option>
+                <option value="1" {% if active_active_filter == '1' %}selected{% endif %}>Jen aktivní</option>
+                <option value="0" {% if active_active_filter == '0' %}selected{% endif %}>Jen neaktivní</option>
+            </select>
+        </div>
+        <div class="col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-app-primary w-100" title="Filtrovat"><i class="bi bi-funnel"></i></button>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Na stránku</label>
+            <select name="per_page" class="form-select form-select-sm">
+                {% for choice in page_size_choices %}
+                    <option value="{{ choice }}" {% if per_page == choice|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                {% endfor %}
+                <option value="all" {% if per_page == 'all' %}selected{% endif %}>Celý seznam</option>
+            </select>
+        </div>
+        {% if filters_applied %}
+        <div class="col-12">
+            <a href="{% url 'rules_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-x-circle"></i> Zrušit filtr</a>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if rules %}
+        <div id="rules-grid" class="row g-3">
+            {% for rule in rules %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="tile-card h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="pill">Priorita {{ rule.priority }}</span>
+                            {% if rule.active %}
+                                <span class="badge text-bg-success">Aktivní</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">Neaktivní</span>
+                            {% endif %}
+                        </div>
+                        <div class="fw-semibold">
+                            {% if can_view_rule %}
+                                <a href="{% url 'rule_detail' rule.id %}" class="table-link">{{ rule.name }}</a>
+                            {% else %}
+                                {{ rule.name }}
+                            {% endif %}
+                            {% if rule.owner_id == request.user.id %}
+                                <span class="badge text-bg-success ms-1">Jste vlastník</span>
+                            {% endif %}
+                            {% if rule.is_protected %}
+                                <span class="badge text-bg-secondary ms-1" title="Nejde smazat ani upravit v appce, jen přes Django Admin"><i class="bi bi-lock-fill"></i></span>
+                            {% endif %}
+                        </div>
+                        {% if rule.description %}
+                            <small class="d-block text-muted-soft">{{ rule.description }}</small>
+                        {% endif %}
+                        <small class="d-block mt-1 text-muted-soft">{{ rule.get_event_type_display }} → {{ rule.get_action_display }}</small>
+
+                        <div class="tile-card__actions mt-auto pt-3 d-flex gap-1 flex-wrap">
+                            {% if can_view_rule %}
+                                <a href="{% url 'rule_detail' rule.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                            {% endif %}
+                            {% if can_change_rule and rule.id in editable_rule_ids %}
+                                <a href="{% url 'rule_edit' rule.id %}" class="btn btn-sm btn-app-outline">Upravit</a>
+                            {% endif %}
+                            {% if rule.is_protected and user.is_superuser %}
+                                <a href="/admin/dashboard/automationrule/{{ rule.id }}/change/" class="btn btn-sm btn-app-outline">Django Admin</a>
+                            {% endif %}
+                            {% if can_delete_rule and rule.id in deletable_rule_ids %}
+                                <a href="{% url 'rule_delete' rule.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    <div id="rules-table" class="table-wrap table-responsive d-none">
         <table class="table table-striped table-hover align-middle">
             <thead>
                 <tr>
@@ -132,9 +241,59 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% else %}
-            <div class="p-3 text-muted-soft">Zatím nemáte žádná pravidla. Vytvořte první reakční pravidlo.</div>
-        {% endif %}
     </div>
+
+        {% include 'dashboard/_pagination.html' %}
+    {% else %}
+        <div class="p-3 text-muted-soft">
+            {% if filters_applied %}
+                Žádná pravidla neodpovídají zadanému filtru.
+            {% else %}
+                Zatím nemáte žádná pravidla. Vytvořte první reakční pravidlo.
+            {% endif %}
+        </div>
+    {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const STORAGE_KEY = 'rules-view-mode';
+        const gridWrap = document.getElementById('rules-grid');
+        const tableWrap = document.getElementById('rules-table');
+        const gridBtn = document.getElementById('view-toggle-grid');
+        const listBtn = document.getElementById('view-toggle-list');
+
+        function applyMode(mode) {
+            if (!gridWrap || !tableWrap) return;
+            const useList = mode === 'list';
+            gridWrap.classList.toggle('d-none', useList);
+            tableWrap.classList.toggle('d-none', !useList);
+            if (gridBtn) gridBtn.classList.toggle('active', !useList);
+            if (listBtn) listBtn.classList.toggle('active', useList);
+        }
+
+        let savedMode = 'grid';
+        try {
+            savedMode = localStorage.getItem(STORAGE_KEY) || 'grid';
+        } catch (e) {
+            savedMode = 'grid';
+        }
+        applyMode(savedMode);
+
+        if (gridBtn) {
+            gridBtn.addEventListener('click', function () {
+                applyMode('grid');
+                try { localStorage.setItem(STORAGE_KEY, 'grid'); } catch (e) {}
+            });
+        }
+        if (listBtn) {
+            listBtn.addEventListener('click', function () {
+                applyMode('list');
+                try { localStorage.setItem(STORAGE_KEY, 'list'); } catch (e) {}
+            });
+        }
+    })();
+</script>
 {% endblock %}
