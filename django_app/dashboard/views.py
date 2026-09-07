@@ -13,6 +13,7 @@ import qrcode
 from django import forms
 from django.core import management
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.forms import modelform_factory
 from django.shortcuts import render, redirect, get_object_or_404
@@ -140,6 +141,119 @@ def dashboard_view(request):
     }
 
     return render(request, 'dashboard/dashboard.html', context)
+
+
+PAGE_SIZE_CHOICES = [10, 25, 50, 100]
+DEFAULT_PAGE_SIZE = 25
+
+
+@login_required
+def numbers_list_view(request):
+    numbers = PhoneNumber.objects.filter(users=request.user).prefetch_related('groups').order_by('number')
+
+    query = request.GET.get('q', '').strip()
+    active_filter = request.GET.get('active', '')
+    group_filter = request.GET.get('group', '')
+
+    if query:
+        numbers = numbers.filter(
+            Q(number__icontains=query) | Q(description__icontains=query) | Q(contact_email__icontains=query)
+        )
+    if active_filter == '1':
+        numbers = numbers.filter(active=True)
+    elif active_filter == '0':
+        numbers = numbers.filter(active=False)
+    if group_filter:
+        numbers = numbers.filter(groups__id=group_filter).distinct()
+
+    per_page_raw = request.GET.get('per_page', str(DEFAULT_PAGE_SIZE))
+    total_count = numbers.count()
+    if per_page_raw == 'all':
+        per_page = total_count or 1
+    else:
+        try:
+            per_page = int(per_page_raw)
+        except ValueError:
+            per_page = DEFAULT_PAGE_SIZE
+        if per_page not in PAGE_SIZE_CHOICES:
+            per_page = DEFAULT_PAGE_SIZE
+            per_page_raw = str(DEFAULT_PAGE_SIZE)
+
+    paginator = Paginator(numbers, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    number_ids = list(numbers.values_list('id', flat=True))
+
+    base_query_params = request.GET.copy()
+    base_query_params.pop('page', None)
+
+    context = {
+        'page_obj': page_obj,
+        'numbers': page_obj.object_list,
+        'total_count': total_count,
+        'base_query': base_query_params.urlencode(),
+        'available_groups': Group.objects.filter(users=request.user).order_by('name'),
+        'active_query': query,
+        'active_active_filter': active_filter,
+        'active_group_filter': group_filter,
+        'per_page': per_page_raw,
+        'page_size_choices': PAGE_SIZE_CHOICES,
+        'filters_applied': bool(query or active_filter or group_filter),
+        'can_add_number': request.user.has_perm('dashboard.add_phonenumber'),
+        'can_bulk_add_numbers': request.user.has_perm('dashboard.add_phonenumber'),
+        'can_view_number': request.user.has_perm('dashboard.view_phonenumber'),
+        'can_change_number': request.user.has_perm('dashboard.change_phonenumber'),
+        'can_delete_number': request.user.has_perm('dashboard.delete_phonenumber'),
+        'editable_number_ids': number_ids,
+        'deletable_number_ids': number_ids,
+    }
+    return render(request, 'dashboard/numbers_list.html', context)
+
+
+@login_required
+def groups_list_view(request):
+    groups = Group.objects.filter(users=request.user).prefetch_related('phone_numbers').order_by('name')
+
+    query = request.GET.get('q', '').strip()
+    if query:
+        groups = groups.filter(Q(name__icontains=query) | Q(description__icontains=query))
+
+    per_page_raw = request.GET.get('per_page', str(DEFAULT_PAGE_SIZE))
+    total_count = groups.count()
+    if per_page_raw == 'all':
+        per_page = total_count or 1
+    else:
+        try:
+            per_page = int(per_page_raw)
+        except ValueError:
+            per_page = DEFAULT_PAGE_SIZE
+        if per_page not in PAGE_SIZE_CHOICES:
+            per_page = DEFAULT_PAGE_SIZE
+            per_page_raw = str(DEFAULT_PAGE_SIZE)
+
+    paginator = Paginator(groups, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    group_ids = list(groups.values_list('id', flat=True))
+
+    base_query_params = request.GET.copy()
+    base_query_params.pop('page', None)
+
+    context = {
+        'page_obj': page_obj,
+        'groups': page_obj.object_list,
+        'total_count': total_count,
+        'base_query': base_query_params.urlencode(),
+        'active_query': query,
+        'per_page': per_page_raw,
+        'page_size_choices': PAGE_SIZE_CHOICES,
+        'filters_applied': bool(query),
+        'can_add_group': request.user.has_perm('dashboard.add_group'),
+        'can_view_group': request.user.has_perm('dashboard.view_group'),
+        'can_change_group': request.user.has_perm('dashboard.change_group'),
+        'can_delete_group': request.user.has_perm('dashboard.delete_group'),
+        'editable_group_ids': group_ids,
+        'deletable_group_ids': group_ids,
+    }
+    return render(request, 'dashboard/groups_list.html', context)
 
 
 ######################################################################################################

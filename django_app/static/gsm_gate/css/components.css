@@ -447,7 +447,8 @@
     margin-bottom: 0.6rem;
 }
 
-.device-object-card {
+.device-object-card,
+.tile-card {
     background: var(--bg-elev-1);
     border: 2px solid var(--border);
     border-radius: var(--radius-lg);
@@ -456,12 +457,14 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-.device-object-card__icon {
+.device-object-card__icon,
+.tile-card__icon {
     font-size: 2.4rem;
     line-height: 1;
 }
 
-.device-object-card__icon-wrap {
+.device-object-card__icon-wrap,
+.tile-card__icon-wrap {
     width: 68px;
     height: 68px;
     border: 1px solid var(--border);
@@ -472,7 +475,8 @@
     background: var(--bg-elev-2);
 }
 
-.device-object-card__actions {
+.device-object-card__actions,
+.tile-card__actions {
     border-top: 1px solid var(--border);
     padding-top: 0.75rem;
 }
@@ -945,6 +949,30 @@ details summary {
 
 .border {
     border-color: var(--border) !important;
+}
+
+.pagination .page-link {
+    background-color: var(--bg-elev-1);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+.pagination .page-link:hover {
+    background-color: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--text-main);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+}
+
+.pagination .page-item.disabled .page-link {
+    background-color: var(--bg-elev-1);
+    border-color: var(--border);
+    color: var(--text-muted);
 }
 
 @media (max-width: 768px) {

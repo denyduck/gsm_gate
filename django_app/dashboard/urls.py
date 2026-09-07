@@ -21,6 +21,7 @@ urlpatterns = [
     path('security/blocked-numbers/', views.blocked_numbers_view, name='blocked_numbers'),
     path('security/blocked-numbers/<int:pk>/delete/', views.blocked_number_delete, name='blocked_number_delete'),
     path('events/outgoing/', views.outgoing_actions_view, name='outgoing_actions'),
+    path('numbers/', views.numbers_list_view, name='numbers_list'),
     path('numbers/add/', views.number_create, name='add_number'),               # správný název
     path('numbers/bulk-add/', views.number_bulk_add, name='number_bulk_add'),
     path('numbers/bulk-add/template.csv', views.number_bulk_csv_template, name='number_bulk_csv_template'),
@@ -28,6 +29,7 @@ urlpatterns = [
     path('numbers/<int:pk>/edit/', views.number_update, name='edit_number'),
     path('numbers/<int:pk>/delete/', views.number_delete, name='delete_number'),
 
+    path('groups/', views.groups_list_view, name='groups_list'),
     path('groups/add/', views.group_create, name='add_group'),                  # přidání skupiny
     path('groups/<int:pk>/', views.group_detail, name='group_detail'),
     path('groups/<int:pk>/edit/', views.group_update, name='edit_group'),       # úprava skupiny

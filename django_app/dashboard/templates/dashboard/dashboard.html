@@ -115,6 +115,7 @@
     <div class="panel-header">
         <h2 class="panel-title">Telefonní čísla</h2>
         <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'numbers_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-list-ul"></i> Celý seznam</a>
             {% if can_bulk_add_numbers %}
                 <a href="{% url 'number_bulk_add' %}" class="btn btn-sm btn-app-outline">Hromadné úpravy</a>
             {% endif %}
@@ -165,9 +166,12 @@
 <section class="app-panel">
     <div class="panel-header">
         <h2 class="panel-title">Skupiny příjemců</h2>
-        {% if can_add_group %}
-            <a href="{% url 'add_group' %}" class="btn btn-sm btn-app-primary">+ Nová skupina</a>
-        {% endif %}
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'groups_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-list-ul"></i> Celý seznam</a>
+            {% if can_add_group %}
+                <a href="{% url 'add_group' %}" class="btn btn-sm btn-app-primary">+ Nová skupina</a>
+            {% endif %}
+        </div>
     </div>
     <div class="table-wrap table-responsive">
         {% if groups %}
