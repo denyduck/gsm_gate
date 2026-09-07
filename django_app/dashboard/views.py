@@ -1221,10 +1221,52 @@ def event_log_detail_view(request, pk):
 @login_required
 @permission_required('dashboard.view_outgoingaction', raise_exception=True)
 def outgoing_actions_view(request):
-    actions = OutgoingAction.objects.filter(owner=request.user).select_related('event_log', 'rule')[:200]
+    actions = OutgoingAction.objects.filter(owner=request.user).select_related('event_log', 'rule')
+
+    query = request.GET.get('q', '').strip()
+    action_type_filter = request.GET.get('action_type', '')
+    status_filter = request.GET.get('status', '')
+
+    if query:
+        actions = actions.filter(Q(target_number__icontains=query) | Q(payload_message__icontains=query))
+    if action_type_filter:
+        actions = actions.filter(action_type=action_type_filter)
+    if status_filter:
+        actions = actions.filter(status=status_filter)
+
+    per_page_raw = request.GET.get('per_page', str(DEFAULT_PAGE_SIZE))
+    total_count = actions.count()
+    if per_page_raw == 'all':
+        per_page = total_count or 1
+    else:
+        try:
+            per_page = int(per_page_raw)
+        except ValueError:
+            per_page = DEFAULT_PAGE_SIZE
+        if per_page not in PAGE_SIZE_CHOICES:
+            per_page = DEFAULT_PAGE_SIZE
+            per_page_raw = str(DEFAULT_PAGE_SIZE)
+
+    paginator = Paginator(actions, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    base_query_params = request.GET.copy()
+    base_query_params.pop('page', None)
+
     gateway_settings = GatewaySettings.objects.filter(user=request.user).first()
     context = {
-        'actions': actions,
+        'page_obj': page_obj,
+        'actions': page_obj.object_list,
+        'total_count': total_count,
+        'base_query': base_query_params.urlencode(),
+        'active_query': query,
+        'active_action_type_filter': action_type_filter,
+        'active_status_filter': status_filter,
+        'action_type_choices': OutgoingAction.ACTION_TYPE_CHOICES,
+        'status_choices': OutgoingAction.STATUS_CHOICES,
+        'per_page': per_page_raw,
+        'page_size_choices': PAGE_SIZE_CHOICES,
+        'filters_applied': bool(query or action_type_filter or status_filter),
         'gateway_settings': gateway_settings,
     }
     return render(request, 'dashboard/outgoing_actions.html', context)

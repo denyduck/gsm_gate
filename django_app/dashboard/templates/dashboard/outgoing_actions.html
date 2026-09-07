@@ -16,12 +16,6 @@
         {% if mkdocs_base_url %}
             <a href="{{ mkdocs_base_url }}/funkcionalita/#9-odchozí-akce" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
         {% endif %}
-        <a href="{% url 'outgoing_actions' %}" class="btn {% if not active_action_type_filter %}btn-app-primary{% else %}btn-app-outline{% endif %}">Vše</a>
-        <a href="{% url 'outgoing_actions' %}?action_type=DEVICE_PULL" class="btn {% if active_action_type_filter == 'DEVICE_PULL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze DEVICE_PULL</a>
-        <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_SMS" class="btn {% if active_action_type_filter == 'NOTIFY_SMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze SMS</a>
-        <a href="{% url 'outgoing_actions' %}?action_type=INFO_SMS" class="btn {% if active_action_type_filter == 'INFO_SMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze info SMS</a>
-        <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_EMAIL" class="btn {% if active_action_type_filter == 'NOTIFY_EMAIL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze e-mail</a>
-        <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_TEAMS" class="btn {% if active_action_type_filter == 'NOTIFY_TEAMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze Teams</a>
     </div>
 </section>
 
@@ -56,7 +50,85 @@
 {% endif %}
 
 <section class="app-panel">
-    <div class="table-wrap table-responsive">
+    <div class="panel-header">
+        <h2 class="panel-title">Odchozí akce ({{ total_count }})</h2>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
+                <button type="button" id="view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i> Dlaždice</button>
+                <button type="button" id="view-toggle-list" class="btn btn-sm btn-app-outline" title="Zobrazit jako seznam"><i class="bi bi-list-ul"></i> Seznam</button>
+            </div>
+        </div>
+    </div>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Hledat</label>
+            <input type="text" name="q" value="{{ active_query }}" class="form-control form-control-sm" placeholder="Číslo nebo text zprávy...">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Typ akce</label>
+            <select name="action_type" class="form-select form-select-sm">
+                <option value="">Všechny typy</option>
+                {% for value, label in action_type_choices %}
+                    <option value="{{ value }}" {% if active_action_type_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label form-label-sm mb-1">Stav</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">Vše</option>
+                {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if active_status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-app-primary w-100" title="Filtrovat"><i class="bi bi-funnel"></i></button>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Na stránku</label>
+            <select name="per_page" class="form-select form-select-sm">
+                {% for choice in page_size_choices %}
+                    <option value="{{ choice }}" {% if per_page == choice|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                {% endfor %}
+                <option value="all" {% if per_page == 'all' %}selected{% endif %}>Celý seznam</option>
+            </select>
+        </div>
+        {% if filters_applied %}
+        <div class="col-12">
+            <a href="{% url 'outgoing_actions' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-x-circle"></i> Zrušit filtr</a>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if actions %}
+        <div id="actions-grid" class="row g-3">
+            {% for action in actions %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="tile-card h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="pill">{{ action.get_action_type_display }}</span>
+                            {% if action.status == 'SENT' %}
+                                <span class="badge text-bg-success">{{ action.get_status_display }}</span>
+                            {% elif action.status == 'FAILED' %}
+                                <span class="badge text-bg-danger">{{ action.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">{{ action.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="fw-semibold mono">{{ action.target_number }}</div>
+                        <small class="d-block text-muted-soft">{{ action.created_at|date:"d.m.Y H:i:s" }}</small>
+                        {% if action.rule %}
+                            <small class="d-block mt-1"><a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a></small>
+                        {% endif %}
+                        <small class="d-block mt-1 text-muted-soft">{{ action.payload_message|truncatechars:100 }}</small>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    <div id="actions-table" class="table-wrap table-responsive d-none">
         <table class="table table-striped table-hover align-middle">
             <thead>
                 <tr>
@@ -87,18 +159,64 @@
                     </td>
                     <td>{{ action.payload_message|truncatechars:140 }}</td>
                 </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-muted-soft">Žádné odchozí akce zatím nejsou.</td>
-                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+        {% include 'dashboard/_pagination.html' %}
+    {% else %}
+        <div class="p-3 text-muted-soft">
+            {% if filters_applied %}
+                Žádné odchozí akce neodpovídají zadanému filtru.
+            {% else %}
+                Žádné odchozí akce zatím nejsou.
+            {% endif %}
+        </div>
+    {% endif %}
 </section>
 {% endblock %}
 
 {% block scripts %}
+<script>
+    (function () {
+        const STORAGE_KEY = 'actions-view-mode';
+        const gridWrap = document.getElementById('actions-grid');
+        const tableWrap = document.getElementById('actions-table');
+        const gridBtn = document.getElementById('view-toggle-grid');
+        const listBtn = document.getElementById('view-toggle-list');
+
+        function applyMode(mode) {
+            if (!gridWrap || !tableWrap) return;
+            const useList = mode === 'list';
+            gridWrap.classList.toggle('d-none', useList);
+            tableWrap.classList.toggle('d-none', !useList);
+            if (gridBtn) gridBtn.classList.toggle('active', !useList);
+            if (listBtn) listBtn.classList.toggle('active', useList);
+        }
+
+        let savedMode = 'grid';
+        try {
+            savedMode = localStorage.getItem(STORAGE_KEY) || 'grid';
+        } catch (e) {
+            savedMode = 'grid';
+        }
+        applyMode(savedMode);
+
+        if (gridBtn) {
+            gridBtn.addEventListener('click', function () {
+                applyMode('grid');
+                try { localStorage.setItem(STORAGE_KEY, 'grid'); } catch (e) {}
+            });
+        }
+        if (listBtn) {
+            listBtn.addEventListener('click', function () {
+                applyMode('list');
+                try { localStorage.setItem(STORAGE_KEY, 'list'); } catch (e) {}
+            });
+        }
+    })();
+</script>
 {% if gateway_settings %}
 <script>
     (function () {
