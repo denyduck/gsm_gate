@@ -1131,8 +1131,50 @@ def incoming_simulator_view(request):
 @login_required
 @permission_required('dashboard.view_incomingeventlog', raise_exception=True)
 def event_logs_view(request):
-    logs = IncomingEventLog.objects.filter(owner=request.user).prefetch_related('actions')[:100]
-    return render(request, 'dashboard/event_logs.html', {'logs': logs})
+    logs = IncomingEventLog.objects.filter(owner=request.user).prefetch_related('actions')
+
+    query = request.GET.get('q', '').strip()
+    event_type_filter = request.GET.get('event_type', '')
+
+    if query:
+        logs = logs.filter(
+            Q(source_number__icontains=query) | Q(result_summary__icontains=query) | Q(message_body__icontains=query)
+        )
+    if event_type_filter:
+        logs = logs.filter(event_type=event_type_filter)
+
+    per_page_raw = request.GET.get('per_page', str(DEFAULT_PAGE_SIZE))
+    total_count = logs.count()
+    if per_page_raw == 'all':
+        per_page = total_count or 1
+    else:
+        try:
+            per_page = int(per_page_raw)
+        except ValueError:
+            per_page = DEFAULT_PAGE_SIZE
+        if per_page not in PAGE_SIZE_CHOICES:
+            per_page = DEFAULT_PAGE_SIZE
+            per_page_raw = str(DEFAULT_PAGE_SIZE)
+
+    paginator = Paginator(logs, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    base_query_params = request.GET.copy()
+    base_query_params.pop('page', None)
+
+    context = {
+        'page_obj': page_obj,
+        'logs': page_obj.object_list,
+        'total_count': total_count,
+        'base_query': base_query_params.urlencode(),
+        'active_query': query,
+        'active_event_type_filter': event_type_filter,
+        'event_type_choices': IncomingEventLog.EVENT_TYPE_CHOICES,
+        'per_page': per_page_raw,
+        'page_size_choices': PAGE_SIZE_CHOICES,
+        'filters_applied': bool(query or event_type_filter),
+    }
+    return render(request, 'dashboard/event_logs.html', context)
 
 
 @login_required

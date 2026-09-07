@@ -16,11 +16,80 @@
 </section>
 
 <section class="app-panel">
-    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-        <div class="form-text mb-0">Zobrazeno posledních {{ logs|length }} událostí.</div>
-        <div class="form-text mb-0">Sloupec „Akce" obsahuje počet navazujících akcí a případné příznaky pravidel.</div>
+    <div class="panel-header">
+        <h2 class="panel-title">Události ({{ total_count }})</h2>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
+                <button type="button" id="view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i> Dlaždice</button>
+                <button type="button" id="view-toggle-list" class="btn btn-sm btn-app-outline" title="Zobrazit jako seznam"><i class="bi bi-list-ul"></i> Seznam</button>
+            </div>
+        </div>
     </div>
-    <div class="table-wrap table-responsive">
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-4">
+            <label class="form-label form-label-sm mb-1">Hledat</label>
+            <input type="text" name="q" value="{{ active_query }}" class="form-control form-control-sm" placeholder="Číslo, souhrn nebo text zprávy...">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Typ události</label>
+            <select name="event_type" class="form-select form-select-sm">
+                <option value="">Všechny typy</option>
+                {% for value, label in event_type_choices %}
+                    <option value="{{ value }}" {% if active_event_type_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-app-primary w-100" title="Filtrovat"><i class="bi bi-funnel"></i></button>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Na stránku</label>
+            <select name="per_page" class="form-select form-select-sm">
+                {% for choice in page_size_choices %}
+                    <option value="{{ choice }}" {% if per_page == choice|stringformat:"s" %}selected{% endif %}>{{ choice }}</option>
+                {% endfor %}
+                <option value="all" {% if per_page == 'all' %}selected{% endif %}>Celý seznam</option>
+            </select>
+        </div>
+        {% if filters_applied %}
+        <div class="col-12">
+            <a href="{% url 'event_logs' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-x-circle"></i> Zrušit filtr</a>
+        </div>
+        {% endif %}
+    </form>
+    <div class="form-text mb-2">Sloupec „Akce" obsahuje počet navazujících akcí a případné příznaky pravidel.</div>
+
+    {% if logs %}
+        <div id="logs-grid" class="row g-3">
+            {% for log in logs %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="tile-card h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            {% if log.event_type == 'SMS' %}
+                                <span class="pill">SMS</span>
+                            {% elif log.event_type == 'API' %}
+                                <span class="pill">API</span>
+                            {% elif log.event_type == 'SECURITY' %}
+                                <span class="pill"><i class="bi bi-shield-exclamation"></i> Bezpečnost</span>
+                            {% else %}
+                                <span class="pill">{{ log.get_event_type_display }}</span>
+                            {% endif %}
+                            <span class="badge text-bg-secondary">{{ log.actions.count }} akcí</span>
+                        </div>
+                        <div class="fw-semibold mono">{{ log.source_number }}</div>
+                        <small class="d-block text-muted-soft">{{ log.created_at|date:"d.m.Y H:i:s" }}</small>
+                        <small class="d-block mt-1 text-muted-soft">{{ log.result_summary|default:"—"|truncatechars:100 }}</small>
+
+                        <div class="tile-card__actions mt-auto pt-3 d-flex gap-1 flex-wrap">
+                            <a href="{% url 'event_log_detail' log.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    <div id="logs-table" class="table-wrap table-responsive d-none">
         <table class="table table-striped table-hover align-middle">
             <thead>
                 <tr>
@@ -65,13 +134,62 @@
                         <a href="{% url 'event_log_detail' log.id %}" class="btn btn-sm btn-app-outline">Detail</a>
                     </td>
                 </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-muted-soft">Žádné záznamy zatím nejsou.</td>
-                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+        {% include 'dashboard/_pagination.html' %}
+    {% else %}
+        <div class="p-3 text-muted-soft">
+            {% if filters_applied %}
+                Žádné záznamy neodpovídají zadanému filtru.
+            {% else %}
+                Žádné záznamy zatím nejsou.
+            {% endif %}
+        </div>
+    {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const STORAGE_KEY = 'logs-view-mode';
+        const gridWrap = document.getElementById('logs-grid');
+        const tableWrap = document.getElementById('logs-table');
+        const gridBtn = document.getElementById('view-toggle-grid');
+        const listBtn = document.getElementById('view-toggle-list');
+
+        function applyMode(mode) {
+            if (!gridWrap || !tableWrap) return;
+            const useList = mode === 'list';
+            gridWrap.classList.toggle('d-none', useList);
+            tableWrap.classList.toggle('d-none', !useList);
+            if (gridBtn) gridBtn.classList.toggle('active', !useList);
+            if (listBtn) listBtn.classList.toggle('active', useList);
+        }
+
+        let savedMode = 'grid';
+        try {
+            savedMode = localStorage.getItem(STORAGE_KEY) || 'grid';
+        } catch (e) {
+            savedMode = 'grid';
+        }
+        applyMode(savedMode);
+
+        if (gridBtn) {
+            gridBtn.addEventListener('click', function () {
+                applyMode('grid');
+                try { localStorage.setItem(STORAGE_KEY, 'grid'); } catch (e) {}
+            });
+        }
+        if (listBtn) {
+            listBtn.addEventListener('click', function () {
+                applyMode('list');
+                try { localStorage.setItem(STORAGE_KEY, 'list'); } catch (e) {}
+            });
+        }
+    })();
+</script>
 {% endblock %}
