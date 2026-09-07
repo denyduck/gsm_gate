@@ -529,8 +529,7 @@
     font-weight: 600;
 }
 
-.form-shell .form-text,
-.auth-card .form-text {
+.form-text {
     color: var(--text-muted) !important;
     opacity: 1;
 }
@@ -627,8 +626,7 @@
     padding: 0.55rem 0.7rem;
 }
 
-.form-shell .form-select option,
-.auth-card .form-select option {
+.form-select option {
     color: var(--text-main);
     background: var(--bg-elev-1);
 }
@@ -640,10 +638,8 @@
     font-weight: 600;
 }
 
-.form-shell input::placeholder,
-.form-shell textarea::placeholder,
-.auth-card input::placeholder,
-.auth-card textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
     color: var(--text-muted);
     opacity: 0.9;
 }
