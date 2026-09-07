@@ -11,7 +11,7 @@
         <div class="col-md-3">
             <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalContacts" title="Zobrazit všechna čísla">
                 <div class="label"><i class="bi bi-telephone me-1"></i>Kontakty</div>
-                <div class="value">{{ numbers|length }}</div>
+                <div class="value">{{ numbers_count }}</div>
             </div>
         </div>
         <div class="col-md-3">
@@ -23,7 +23,7 @@
         <div class="col-md-3">
             <div class="card-stat card-stat--clickable" data-bs-toggle="modal" data-bs-target="#modalGroups" title="Zobrazit skupiny">
                 <div class="label"><i class="bi bi-collection me-1"></i>Skupiny</div>
-                <div class="value">{{ groups|length }}</div>
+                <div class="value">{{ groups_count }}</div>
             </div>
         </div>
         <div class="col-md-3">
@@ -100,12 +100,13 @@
     </div>
     {% if objects %}
         <div class="row g-3">
-            {% for obj in objects|slice:":8" %}
+            {% for obj in objects %}
                 <div class="col-md-4 col-lg-3">
                     {% include 'dashboard/_device_object_card.html' with obj=obj %}
                 </div>
             {% endfor %}
         </div>
+        {% include 'dashboard/_pagination.html' with page_obj=objects_page_obj base_query=objects_base_query page_param='objects_page' %}
     {% else %}
         <div class="p-3 text-muted-soft">Zatím nemáte žádné objekty zařízení.</div>
     {% endif %}
@@ -114,7 +115,11 @@
 <section class="app-panel mb-4">
     <div class="panel-header">
         <h2 class="panel-title">Telefonní čísla</h2>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
+                <button type="button" id="numbers-view-toggle-list" class="btn btn-sm btn-app-outline" title="Zobrazit jako seznam"><i class="bi bi-list-ul"></i></button>
+                <button type="button" id="numbers-view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i></button>
+            </div>
             <a href="{% url 'numbers_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-list-ul"></i> Celý seznam</a>
             {% if can_bulk_add_numbers %}
                 <a href="{% url 'number_bulk_add' %}" class="btn btn-sm btn-app-outline">Hromadné úpravy</a>
@@ -124,8 +129,8 @@
             {% endif %}
         </div>
     </div>
-    <div class="table-wrap table-responsive">
-        {% if numbers %}
+    {% if numbers %}
+        <div id="numbers-dashboard-table" class="table-wrap table-responsive">
             <table class="table table-striped table-hover align-middle">
                 <thead>
                     <tr><th>ID</th><th>Číslo</th><th>Popis</th><th>Vlastník</th><th>Akce</th></tr>
@@ -157,24 +162,71 @@
                     {% endfor %}
                 </tbody>
             </table>
-        {% else %}
-            <div class="p-3 text-muted-soft">Žádná čísla k dispozici.</div>
-        {% endif %}
-    </div>
+        </div>
+
+        <div id="numbers-dashboard-grid" class="row g-3 d-none">
+            {% for number in numbers %}
+                <div class="col-md-4 col-lg-3">
+                    <div class="tile-card h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="tile-card__icon-wrap">
+                                <i class="bi bi-telephone tile-card__icon"></i>
+                            </div>
+                            {% if number.active %}
+                                <span class="badge text-bg-success">Aktivní</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">Neaktivní</span>
+                            {% endif %}
+                        </div>
+                        <div class="fw-semibold mono">
+                            {{ number.number }}
+                            {% if number.owner_id == request.user.id %}
+                                <span class="pill ms-2">Jste vlastník</span>
+                            {% endif %}
+                        </div>
+                        {% if number.description %}
+                            <small class="d-block text-muted-soft">{{ number.description }}</small>
+                        {% endif %}
+                        <small class="d-block mt-1 text-muted-soft">Vlastník: {{ number.owner.username }}</small>
+
+                        <div class="tile-card__actions mt-auto pt-3 d-flex gap-1 flex-wrap">
+                            {% if can_view_number %}
+                                <a href="{% url 'number_detail' number.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                            {% endif %}
+                            {% if can_change_number and number.id in editable_number_ids %}
+                                <a href="{% url 'edit_number' number.id %}" class="btn btn-sm btn-app-outline">Editovat</a>
+                            {% endif %}
+                            {% if can_delete_number and number.id in deletable_number_ids %}
+                                <a href="{% url 'delete_number' number.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% include 'dashboard/_pagination.html' with page_obj=numbers_page_obj base_query=numbers_base_query page_param='numbers_page' %}
+    {% else %}
+        <div class="p-3 text-muted-soft">Žádná čísla k dispozici.</div>
+    {% endif %}
 </section>
 
 <section class="app-panel">
     <div class="panel-header">
         <h2 class="panel-title">Skupiny příjemců</h2>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
+                <button type="button" id="groups-view-toggle-list" class="btn btn-sm btn-app-outline" title="Zobrazit jako seznam"><i class="bi bi-list-ul"></i></button>
+                <button type="button" id="groups-view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i></button>
+            </div>
             <a href="{% url 'groups_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-list-ul"></i> Celý seznam</a>
             {% if can_add_group %}
                 <a href="{% url 'add_group' %}" class="btn btn-sm btn-app-primary">+ Nová skupina</a>
             {% endif %}
         </div>
     </div>
-    <div class="table-wrap table-responsive">
-        {% if groups %}
+    {% if groups %}
+        <div id="groups-dashboard-table" class="table-wrap table-responsive">
             <table class="table table-striped table-hover align-middle">
                 <thead>
                     <tr><th>ID</th><th>Název</th><th>Popis</th><th>Akce</th></tr>
@@ -205,10 +257,48 @@
                     {% endfor %}
                 </tbody>
             </table>
-        {% else %}
-            <div class="p-3 text-muted-soft">Nemáte žádné skupiny.</div>
-        {% endif %}
-    </div>
+        </div>
+
+        <div id="groups-dashboard-grid" class="row g-3 d-none">
+            {% for group in groups %}
+                <div class="col-md-4 col-lg-3">
+                    <div class="tile-card h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="tile-card__icon-wrap">
+                                <i class="bi bi-collection tile-card__icon"></i>
+                            </div>
+                            <span class="badge text-bg-secondary">{{ group.phone_numbers.count }} čísel</span>
+                        </div>
+                        <div class="fw-semibold">
+                            {{ group.name }}
+                            {% if group.owner_id == request.user.id %}
+                                <span class="pill ms-2">Jste vlastník</span>
+                            {% endif %}
+                        </div>
+                        {% if group.description %}
+                            <small class="d-block text-muted-soft">{{ group.description }}</small>
+                        {% endif %}
+
+                        <div class="tile-card__actions mt-auto pt-3 d-flex gap-1 flex-wrap">
+                            {% if can_view_group %}
+                                <a href="{% url 'group_detail' group.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                            {% endif %}
+                            {% if can_change_group and group.id in editable_group_ids %}
+                                <a href="{% url 'edit_group' group.id %}" class="btn btn-sm btn-app-outline">Editovat</a>
+                            {% endif %}
+                            {% if can_delete_group and group.id in deletable_group_ids %}
+                                <a href="{% url 'delete_group' group.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% include 'dashboard/_pagination.html' with page_obj=groups_page_obj base_query=groups_base_query page_param='groups_page' %}
+    {% else %}
+        <div class="p-3 text-muted-soft">Nemáte žádné skupiny.</div>
+    {% endif %}
 </section>
 {% endblock %}
 
@@ -218,13 +308,13 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content stat-modal">
       <div class="modal-header stat-modal-header">
-        <h5 class="modal-title" id="modalContactsLabel"><i class="bi bi-telephone me-2"></i>Kontakty ({{ numbers|length }})</h5>
+        <h5 class="modal-title" id="modalContactsLabel"><i class="bi bi-telephone me-2"></i>Kontakty ({{ numbers_count }})</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body stat-modal-body">
-        {% if numbers %}
+        {% if numbers_all %}
         <ul class="stat-modal-list">
-          {% for n in numbers %}
+          {% for n in numbers_all %}
           <li class="stat-modal-item">
             <span class="stat-modal-item-main">
               {% if can_view_number %}
@@ -260,9 +350,9 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body stat-modal-body">
-        {% if numbers %}
+        {% if numbers_all %}
         <ul class="stat-modal-list">
-          {% for n in numbers %}{% if n.active %}
+          {% for n in numbers_all %}{% if n.active %}
           <li class="stat-modal-item">
             <span class="stat-modal-item-main">
               {% if can_view_number %}
@@ -289,13 +379,13 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content stat-modal">
       <div class="modal-header stat-modal-header">
-        <h5 class="modal-title" id="modalGroupsLabel"><i class="bi bi-collection me-2"></i>Skupiny ({{ groups|length }})</h5>
+        <h5 class="modal-title" id="modalGroupsLabel"><i class="bi bi-collection me-2"></i>Skupiny ({{ groups_count }})</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body stat-modal-body">
-        {% if groups %}
+        {% if groups_all %}
         <ul class="stat-modal-list">
-          {% for g in groups %}
+          {% for g in groups_all %}
           <li class="stat-modal-item">
             <span class="stat-modal-item-main">
               {% if can_view_group %}
@@ -408,9 +498,9 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body stat-modal-body">
-        {% if objects %}
+        {% if objects_all %}
         <ul class="stat-modal-list">
-          {% for obj in objects %}
+          {% for obj in objects_all %}
           <li class="stat-modal-item">
             <span class="stat-modal-item-main">
               {% if can_view_object %}
@@ -436,4 +526,50 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        function setupToggle(storageKey, tableId, gridId, listBtnId, gridBtnId) {
+            const tableWrap = document.getElementById(tableId);
+            const gridWrap = document.getElementById(gridId);
+            const listBtn = document.getElementById(listBtnId);
+            const gridBtn = document.getElementById(gridBtnId);
+            if (!tableWrap || !gridWrap) return;
+
+            function applyMode(mode) {
+                const useGrid = mode === 'grid';
+                gridWrap.classList.toggle('d-none', !useGrid);
+                tableWrap.classList.toggle('d-none', useGrid);
+                if (listBtn) listBtn.classList.toggle('active', !useGrid);
+                if (gridBtn) gridBtn.classList.toggle('active', useGrid);
+            }
+
+            let savedMode = 'list';
+            try {
+                savedMode = localStorage.getItem(storageKey) || 'list';
+            } catch (e) {
+                savedMode = 'list';
+            }
+            applyMode(savedMode);
+
+            if (listBtn) {
+                listBtn.addEventListener('click', function () {
+                    applyMode('list');
+                    try { localStorage.setItem(storageKey, 'list'); } catch (e) {}
+                });
+            }
+            if (gridBtn) {
+                gridBtn.addEventListener('click', function () {
+                    applyMode('grid');
+                    try { localStorage.setItem(storageKey, 'grid'); } catch (e) {}
+                });
+            }
+        }
+
+        setupToggle('dashboard-numbers-view-mode', 'numbers-dashboard-table', 'numbers-dashboard-grid', 'numbers-view-toggle-list', 'numbers-view-toggle-grid');
+        setupToggle('dashboard-groups-view-mode', 'groups-dashboard-table', 'groups-dashboard-grid', 'groups-view-toggle-list', 'groups-view-toggle-grid');
+    })();
+</script>
 {% endblock %}

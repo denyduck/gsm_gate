@@ -75,6 +75,9 @@ def _client_ip(request):
     return request.META.get('REMOTE_ADDR', 'unknown')
 
 
+DASHBOARD_PREVIEW_PAGE_SIZE = 10
+
+
 # Zobrazení dashboardu s čísly uživatele
 @login_required
 def dashboard_view(request):
@@ -92,18 +95,50 @@ def dashboard_view(request):
     editable_object_ids = object_ids
     deletable_object_ids = object_ids
     # předání čísel a skupin do šablony
-    
+
     active_numbers_count = numbers.filter(active=True).count()
+    numbers_count = len(editable_number_ids)
+    groups_count = len(editable_group_ids)
     rules = AutomationRule.objects.filter(owner=request.user).order_by('name')
     rules_count = rules.count()
     recent_logs = IncomingEventLog.objects.filter(owner=request.user).order_by('-created_at')[:50]
     logs_count = IncomingEventLog.objects.filter(owner=request.user).count()
-    objects_count = objects.count()
+    objects_count = len(object_ids)
+
+    # Kartotéka (celé seznamy) jde do modálů, náhled na ploše dashboardu se stránkuje zvlášť
+    numbers_all = numbers
+    groups_all = groups
+    objects_all = objects
+
+    numbers_paginator = Paginator(numbers, DASHBOARD_PREVIEW_PAGE_SIZE)
+    numbers_page_obj = numbers_paginator.get_page(request.GET.get('numbers_page'))
+    groups_paginator = Paginator(groups, DASHBOARD_PREVIEW_PAGE_SIZE)
+    groups_page_obj = groups_paginator.get_page(request.GET.get('groups_page'))
+    objects_paginator = Paginator(objects, DASHBOARD_PREVIEW_PAGE_SIZE)
+    objects_page_obj = objects_paginator.get_page(request.GET.get('objects_page'))
+
+    numbers_base_query = request.GET.copy()
+    numbers_base_query.pop('numbers_page', None)
+    groups_base_query = request.GET.copy()
+    groups_base_query.pop('groups_page', None)
+    objects_base_query = request.GET.copy()
+    objects_base_query.pop('objects_page', None)
 
     context = {
-        'numbers': numbers,
-        'groups': groups,
-        'objects': objects,
+        'numbers': numbers_page_obj.object_list,
+        'numbers_page_obj': numbers_page_obj,
+        'numbers_base_query': numbers_base_query.urlencode(),
+        'numbers_all': numbers_all,
+        'numbers_count': numbers_count,
+        'groups': groups_page_obj.object_list,
+        'groups_page_obj': groups_page_obj,
+        'groups_base_query': groups_base_query.urlencode(),
+        'groups_all': groups_all,
+        'groups_count': groups_count,
+        'objects': objects_page_obj.object_list,
+        'objects_page_obj': objects_page_obj,
+        'objects_base_query': objects_base_query.urlencode(),
+        'objects_all': objects_all,
         'active_numbers_count': active_numbers_count,
         'rules': rules,
         'rules_count': rules_count,
