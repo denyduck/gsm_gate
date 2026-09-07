@@ -68,10 +68,12 @@
                         <div class="col-md-6">
                             <label class="form-label">{{ form.priority.label }}</label>
                             {{ form.priority }}
+                            <div class="form-text">Pravidla se vyhodnocují od nejnižšího čísla po nejvyšší. Pokud má pravidlo zapnuté "Zastavit další vyhodnocení" (krok 5), pravidla s vyšší prioritou (větším číslem) se pro tu událost vůbec nevyhodnotí. Doporučení: používej násobky 10 (10, 20, 30…), ať máš mezi nimi místo na vložení dalšího pravidla později, aniž bys musel přečíslovat ostatní.</div>
                         </div>
                         <div class="col-md-12">
                             <label class="form-label">{{ form.description.label }}</label>
                             {{ form.description }}
+                            <div class="form-text">Krátké shrnutí, k čemu pravidlo slouží – vidíš ho v seznamu pravidel a v auditu, takže se hodí i po měsících poznat, proč pravidlo existuje.</div>
                             <div id="description-required-feedback" class="invalid-feedback">Popis pravidla je povinný.</div>
                         </div>
                         <div class="col-12 d-flex justify-content-end">
@@ -99,7 +101,11 @@
                         <div id="match-type-wrap" class="col-md-8">
                             <label class="form-label">{{ form.match_type.label }}</label>
                             {{ form.match_type }}
-                            <div class="form-text">Zvolte, podle čeho se má pravidlo spustit.</div>
+                            <div class="form-text">
+                                <strong>Jakékoliv číslo</strong> – pravidlo se spustí na událost z libovolného čísla (žádné další zadávání).
+                                <strong>Konkrétní číslo</strong> – jen z jednoho přesného čísla, které zadáš níže.
+                                <strong>Číslo ze skupiny</strong> – z libovolného čísla, které je členem vybrané skupiny/skupin.
+                            </div>
                         </div>
 
                         <div id="source-number-wrap" class="col-md-6">
@@ -178,14 +184,18 @@
                         <div id="message-flag-wrap" class="col-md-6">
                             <label class="form-label">{{ form.message_flag.label }}</label>
                             {{ form.message_flag }}
-                            <div class="form-text">Volitelné: pravidlo běží jen při nalezení příznaku v SMS.</div>
+                            <div class="form-text">Libovolný text (např. <code>ALARM</code>), který musí být obsažený v textu SMS, jinak se pravidlo přeskočí – bez ohledu na velikost písmen. Hodí se, když čekáš víc typů zpráv ze stejného čísla a chceš na ně reagovat jinak.</div>
                             <div id="message-flag-feedback" class="invalid-feedback">Vyplňte příznak v SMS.</div>
                         </div>
 
                         <div id="action-wrap" class="col-md-12">
                             <label class="form-label">{{ form.action.label }}</label>
                             {{ form.action }}
-                            <div class="form-text">Teď zvolte reakci — po výběru podmínky a zdroje.</div>
+                            <div class="form-text">
+                                <strong>Ignorovat</strong> – událost se jen zaloguje, nic se neodešle (hodí se k potlačení hlučného zdroje).
+                                <strong>Poslat informaci na cílová čísla/skupiny</strong> – odešle notifikaci na vybraná čísla/skupiny (další krok), přes vybrané kanály (SMS/e-mail/Teams).
+                                <strong>Předat na číslo</strong> – jednoduché přeposlání na jedno nebo víc čísel formou SMS, bez volby kanálů.
+                            </div>
                         </div>
 
                         <div id="step-2-nav-wrap" class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
@@ -316,6 +326,7 @@
                                     {{ form.notify_via_teams }} <label class="form-check-label ms-2" for="{{ form.notify_via_teams.id_for_label }}">{{ form.notify_via_teams.label }}</label>
                                 </div>
                             </div>
+                            <div class="form-text">Lze zaškrtnout víc kanálů najednou – odešlou se všechny. SMS jde na čísla/skupiny z kroku 3. E-mail jde na e-mail vlastníka pravidla + kontaktní e-maily čísel + pole níže. Teams potřebuje vyplněné Webhook URL v Konfiguraci brány, jinak akce skončí chybou.</div>
                             <div id="notify-channels-feedback" class="invalid-feedback">Vyberte alespoň jeden notifikační kanál.</div>
                         </div>
 
@@ -356,6 +367,7 @@
                         <div id="custom-message-wrap" class="col-md-6">
                             <label class="form-label">{{ form.custom_message.label }}</label>
                             {{ form.custom_message }}
+                            <div class="form-text">Volitelné. Necháš-li prázdné, appka vygeneruje text sama (typ události + případně zdrojové číslo, viz "Zobrazit zdrojové číslo ve zprávě" v kroku 5).</div>
                         </div>
 
                         <div id="notify-first-contact-wrap" class="col-md-6 form-check mt-4">
@@ -394,9 +406,18 @@
                 <details id="step-5" class="rule-step">
                     <summary><strong>Krok 5/5:</strong> Dokončení a uložení</summary>
                     <div class="row g-4 mt-3">
-                        <div class="col-md-4 form-check mt-4">{{ form.active }} <label class="form-check-label ms-2">{{ form.active.label }}</label></div>
-                        <div class="col-md-4 form-check mt-4">{{ form.include_original_message }} <label class="form-check-label ms-2">{{ form.include_original_message.label }}</label></div>
-                        <div class="col-md-4 form-check mt-4">{{ form.stop_processing }} <label class="form-check-label ms-2">{{ form.stop_processing.label }}</label></div>
+                        <div class="col-md-4 form-check mt-4">
+                            {{ form.active }} <label class="form-check-label ms-2">{{ form.active.label }}</label>
+                            <div class="form-text">Vypnuté pravidlo se nikdy nevyhodnotí – zůstává uložené, jen se přeskočí. Hodí se k dočasnému vypnutí bez smazání.</div>
+                        </div>
+                        <div class="col-md-4 form-check mt-4">
+                            {{ form.include_original_message }} <label class="form-check-label ms-2">{{ form.include_original_message.label }}</label>
+                            <div class="form-text">Přidá do odesílané zprávy i text původní příchozí SMS (nový řádek "Obsah: …").</div>
+                        </div>
+                        <div class="col-md-4 form-check mt-4">
+                            {{ form.stop_processing }} <label class="form-check-label ms-2">{{ form.stop_processing.label }}</label>
+                            <div class="form-text">Když se tohle pravidlo shoduje, žádná další pravidla s vyšší prioritou (větším číslem) se pro tu událost už nevyhodnotí. Vypni, pokud chceš, aby na stejnou událost mohlo zareagovat i další pravidlo v pořadí.</div>
+                        </div>
                         <div class="col-md-4 form-check mt-2">
                             {{ form.include_source_number }} <label class="form-check-label ms-2">{{ form.include_source_number.label }}</label>
                             <div class="form-text">Do zprávy předávané dál (na čísla/skupiny) přidá, od jakého čísla událost přišla. Uplatní se hlavně u příchozí SMS / SMS i API.</div>

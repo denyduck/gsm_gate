@@ -40,6 +40,7 @@
             <div class="col-md-6">
                 <label class="form-label">{{ form.object_type.label }}</label>
                 {{ form.object_type }}
+                <div class="form-text">Jen kategorizace pro přehlednost (ikona v seznamu) – nemá vliv na vyhodnocování pravidel.</div>
             </div>
             <div class="col-md-12">
                 <label class="form-label d-block">{{ form.icon.label }}</label>
@@ -62,21 +63,26 @@
             <div class="col-md-6">
                 <label class="form-label">{{ form.status_flag.label }}</label>
                 {{ form.status_flag }}
+                <div class="form-text">Informativní stav zobrazený u objektu (OK/Varování/Poplach/Offline) – nastavuje se ručně tady nebo si ho může posílat samo zařízení v API payloadu.</div>
             </div>
             <div class="col-md-6">
                 <label class="form-label">{{ form.status_label.label }}</label>
                 {{ form.status_label }}
+                <div class="form-text">Volitelný text vedle stavu (např. "poslední kontrola 10:32").</div>
             </div>
             <div class="col-md-6 form-check mt-4">
                 {{ form.active }} <label class="form-check-label ms-2">{{ form.active.label }}</label>
+                <div class="form-text">Neaktivní objekt zůstává v seznamu, ale nejde ho vybrat jako zdrojový objekt v nových pravidlech.</div>
             </div>
             <div class="col-md-12">
                 <label class="form-label">{{ form.description.label }}</label>
                 {{ form.description }}
+                <div class="form-text">Krátký popis do seznamů/přehledů.</div>
             </div>
             <div class="col-md-12">
                 <label class="form-label">{{ form.specification.label }}</label>
                 {{ form.specification }}
+                <div class="form-text">Volitelné delší poznámky (umístění, sériové číslo, poznámky k instalaci…) – zobrazí se jen na detailu objektu.</div>
             </div>
 
             <div class="col-12 d-flex gap-2 flex-wrap">

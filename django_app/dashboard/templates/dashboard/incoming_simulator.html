@@ -15,10 +15,12 @@
             <div class="col-md-4">
                 <label class="form-label">{{ form.event_type.label }}</label>
                 {{ form.event_type }}
+                <div class="form-text">Podle typu se dole zobrazí buď zdrojové číslo, nebo zdrojový objekt.</div>
             </div>
             <div id="sim-source-number-wrap" class="col-md-8">
                 <label class="form-label">{{ form.source_number.label }}</label>
                 {{ form.source_number }}
+                <div class="form-text">Číslo, jako by z něj událost skutečně přišla – slouží k ověření podmínky "Konkrétní číslo"/"Číslo ze skupiny" u pravidel.</div>
             </div>
             <div id="sim-source-object-wrap" class="col-md-8">
                 <label class="form-label">{{ form.source_object.label }}</label>
@@ -28,6 +30,7 @@
             <div class="col-12">
                 <label class="form-label">{{ form.message_body.label }}</label>
                 {{ form.message_body }}
+                <div class="form-text">Volitelné – použije se hlavně při testování "Filtrovat podle příznaku v SMS" u pravidel.</div>
             </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-app-primary">Spustit simulaci</button>

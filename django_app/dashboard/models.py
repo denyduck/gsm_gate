@@ -200,8 +200,16 @@ class GatewaySettings(models.Model):
         default=True,
         help_text='Při odeslání SMS požádá síť o potvrzení doručení příjemci.',
     )
-    allow_incoming_sms = models.BooleanField('Povolit příchozí SMS', default=True)
-    webhook_url = models.URLField('Webhook URL (Teams)', blank=True)
+    allow_incoming_sms = models.BooleanField(
+        'Povolit příchozí SMS',
+        default=True,
+        help_text='Vypnutím se pro tebe přestanou vyhodnocovat pravidla na příchozí SMS – worker zprávy dál čte a maže z modemu, jen je nikomu nepředá. Nemá vliv na API události.',
+    )
+    webhook_url = models.URLField(
+        'Webhook URL (Teams)',
+        blank=True,
+        help_text='Incoming Webhook URL z Microsoft Teams kanálu, kam mají chodit notifikace přes kanál "Teams" v pravidlech. Bez vyplnění tahle akce selže.',
+    )
     updated_at = models.DateTimeField('Naposledy změněno', auto_now=True)
 
     last_signal_quality = models.PositiveIntegerField('Poslední síla signálu (%)', null=True, blank=True)
