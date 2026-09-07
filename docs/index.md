@@ -51,4 +51,4 @@ docker compose --profile rpi up -d --build
 
 Aktuální verze: **1.0.0** (`APP_VERSION` v `django_app/gsm_gate/settings.py`, zobrazuje se i v patičce appky).
 
-Autor: _doplnit_ (`APP_AUTHOR` v `django_app/gsm_gate/settings.py`).
+Autor: Daniel Matyuš (`APP_AUTHOR` v `django_app/gsm_gate/settings.py`).

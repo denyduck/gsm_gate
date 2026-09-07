@@ -33,10 +33,9 @@ SECRET_KEY = os.environ.get(
 )
 
 # Verze appky a autor - zobrazuje se v patičce (base.html) přes context
-# processor dashboard.context_processors.app_info. APP_AUTHOR je zatím
-# prázdné - doplnit až bude jméno/přezdívka, kterou chceš zobrazovat.
+# processor dashboard.context_processors.app_info.
 APP_VERSION = '1.0.0'
-APP_AUTHOR = ''
+APP_AUTHOR = 'Daniel Matyuš'
 
 # Adresa běžícího MkDocs webu (docker-compose.mkdocs.yml) - používá se na
 # odkazy "Dokumentace" v patičce/menu a u doporučení v Sebediagnostice.
