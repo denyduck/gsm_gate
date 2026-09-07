@@ -69,6 +69,9 @@
     <div class="panel-header d-flex justify-content-between align-items-center">
         <h2 class="panel-title mb-0">API komunikace objektu</h2>
         <div class="d-flex gap-2 flex-wrap">
+            {% if mkdocs_base_url %}
+                <a href="{{ mkdocs_base_url }}/api-objekty-zarizeni/" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline"><i class="bi bi-book"></i> Dokumentace API</a>
+            {% endif %}
             {% if can_change_object %}
                 <a href="{% url 'device_object_export_config' obj.id %}" class="btn btn-sm btn-app-outline">Export config</a>
                 <form method="post" action="{% url 'device_object_regenerate_api_key' obj.id %}">
@@ -100,7 +103,10 @@
 
     <div class="p-3 border rounded mt-3">
         <div class="fw-semibold mb-2">Testovací volání</div>
-        <p class="small text-muted-soft">Odešle skutečný HTTP požadavek na endpoint výše (se skutečným tokenem) a ukáže reálnou odpověď - ověří tak celou cestu, ne jen vyhodnocení pravidel.</p>
+        <p class="small text-muted-soft">Odešle skutečný HTTP požadavek na endpoint výše (se skutečným tokenem) a ukáže reálnou odpověď - ověří tak celou cestu (autentizaci, rate limit, vyhodnocení pravidel), ne jen to, jestli by pravidlo sedělo.</p>
+        {% if mkdocs_base_url %}
+            <p class="small mb-2"><a href="{{ mkdocs_base_url }}/api-objekty-zarizeni/#co-přesně-dělá-testovací-volání" target="_blank" rel="noopener"><i class="bi bi-book"></i> Co přesně testovací volání dělá a jak číst odpověď</a></p>
+        {% endif %}
         <form method="post" action="{% url 'device_object_test_call' obj.id %}" class="d-flex gap-2 flex-wrap align-items-start">
             {% csrf_token %}
             <input type="text" name="message" class="form-control" style="max-width: 360px;" placeholder="Text testovací zprávy (nepovinné)">
