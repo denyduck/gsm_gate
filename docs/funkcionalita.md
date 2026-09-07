@@ -80,6 +80,7 @@ Výstupem je souhrn zpracování (kolik položek změněno, přeskočeno, vytvo�
 - zdrojové číslo/skupiny/objekty,
 - reakce (`IGNORE`, `NOTIFY_NUM`, `NOTIFY_GRP`, `FORWARD`),
 - notifikační kanály a volitelný vlastní text,
+- **zobrazit zdrojové číslo ve zprávě** (`include_source_number`, výchozí zapnuto) – u akcí `NOTIFY_NUM`/`NOTIFY_GRP`/`FORWARD` přidá do předávané zprávy `(od čísla X)`, ať vlastní text je nastavený nebo ne. Uplatní se hlavně u příchozí SMS/SMS i API, kde je zdrojové číslo skutečné telefonní číslo.
 - příznak zprávy (`message_flag`) pro jemné filtrování,
 - **informační SMS při prvním kontaktu** (`notify_first_contact` + `first_contact_timing` + `first_contact_message`) – u akcí `NOTIFY_NUM`/`NOTIFY_GRP`/`FORWARD` zařadí navíc jednorázovou SMS s vysvětlením (např. „byl jsi zařazen do automatizace X, důvod: ...“) danému cílovému číslu. Jestli číslo už bylo tímto pravidlem někdy kontaktováno, se pozná podle historie `OutgoingAction` (`rule` + `target_number`) – bez vyplněného textu se použije výchozí zpráva s názvem pravidla. `first_contact_timing` určuje KDY se odešle:
     - `ON_TRIGGER` (výchozí) – až pravidlo poprvé reálně zareaguje na událost a osloví dané číslo.

@@ -133,6 +133,7 @@
                 <tr><th>Vlastní text</th><td>{{ rule.custom_message|default:"—" }}</td></tr>
                 <tr><th>Info SMS při prvním kontaktu</th><td>{% if rule.notify_first_contact %}Ano ({{ rule.get_first_contact_timing_display }}) — „{{ rule.first_contact_message|default:"výchozí text" }}“{% else %}Ne{% endif %}</td></tr>
                 <tr><th>Přiložit původní zprávu</th><td>{% if rule.include_original_message %}Ano{% else %}Ne{% endif %}</td></tr>
+                <tr><th>Zobrazit zdrojové číslo ve zprávě</th><td>{% if rule.include_source_number %}Ano{% else %}Ne{% endif %}</td></tr>
                 <tr><th>Zastavit další vyhodnocení</th><td>{% if rule.stop_processing %}Ano{% else %}Ne{% endif %}</td></tr>
             </tbody>
         </table>

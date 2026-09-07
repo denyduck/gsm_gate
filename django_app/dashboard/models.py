@@ -301,6 +301,11 @@ class AutomationRule(models.Model):
     notify_via_teams = models.BooleanField('Notifikovat do Teams', default=False)
     notification_emails = models.TextField('Další e-maily pro notifikaci', blank=True)
     include_original_message = models.BooleanField('Přiložit původní zprávu', default=True)
+    include_source_number = models.BooleanField(
+        'Zobrazit zdrojové číslo ve zprávě',
+        default=True,
+        help_text='Uplatní se hlavně u příchozí SMS/SMS i API – do zprávy předávané dál (na čísla/skupiny) se přidá, od jakého čísla událost přišla.',
+    )
     custom_message = models.CharField('Vlastní text', max_length=320, blank=True)
     stop_processing = models.BooleanField('Zastavit další vyhodnocení', default=True)
 

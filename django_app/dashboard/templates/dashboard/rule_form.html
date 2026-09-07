@@ -397,6 +397,10 @@
                         <div class="col-md-4 form-check mt-4">{{ form.active }} <label class="form-check-label ms-2">{{ form.active.label }}</label></div>
                         <div class="col-md-4 form-check mt-4">{{ form.include_original_message }} <label class="form-check-label ms-2">{{ form.include_original_message.label }}</label></div>
                         <div class="col-md-4 form-check mt-4">{{ form.stop_processing }} <label class="form-check-label ms-2">{{ form.stop_processing.label }}</label></div>
+                        <div class="col-md-4 form-check mt-2">
+                            {{ form.include_source_number }} <label class="form-check-label ms-2">{{ form.include_source_number.label }}</label>
+                            <div class="form-text">Do zprávy předávané dál (na čísla/skupiny) přidá, od jakého čísla událost přišla. Uplatní se hlavně u příchozí SMS / SMS i API.</div>
+                        </div>
 
                         <div class="col-12 d-flex flex-wrap gap-2 mt-2">
                             <button type="button" class="btn btn-app-outline btn-lg px-4 js-next-step" data-next-step="step-4" aria-label="Předchozí krok" title="Předchozí krok">

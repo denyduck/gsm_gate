@@ -312,6 +312,26 @@ def fire_first_contact_on_save(rule):
     return queued
 
 
+def _build_notification_payload(rule, default_text, source_number, message_body):
+    """Sestaví text zprávy pro NOTIFY_NUM/NOTIFY_GRP/FORWARD. include_source_number
+    se aplikuje nezávisle na tom, jestli je nastavený vlastní text (dřív se
+    zdrojové číslo objevovalo jen v automaticky generovaném textu bez
+    custom_message - viz migrace 0049)."""
+    payload = rule.custom_message.strip() if rule.custom_message else ''
+    if not payload:
+        payload = default_text
+
+    if rule.include_source_number:
+        normalized_source = normalize_phone_number(source_number)
+        if normalized_source:
+            payload = f'{payload} (od čísla {normalized_source})'
+
+    if rule.include_original_message and message_body:
+        payload = f'{payload}\nObsah: {message_body}'
+
+    return payload
+
+
 def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None):
     summaries = []
     matched_count = 0
@@ -352,12 +372,7 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                             targets.append(normalized)
                 targets = sorted(set(targets))
 
-            payload = rule.custom_message.strip() if rule.custom_message else ''
-            if not payload:
-                payload = f'[{event_type}] událost z čísla {normalize_phone_number(source_number)}'
-
-            if rule.include_original_message and message_body:
-                payload = f'{payload}\nObsah: {message_body}'
+            payload = _build_notification_payload(rule, f'[{event_type}] událost', source_number, message_body)
 
             selected_channels = []
             if rule.notify_via_sms:
@@ -454,12 +469,7 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             if not targets:
                 summaries.append(f'Pravidlo "{log_rule_name}": chybí cílové číslo pro akci „Předat na číslo“.')
             else:
-                payload = rule.custom_message.strip() if rule.custom_message else ''
-                if not payload:
-                    payload = f'[{event_type}] předání na číslo z čísla {normalize_phone_number(source_number)}'
-
-                if rule.include_original_message and message_body:
-                    payload = f'{payload}\nObsah: {message_body}'
+                payload = _build_notification_payload(rule, f'[{event_type}] předání na číslo', source_number, message_body)
 
                 for target in targets:
                     if rule.first_contact_timing == 'ON_TRIGGER' and _queue_first_contact_notice(rule, user, event_log, target):
