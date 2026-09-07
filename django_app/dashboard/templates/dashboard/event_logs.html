@@ -9,6 +9,9 @@
     <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'incoming_simulator' %}" class="btn btn-app-primary">Nová simulace</a>
         <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Pravidla</a>
+        {% if mkdocs_base_url %}
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#8-log-událostí" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+        {% endif %}
     </div>
 </section>
 

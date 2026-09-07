@@ -6,6 +6,9 @@
     <span class="status-badge"><i class="bi bi-gear"></i> Tvorba pravidla</span>
     <h1 class="hero-title">{{ title }}</h1>
     <p class="hero-subtitle">Jednoduchý průvodce v 5 krocích. Vždy řešíte jen jednu část nastavení, ostatní je sbalené.</p>
+    {% if mkdocs_base_url %}
+        <a href="{{ mkdocs_base_url }}/funkcionalita/#6-automatizační-pravidla" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline mb-2"><i class="bi bi-book"></i> Dokumentace: Automatizační pravidla</a>
+    {% endif %}
     {% if form.instance.pk %}
         <div class="mt-2">
             <strong>Vlastník:</strong> {{ form.instance.owner.username|default:"—" }}

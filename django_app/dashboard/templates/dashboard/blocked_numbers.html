@@ -13,6 +13,9 @@
     <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'event_logs' %}" class="btn btn-app-outline">Logy událostí</a>
         <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Pravidla</a>
+        {% if mkdocs_base_url %}
+            <a href="{{ mkdocs_base_url }}/zabezpeceni-sms/" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace: Zabezpečení</a>
+        {% endif %}
     </div>
     {% if not security_rule.active %}
     <div class="alert alert-warning mt-3 mb-0">

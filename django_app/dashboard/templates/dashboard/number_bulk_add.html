@@ -8,6 +8,9 @@
     <p class="hero-subtitle">Postup: vyberte operaci, označte existující čísla (nebo je doplňte ručně/CSV), pak potvrďte změnu.</p>
     <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'number_bulk_csv_template' %}" class="btn btn-app-outline"><i class="bi bi-download"></i> Stáhnout vzor CSV</a>
+        {% if mkdocs_base_url %}
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#5-hromadné-úpravy-čísel" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+        {% endif %}
     </div>
 </section>
 

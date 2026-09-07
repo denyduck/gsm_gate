@@ -11,6 +11,9 @@
                 <h2 class="panel-title">{{ form.instance.pk|yesno:"Upravit číslo,Přidat nové číslo" }}</h2>
                 <span class="pill">Záznam čísla</span>
             </div>
+            {% if mkdocs_base_url %}
+                <a href="{{ mkdocs_base_url }}/funkcionalita/#3-telefonní-čísla" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline mb-3"><i class="bi bi-book"></i> Dokumentace: Telefonní čísla</a>
+            {% endif %}
 
             <div class="form-shell">
                 <form method="post">

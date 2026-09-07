@@ -13,6 +13,9 @@
         {% if perms.dashboard.view_incomingeventlog %}
             <a href="{% url 'event_logs' %}" class="btn btn-app-outline">Logy událostí</a>
         {% endif %}
+        {% if mkdocs_base_url %}
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#9-odchozí-akce" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+        {% endif %}
         <a href="{% url 'outgoing_actions' %}" class="btn {% if not active_action_type_filter %}btn-app-primary{% else %}btn-app-outline{% endif %}">Vše</a>
         <a href="{% url 'outgoing_actions' %}?action_type=DEVICE_PULL" class="btn {% if active_action_type_filter == 'DEVICE_PULL' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze DEVICE_PULL</a>
         <a href="{% url 'outgoing_actions' %}?action_type=NOTIFY_SMS" class="btn {% if active_action_type_filter == 'NOTIFY_SMS' %}btn-app-primary{% else %}btn-app-outline{% endif %}">Pouze SMS</a>

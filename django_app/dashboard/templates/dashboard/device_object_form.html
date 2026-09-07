@@ -6,6 +6,9 @@
     <span class="status-badge"><i class="bi bi-boxes"></i> Objekt zařízení</span>
     <h1 class="hero-title">{{ title }}</h1>
     <p class="hero-subtitle">Vyberte velkou ikonu, nastavte příznak stavu a doplňte specifikaci objektu.</p>
+    {% if mkdocs_base_url %}
+        <a href="{{ mkdocs_base_url }}/funkcionalita/#11-objekty-zařízení" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline"><i class="bi bi-book"></i> Dokumentace: Objekty zařízení</a>
+    {% endif %}
 </section>
 
 <section class="app-panel">

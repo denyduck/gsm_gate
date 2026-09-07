@@ -11,6 +11,9 @@
         {% if can_add_object %}
             <a href="{% url 'device_object_add' %}" class="btn btn-app-primary">Nový objekt</a>
         {% endif %}
+        {% if mkdocs_base_url %}
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#11-objekty-zařízení" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+        {% endif %}
     </div>
 </section>
 
