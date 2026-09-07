@@ -13,6 +13,7 @@ import qrcode
 from django import forms
 from django.core import management
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.forms import modelform_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -427,6 +428,23 @@ def group_detail(request, pk):
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_objects_list_view(request):
     objects = DeviceObject.objects.filter(owner=request.user).order_by('name', 'id')
+
+    object_type_filter = request.GET.get('object_type', '')
+    status_filter = request.GET.get('status_flag', '')
+    active_filter = request.GET.get('active', '')
+    query = request.GET.get('q', '').strip()
+
+    if object_type_filter:
+        objects = objects.filter(object_type=object_type_filter)
+    if status_filter:
+        objects = objects.filter(status_flag=status_filter)
+    if active_filter == '1':
+        objects = objects.filter(active=True)
+    elif active_filter == '0':
+        objects = objects.filter(active=False)
+    if query:
+        objects = objects.filter(Q(name__icontains=query) | Q(object_label__icontains=query))
+
     object_ids = list(objects.values_list('id', flat=True))
     context = {
         'objects': objects,
@@ -436,6 +454,13 @@ def device_objects_list_view(request):
         'can_delete_object': request.user.has_perm('dashboard.delete_deviceobject'),
         'editable_object_ids': object_ids,
         'deletable_object_ids': object_ids,
+        'object_type_choices': DeviceObject.OBJECT_TYPE_CHOICES,
+        'status_choices': DeviceObject.STATUS_CHOICES,
+        'active_object_type_filter': object_type_filter,
+        'active_status_filter': status_filter,
+        'active_active_filter': active_filter,
+        'active_query': query,
+        'filters_applied': bool(object_type_filter or status_filter or active_filter or query),
     }
     return render(request, 'dashboard/device_objects_list.html', context)
 

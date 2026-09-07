@@ -20,23 +20,170 @@
 <section class="app-panel">
     <div class="panel-header">
         <h2 class="panel-title">Objekty zařízení</h2>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
+                <button type="button" id="view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i> Dlaždice</button>
+                <button type="button" id="view-toggle-list" class="btn btn-sm btn-app-outline" title="Zobrazit jako seznam"><i class="bi bi-list-ul"></i> Seznam</button>
+            </div>
             <a href="{% url 'dashboard' %}" class="btn btn-sm btn-app-outline">Zpět na dashboard</a>
             {% if can_add_object %}
                 <a href="{% url 'device_object_add' %}" class="btn btn-sm btn-app-primary">+ Nový objekt</a>
             {% endif %}
         </div>
     </div>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Hledat</label>
+            <input type="text" name="q" value="{{ active_query }}" class="form-control form-control-sm" placeholder="Název nebo popisek...">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Typ objektu</label>
+            <select name="object_type" class="form-select form-select-sm">
+                <option value="">Všechny typy</option>
+                {% for value, label in object_type_choices %}
+                    <option value="{{ value }}" {% if active_object_type_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Stav</label>
+            <select name="status_flag" class="form-select form-select-sm">
+                <option value="">Všechny stavy</option>
+                {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if active_status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label form-label-sm mb-1">Aktivní</label>
+            <select name="active" class="form-select form-select-sm">
+                <option value="">Vše</option>
+                <option value="1" {% if active_active_filter == '1' %}selected{% endif %}>Jen aktivní</option>
+                <option value="0" {% if active_active_filter == '0' %}selected{% endif %}>Jen neaktivní</option>
+            </select>
+        </div>
+        <div class="col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-app-primary w-100" title="Filtrovat"><i class="bi bi-funnel"></i></button>
+        </div>
+        {% if filters_applied %}
+        <div class="col-12">
+            <a href="{% url 'device_objects_list' %}" class="btn btn-sm btn-app-outline"><i class="bi bi-x-circle"></i> Zrušit filtr</a>
+        </div>
+        {% endif %}
+    </form>
+
     {% if objects %}
-        <div class="row g-3">
+        <div id="device-objects-grid" class="row g-3">
             {% for obj in objects %}
                 <div class="col-md-4 col-lg-3">
                     {% include 'dashboard/_device_object_card.html' with obj=obj %}
                 </div>
             {% endfor %}
         </div>
+
+        <div id="device-objects-table" class="table-wrap table-responsive d-none">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Název</th>
+                        <th>Typ</th>
+                        <th>Stav</th>
+                        <th>Vlastník</th>
+                        <th>Aktivní</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for obj in objects %}
+                    <tr>
+                        <td><i class="bi bi-{{ obj.icon }}"></i></td>
+                        <td>
+                            {{ obj.name }}
+                            {% if obj.object_label %}<br><small class="text-muted-soft">{{ obj.object_label }}</small>{% endif %}
+                        </td>
+                        <td>{{ obj.get_object_type_display }}</td>
+                        <td>
+                            {% if obj.status_flag == 'OK' %}
+                                <span class="badge text-bg-success">{{ obj.get_status_flag_display }}</span>
+                            {% elif obj.status_flag == 'WARN' %}
+                                <span class="badge text-bg-warning">{{ obj.get_status_flag_display }}</span>
+                            {% elif obj.status_flag == 'ALERT' %}
+                                <span class="badge text-bg-danger">{{ obj.get_status_flag_display }}</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">{{ obj.get_status_flag_display }}</span>
+                            {% endif %}
+                            {% if obj.status_label %}<br><small class="text-muted-soft">{{ obj.status_label }}</small>{% endif %}
+                        </td>
+                        <td>{{ obj.owner.username }}</td>
+                        <td>{% if obj.active %}<span class="pill">Aktivní</span>{% else %}<span class="text-muted-soft">Neaktivní</span>{% endif %}</td>
+                        <td class="d-flex gap-1 flex-wrap">
+                            {% if can_view_object %}
+                                <a href="{% url 'device_object_detail' obj.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                            {% endif %}
+                            {% if can_change_object and obj.id in editable_object_ids %}
+                                <a href="{% url 'device_object_edit' obj.id %}" class="btn btn-sm btn-app-outline">Editovat</a>
+                            {% endif %}
+                            {% if can_delete_object and obj.id in deletable_object_ids %}
+                                <a href="{% url 'device_object_delete' obj.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
-        <div class="p-3 text-muted-soft">Žádné objekty zatím nejsou vytvořené.</div>
+        <div class="p-3 text-muted-soft">
+            {% if filters_applied %}
+                Žádné objekty neodpovídají zadanému filtru.
+            {% else %}
+                Žádné objekty zatím nejsou vytvořené.
+            {% endif %}
+        </div>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const STORAGE_KEY = 'device-objects-view-mode';
+        const gridWrap = document.getElementById('device-objects-grid');
+        const tableWrap = document.getElementById('device-objects-table');
+        const gridBtn = document.getElementById('view-toggle-grid');
+        const listBtn = document.getElementById('view-toggle-list');
+
+        function applyMode(mode) {
+            if (!gridWrap || !tableWrap) return;
+            const useList = mode === 'list';
+            gridWrap.classList.toggle('d-none', useList);
+            tableWrap.classList.toggle('d-none', !useList);
+            if (gridBtn) gridBtn.classList.toggle('active', !useList);
+            if (listBtn) listBtn.classList.toggle('active', useList);
+        }
+
+        let savedMode = 'grid';
+        try {
+            savedMode = localStorage.getItem(STORAGE_KEY) || 'grid';
+        } catch (e) {
+            savedMode = 'grid';
+        }
+        applyMode(savedMode);
+
+        if (gridBtn) {
+            gridBtn.addEventListener('click', function () {
+                applyMode('grid');
+                try { localStorage.setItem(STORAGE_KEY, 'grid'); } catch (e) {}
+            });
+        }
+        if (listBtn) {
+            listBtn.addEventListener('click', function () {
+                applyMode('list');
+                try { localStorage.setItem(STORAGE_KEY, 'list'); } catch (e) {}
+            });
+        }
+    })();
+</script>
 {% endblock %}
