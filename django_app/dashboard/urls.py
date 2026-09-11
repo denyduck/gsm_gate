@@ -10,7 +10,6 @@ urlpatterns = [
     path('gateway/status/', views.gateway_status_view, name='gateway_status'),
     path('api/gateway/signal/', views.gateway_signal_api, name='gateway_signal_api'),
     path('gateway/settings/', views.gateway_settings_view, name='gateway_settings'),
-    path('gateway/modem-reset/', views.gateway_modem_reset_request, name='gateway_modem_reset_request'),
     path('rules/', views.rules_list_view, name='rules_list'),
     path('rules/add/', views.rule_create, name='rule_add'),
     path('rules/<int:pk>/', views.rule_detail, name='rule_detail'),

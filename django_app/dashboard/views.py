@@ -11,7 +11,6 @@ from urllib import request as urllib_request
 
 import qrcode
 from django import forms
-from django.conf import settings as django_settings
 from django.core import management
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -934,32 +933,6 @@ def gateway_status_view(request):
         'groups_count': groups_count,
     }
     return render(request, 'dashboard/gateway_status.html', context)
-
-
-# Cesta ke "sentinel" souboru - píše ho appka (uvnitř kontejneru), ale
-# protože BASE_DIR je na hostu bind-mountnutý jako ./django_app (viz
-# docker-compose.yml), soubor se objeví i na hostu, kde ho systemd
-# path-unit (scripts/gsm-modem-reset.path) hlídá a po objevení spustí
-# scripts/gsm_modem_reset.sh - appka sama USB reset udělat nemůže,
-# nemá k /sys/bus/usb na hostu přístup. Viz docs/modem-diagnostika.md.
-MODEM_RESET_FLAG_PATH = os.path.join(django_settings.BASE_DIR, 'tmp', 'gsm_modem_reset_requested')
-
-
-@login_required
-@permission_required('dashboard.change_gatewaysettings', raise_exception=True)
-@require_http_methods(['POST'])
-def gateway_modem_reset_request(request):
-    os.makedirs(os.path.dirname(MODEM_RESET_FLAG_PATH), exist_ok=True)
-    with open(MODEM_RESET_FLAG_PATH, 'w') as f:
-        f.write(timezone.now().isoformat())
-
-    messages.success(
-        request,
-        'Požadavek na reset modemu byl odeslán. Provede se na hostu (logický USB reset) do několika '
-        'vteřin - sleduj sílu signálu níže nebo Sebediagnostiku, jestli se modem znovu zaregistroval. '
-        'Vyžaduje nasazenou host-side službu, viz Nasazení a obnova v dokumentaci.',
-    )
-    return redirect('gateway_status')
 
 
 @login_required
