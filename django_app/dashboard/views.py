@@ -53,6 +53,8 @@ from .services import reset as reset_service
 from .services import selftest as selftest_service
 from .services import telemetry as telemetry_service
 from .services.rules_engine import (
+    OUTGOING_FLOOD_MAX_PER_TARGET,
+    OUTGOING_FLOOD_WINDOW_MINUTES,
     fire_first_contact_on_save,
     get_or_create_default_security_notification_rule,
     get_security_rule,
@@ -1072,7 +1074,12 @@ def rule_create(request):
     else:
         form = AutomationRuleForm(user=request.user)
 
-    return render(request, 'dashboard/rule_form.html', {'form': form, 'title': 'Nové pravidlo'})
+    return render(request, 'dashboard/rule_form.html', {
+        'form': form,
+        'title': 'Nové pravidlo',
+        'outgoing_flood_max_per_target': OUTGOING_FLOOD_MAX_PER_TARGET,
+        'outgoing_flood_window_minutes': OUTGOING_FLOOD_WINDOW_MINUTES,
+    })
 
 
 @login_required
@@ -1098,7 +1105,12 @@ def rule_update(request, pk):
     else:
         form = AutomationRuleForm(instance=rule, user=request.user)
 
-    return render(request, 'dashboard/rule_form.html', {'form': form, 'title': 'Úprava pravidla'})
+    return render(request, 'dashboard/rule_form.html', {
+        'form': form,
+        'title': 'Úprava pravidla',
+        'outgoing_flood_max_per_target': OUTGOING_FLOOD_MAX_PER_TARGET,
+        'outgoing_flood_window_minutes': OUTGOING_FLOOD_WINDOW_MINUTES,
+    })
 
 
 @login_required

@@ -281,6 +281,10 @@ Proto se to dělo **jen u prvního pravidla po resetu** – reset byl jediné m�
 
 I bez tohohle bugu je "Jakékoliv číslo → Předat na číslo X" riskantní kombinace, pokud by se X někdy mohlo objevit i jako zdroj (test, odpověď příjemce, cokoliv) – vytváří potenciál pro smyčku. Pro testování preferuj [Simulátor příchozí události](funkcionalita.md#7-simulátor-příchozí-události) místo reálných SMS.
 
+### Obecná ochrana proti smyčce (nezávislá na příčině)
+
+I s opraveným `delivery_reports` může teoreticky nastat jiná smyčka (auto-odpověď na straně příjemce, budoucí neznámý bug) – appka proto od tohohle incidentu má vestavěnou pojistku na úrovni pravidla: `dashboard/services/rules_engine.py` (`_target_flood_guard`, konstanty `OUTGOING_FLOOD_MAX_PER_TARGET`/`OUTGOING_FLOOD_WINDOW_MINUTES`) zastaví další odchozí akce téhož pravidla na tentýž cíl (SMS číslo, `MAIL`, `TEAMS`), jakmile jich za posledních 5 minut proběhlo 5. Přeskočení se zaloguje a promítne i do `result_summary` v logu události ("ochrana proti smyčce"), takže je vidět i bez SSH. Formulář pravidla na riziko upozorňuje přímo u volby "Jakékoliv číslo".
+
 ## Historické poznámky (starý SIM7000E/GPIO UART setup)
 
 Pro referenci, kdyby se v budoucnu řešil jiný modem typu SIM7000/SIM800 s GPIO UART (ne USB) místo ModemManager přístupu:

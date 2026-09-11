@@ -109,6 +109,9 @@
                                 <strong>Konkrétní číslo</strong> – jen z jednoho přesného čísla, které zadáš níže.
                                 <strong>Číslo ze skupiny</strong> – z libovolného čísla, které je členem vybrané skupiny/skupin.
                             </div>
+                            <div class="alert alert-warning mt-2 mb-0 py-2 px-3 small">
+                                <i class="bi bi-exclamation-triangle"></i> Pozor na kombinaci <strong>Jakékoliv číslo</strong> + akce <strong>Poslat informaci</strong>/<strong>Předat na číslo</strong> na stejné číslo, které může být i zdrojem – hrozí smyčka (odpověď/doručenka appku vyvolá znovu, ta pošle další zprávu atd.). Appka má vestavěnou ochranu (max {{ outgoing_flood_max_per_target|default:"5" }} akcí na stejný cíl za {{ outgoing_flood_window_minutes|default:"5" }} min), ale bezpečnější je vybrat konkrétní číslo/skupinu, kde k tomu nemůže dojít.
+                            </div>
                         </div>
 
                         <div id="source-number-wrap" class="col-md-6">

@@ -20,6 +20,35 @@ def get_security_rule(user):
     return rule
 
 
+# Ochrana proti smyčce odchozích akcí (jedno pravidlo opakovaně bombarduje
+# stejný cíl) - nezávislá na příčině (doručenka mylně vykázaná jako nová SMS,
+# auto-odpověď na straně příjemce, budoucí neznámý bug apod.). Reálný incident
+# 2026-09-11 (viz docs/modem-diagnostika.md) vygeneroval desítky odchozích SMS
+# na stejné číslo během pár minut, než zasáhla obecná bezpečnostní blokace
+# zdrojového čísla - tohle je rychlejší, cílenější pojistka na úrovni
+# konkrétního pravidla a cíle.
+OUTGOING_FLOOD_WINDOW_MINUTES = 5
+OUTGOING_FLOOD_MAX_PER_TARGET = 5
+
+
+def _target_flood_guard(rule, target):
+    """Vrátí True, pokud smí pravidlo poslat další akci na daný cíl (pod
+    limitem za posledních OUTGOING_FLOOD_WINDOW_MINUTES minut), jinak False
+    a přeskočení akce se zaloguje."""
+    window_start = timezone.now() - timedelta(minutes=OUTGOING_FLOOD_WINDOW_MINUTES)
+    recent_count = OutgoingAction.objects.filter(
+        rule=rule, target_number=target, created_at__gte=window_start,
+    ).count()
+    if recent_count >= OUTGOING_FLOOD_MAX_PER_TARGET:
+        logger.warning(
+            'Pravidlo "%s" (id=%s): cíl %s dosáhl limitu %s akcí za %s min - další akce se '
+            'přeskakuje (ochrana proti smyčce, viz docs/modem-diagnostika.md).',
+            rule.name, rule.id, target, OUTGOING_FLOOD_MAX_PER_TARGET, OUTGOING_FLOOD_WINDOW_MINUTES,
+        )
+        return False
+    return True
+
+
 DEFAULT_SECURITY_NOTIFICATION_RULE_NAME = 'Výchozí: Upozornění na bezpečnostní blokaci'
 
 
@@ -403,11 +432,16 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                         queued_count += 1
                         rule_queued_count += 1
 
+            flood_blocked = False
+
             if rule.notify_via_sms:
                 if not targets:
                     summaries.append(f'Pravidlo "{log_rule_name}": kanál SMS přeskočen, protože chybí cílová čísla/skupiny.')
                 else:
                     for target in targets:
+                        if not _target_flood_guard(rule, target):
+                            flood_blocked = True
+                            continue
                         OutgoingAction.objects.create(
                             owner=user,
                             event_log=event_log,
@@ -421,34 +455,45 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                         rule_queued_count += 1
 
             if rule.notify_via_email:
-                OutgoingAction.objects.create(
-                    owner=user,
-                    event_log=event_log,
-                    rule=rule,
-                    action_type='NOTIFY_EMAIL',
-                    target_number='MAIL',
-                    payload_message=payload,
-                    status='PENDING',
-                )
-                queued_count += 1
-                rule_queued_count += 1
+                if _target_flood_guard(rule, 'MAIL'):
+                    OutgoingAction.objects.create(
+                        owner=user,
+                        event_log=event_log,
+                        rule=rule,
+                        action_type='NOTIFY_EMAIL',
+                        target_number='MAIL',
+                        payload_message=payload,
+                        status='PENDING',
+                    )
+                    queued_count += 1
+                    rule_queued_count += 1
+                else:
+                    flood_blocked = True
 
             if rule.notify_via_teams:
-                OutgoingAction.objects.create(
-                    owner=user,
-                    event_log=event_log,
-                    rule=rule,
-                    action_type='NOTIFY_TEAMS',
-                    target_number='TEAMS',
-                    payload_message=payload,
-                    status='PENDING',
-                )
-                queued_count += 1
-                rule_queued_count += 1
+                if _target_flood_guard(rule, 'TEAMS'):
+                    OutgoingAction.objects.create(
+                        owner=user,
+                        event_log=event_log,
+                        rule=rule,
+                        action_type='NOTIFY_TEAMS',
+                        target_number='TEAMS',
+                        payload_message=payload,
+                        status='PENDING',
+                    )
+                    queued_count += 1
+                    rule_queued_count += 1
+                else:
+                    flood_blocked = True
 
             if rule_queued_count > 0:
                 summaries.append(
                     f'Pravidlo "{log_rule_name}": zařazeno {rule_queued_count} akcí pro kanály {", ".join(selected_channels)}.'
+                )
+            elif flood_blocked:
+                summaries.append(
+                    f'Pravidlo "{log_rule_name}": akce přeskočena - ochrana proti smyčce '
+                    f'(limit {OUTGOING_FLOOD_MAX_PER_TARGET} akcí na cíl za {OUTGOING_FLOOD_WINDOW_MINUTES} min dosažen).'
                 )
             else:
                 summaries.append(f'Pravidlo "{log_rule_name}": nebyla zařazena žádná odchozí akce.')
@@ -471,9 +516,13 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             else:
                 payload = _build_notification_payload(rule, f'[{event_type}] předání na číslo', source_number, message_body)
 
+                forwarded_count = 0
                 for target in targets:
                     if rule.first_contact_timing == 'ON_TRIGGER' and _queue_first_contact_notice(rule, user, event_log, target):
                         queued_count += 1
+
+                    if not _target_flood_guard(rule, target):
+                        continue
 
                     OutgoingAction.objects.create(
                         owner=user,
@@ -485,10 +534,18 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                         status='PENDING',
                     )
                     queued_count += 1
+                    forwarded_count += 1
 
-                summaries.append(
-                    f'Pravidlo "{log_rule_name}": akce „Předat na číslo“ zařazena do fronty pro {len(targets)} cílových čísel.'
-                )
+                if forwarded_count < len(targets):
+                    summaries.append(
+                        f'Pravidlo "{log_rule_name}": akce „Předat na číslo“ zařazena pro {forwarded_count} z {len(targets)} '
+                        f'cílových čísel - zbytek přeskočen ochranou proti smyčce '
+                        f'(limit {OUTGOING_FLOOD_MAX_PER_TARGET} akcí na cíl za {OUTGOING_FLOOD_WINDOW_MINUTES} min).'
+                    )
+                else:
+                    summaries.append(
+                        f'Pravidlo "{log_rule_name}": akce „Předat na číslo“ zařazena do fronty pro {len(targets)} cílových čísel.'
+                    )
 
         if rule.stop_processing:
             summaries.append('Zpracování ukončeno podle priority pravidel.')
