@@ -174,13 +174,36 @@ V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen p
    ```
    Čekáte `state: registered`, `signal quality` > 0 %, `operator name: T-Mobile CZ`.
 
-3. **Vidí kontejner ModemManager vůbec?** (typická chyba po změně Dockeru/rebuildu)
+3. **Modem visí v `disabled` a sám se nezaregistruje?** Od `connect()` v `modem_manager.py` se v tomhle stavu appka sama pokusí modem zapnout (`mmcli -m X -e`) – typicky stačí počkat na další cyklus workeru. Pokud i po pár cyklech zůstává `disabled`, zkontroluj ručně:
+   ```bash
+   mmcli -m 0 -e
+   ```
+   - Selže s běžnou chybou (SIM/síť) → pokračuj podle chybové hlášky.
+   - Selže s `MobileEquipment.Unknown: Unknown error` **a** modem odmítá i základní `ATZ` (ověříš přes debug mód ModemManageru, viz níže) → jde o zaseknutý firmware modemu, ne o appku ani o ModemManager. Reálně to na produkci nastalo 2026-09-11: `ATZ` vracelo `ERROR`, `mmcli -m 0 -r` hlásilo `Unsupported`. Pomohl **logický USB reset** (bez nutnosti fyzicky odpojovat napájení) – z `mmcli -m 0 -J` zjisti `generic.device` (sysfs cesta, poslední segment je USB port, např. `1-1.2`):
+     ```bash
+     echo '1-1.2' > /sys/bus/usb/drivers/usb/unbind
+     sleep 3
+     echo '1-1.2' > /sys/bus/usb/drivers/usb/bind
+     ```
+     Modem se re-enumeruje (nový index, např. `modem1` místo `modem0` – appka index hledá dynamicky přes `mmcli -L`, žádný zásah do configu není potřeba). Po resetu `docker compose --profile rpi restart gsm_worker`.
+
+   Pro detailní diagnostiku na AT úrovni (jaký konkrétní příkaz/chyba to způsobuje) je potřeba ModemManager na chvíli přepnout do debug módu – běžně (`mmcli --command`) appka ani nikdo jiný raw AT příkazy poslat nemůže:
+   ```bash
+   systemctl stop ModemManager
+   /usr/sbin/ModemManager --debug &
+   # v druhém terminálu mezitím: mmcli -m 0 -e
+   # po diagnostice vrátit zpět:
+   kill %1   # nebo PID vypsaný ModemManagerem
+   systemctl start ModemManager
+   ```
+
+4. **Vidí kontejner ModemManager vůbec?** (typická chyba po změně Dockeru/rebuildu)
    ```bash
    docker compose --profile rpi exec gsm_worker mmcli -L
    ```
    Pokud tohle selže s chybou o D-Bus spojení, zkontroluj mount `/run/dbus` v `docker-compose.yml` a že `ModemManager` běží na hostu (`systemctl status ModemManager`).
 
-4. **Selhala konkrétní odchozí akce?** Detail chyby je jen v DB, ne v logu kontejneru:
+5. **Selhala konkrétní odchozí akce?** Detail chyby je jen v DB, ne v logu kontejneru:
    ```bash
    docker compose --profile rpi run --rm gsm_worker python manage.py shell
    ```
@@ -190,23 +213,23 @@ V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen p
    print(a.id, a.execution_detail)
    ```
 
-5. **Ruční test odeslání mimo naši aplikaci** – izoluje, jestli je problém v Django kódu, nebo v modemu/síti samotné:
+6. **Ruční test odeslání mimo naši aplikaci** – izoluje, jestli je problém v Django kódu, nebo v modemu/síti samotné:
    ```bash
    mmcli -m 0 --messaging-create-sms="text='test',number='+420...'"
    mmcli -s <index> --send
    ```
 
-6. **Nehromadí se SMS na modemu?** (worker po zpracování maže, ale při ručním testování mimo appku se to může nahromadit)
+7. **Nehromadí se SMS na modemu?** (worker po zpracování maže, ale při ručním testování mimo appku se to může nahromadit)
    ```bash
    mmcli -m 0 --messaging-list-sms -J
    ```
 
-7. **Restartoval se modem sám kvůli watchdogu?**
+8. **Restartoval se modem sám kvůli watchdogu?**
    ```bash
    journalctl -u gsm-watchdog.service --since "-1 hour"
    ```
 
-8. **Docker síť/kontejnery v divném stavu?** Po `docker compose down` bez `--profile rpi` může zůstat `gsm_worker` s referencí na neexistující síť:
+9. **Docker síť/kontejnery v divném stavu?** Po `docker compose down` bez `--profile rpi` může zůstat `gsm_worker` s referencí na neexistující síť:
    ```bash
    docker compose --profile rpi rm -f gsm_worker
    docker compose --profile rpi up -d gsm_worker
