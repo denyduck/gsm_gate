@@ -61,6 +61,11 @@ class ModemManagerClient:
         self._pin_code = pin_code or None
 
     def connect(self):
+        # Vždy zahodit případný zastaralý index - po USB re-enumeraci nebo
+        # restartu ModemManageru může modem dostat jiné číslo (viděno v praxi:
+        # 0 -> 1 po USB unbind/bind resetu), jinak by worker navždy zkoušel
+        # mluvit s indexem, který už neexistuje.
+        self._modem_index = None
         self._modem_index = self._resolve_modem_index()
         data = _run_mmcli(['-m', str(self._modem_index)])
         generic = data.get('modem', {}).get('generic', {})
