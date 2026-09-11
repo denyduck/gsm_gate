@@ -179,13 +179,13 @@ V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen p
    mmcli -m 0 -e
    ```
    - Selže s běžnou chybou (SIM/síť) → pokračuj podle chybové hlášky.
-   - Selže s `MobileEquipment.Unknown: Unknown error` **a** modem odmítá i základní `ATZ` (ověříš přes debug mód ModemManageru, viz níže) → jde o zaseknutý firmware modemu, ne o appku ani o ModemManager. Reálně to na produkci nastalo 2026-09-11: `ATZ` vracelo `ERROR`, `mmcli -m 0 -r` hlásilo `Unsupported`. Pomohl **logický USB reset** (bez nutnosti fyzicky odpojovat napájení) – z `mmcli -m 0 -J` zjisti `generic.device` (sysfs cesta, poslední segment je USB port, např. `1-1.2`):
+   - Selže s `MobileEquipment.Unknown: Unknown error` **a** modem odmítá i základní `ATZ` (ověříš přes debug mód ModemManageru, viz níže) → jde o zaseknutý firmware modemu, ne o appku ani o ModemManager. Jediné funkční řešení je **logický USB reset** (bez nutnosti fyzicky odpojovat napájení) – z `mmcli -m 0 -J` zjisti `generic.device` (sysfs cesta, poslední segment je USB port, např. `1-1.2`):
      ```bash
      echo '1-1.2' > /sys/bus/usb/drivers/usb/unbind
      sleep 3
      echo '1-1.2' > /sys/bus/usb/drivers/usb/bind
      ```
-     Modem se re-enumeruje (nový index, např. `modem1` místo `modem0` – appka index hledá dynamicky přes `mmcli -L`, žádný zásah do configu není potřeba). Po resetu `docker compose --profile rpi restart gsm_worker`.
+     Modem se re-enumeruje, obvykle s **novým indexem** (viděno v praxi: `modem0` → `modem1`). Appka si nový index od opravy z 2026-09-11 hledá dynamicky při každém `connect()` (viz incident níže), takže žádný zásah do configu není potřeba – stačí počkat na další cyklus workeru, restart kontejneru není nutný.
 
    Pro detailní diagnostiku na AT úrovni (jaký konkrétní příkaz/chyba to způsobuje) je potřeba ModemManager na chvíli přepnout do debug módu – běžně (`mmcli --command`) appka ani nikdo jiný raw AT příkazy poslat nemůže:
    ```bash
@@ -196,6 +196,18 @@ V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen p
    kill %1   # nebo PID vypsaný ModemManagerem
    systemctl start ModemManager
    ```
+
+## Incident 2026-09-11: `disabled` + zaseknutý firmware + zastaralý index modemu
+
+Reálný produkční výpadek – appka přestala mít signál, worker donekonečna hlásil `Modem není registrovaný v síti (aktuální stav: disabled)`. Diagnostika (přes `journalctl -u ModemManager --debug`, viz postup výše) odhalila **tři nezávislé příčiny navrstvené na sobě**:
+
+1. **Appka nikdy nevolala enable.** `ModemManagerClient.connect()` jen kontroloval `state`, a když nebyl `registered`/`connected`, rovnou to vzdal – i kdyby stačilo poslat `mmcli -m X -e`. Po jakémkoliv restartu ModemManageru (watchdog, aktualizace, `systemctl restart`) se modem vždy vrací do `disabled` jako výchozí stav, takže appka byla trvale odkázaná na ruční zásah. **Opraveno** (`connect()` teď při `disabled` sám zavolá enable).
+
+2. **Skutečný firmware zásek.** I ruční `mmcli -m 0 -e` selhávalo s `MobileEquipment.Unknown: Unknown error`. Debug mód ModemManageru ukázal, že modem odmítal i nejzákladnější `ATZ` (`<-- ERROR`) – něco uvnitř modemu (pravděpodobně poškozený/nekonzistentní uložený profil v NVRAM) blokovalo i tenhle elementární příkaz. `mmcli -m 0 -r` (reset) hlásil `Cannot reset the modem: operation not supported` – přes ModemManager to řešit nešlo. Pomohl jedině **logický USB reset** (`unbind`/`bind` na sysfs cestě zařízení, viz krok 3 v checklistu výše) – ten modem donutil se kompletně re-enumerovat, což zaseknutý stav vyčistilo bez nutnosti fyzicky odpojovat napájení. Příčina zůstává neznámá (možná spouštěč: samotný restart ModemManageru), takže se to **může opakovat** – recept na rychlou opravu je teď zdokumentovaný výše.
+
+3. **Appka si po prvním rozpoznání index modemu natrvalo zapamatovala** (`ModemManagerClient._resolve_modem_index()` cachoval `self._modem_index` na celou dobu běhu procesu) a po USB re-enumeraci (index se změnil z `0` na `1`) se dál ptala na starý, neexistující index (`mmcli -m 0: couldn't find modem`), i když modem `mmcli -L` normálně viděl. **Opraveno** (`connect()` teď index před každým resolve zahodí, takže se zjišťuje znovu při každém cyklu workeru).
+
+**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 je hardwarová/firmwarová anomálie bez známé kořenové příčiny – doporučení do budoucna je zvážit rozšíření `gsm_watchdog.sh` o automatický USB reset (ne jen `systemctl restart ModemManager`), pokud watchdog zjistí, že modem zůstává `disabled` i po restartu ModemManageru delší dobu.
 
 4. **Vidí kontejner ModemManager vůbec?** (typická chyba po změně Dockeru/rebuildu)
    ```bash
