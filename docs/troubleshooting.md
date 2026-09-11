@@ -120,7 +120,27 @@ Podrobný diagnostický postup krok za krokem (včetně `mmcli` příkazů a wat
 
 Nejrychlejší ověření: tlačítko **Testovací volání** na detailu objektu – pokud tohle funguje a reálné zařízení ne, problém je na straně zařízení/sítě, ne appky.
 
-## 9) Build dokumentace
+## 9) Stejná příchozí SMS vyvolá desítky duplicitních odchozích akcí
+
+### Příznak
+
+Krátce po vytvoření pravidla (typicky s "Jakékoliv číslo" + "Poslat informaci"/"Předat na číslo") začne z brány během pár minut odcházet velké množství (desítky) SMS na stejné číslo, i když reálně přišla jen hrstka zpráv.
+
+### Příčina
+
+`gsm_gateway_worker` čte z modemu všechny SMS ve stavu `received` (`read_unread_sms()`) a po zpracování je maže (`delete_sms()`). Pokud smazání selže (typicky kvůli nestabilitě modemu/ModemManageru – viz [Modem – hardware a diagnostika](modem-diagnostika.md)), zpráva na SIM zůstane a příští cyklus (~10 s) ji appka přečte a vyhodnotí **znovu** – donekonečna, dokud se smazání nepovede. Každé vyhodnocení může znovu spustit pravidlo a vytvořit další odchozí akci.
+
+Od verze s otiskem SMS (odesílatel+čas+text, `GsmWorkerService._processed_sms_fingerprints`) appka stejnou zprávu vyhodnotí jen jednou za běh procesu, i když se smazání z modemu opakovaně nedaří – smazání dál zkouší, jen pravidla už podruhé nevyhodnocuje.
+
+### Kontrola
+
+```bash
+docker compose --profile rpi logs gsm_worker | grep "už byla v tomhle běhu"
+```
+
+Pokud se tahle hláška objevuje opakovaně pro stejné číslo, smazání SMS z modemu dlouhodobě selhává – řešit jako modemovou nestabilitu (viz [Modem – hardware a diagnostika](modem-diagnostika.md)), ne jako problém v appce.
+
+## 10) Build dokumentace
 
 Spuštění lokálně přes samostatný compose:
 
