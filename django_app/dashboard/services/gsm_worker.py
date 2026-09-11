@@ -34,6 +34,16 @@ class WorkerResult:
 class GsmWorkerService:
     def __init__(self):
         self.client = ModemManagerClient(pin_code=self._get_configured_pin_code())
+        # Ochrana proti smyčce: když se smazání SMS z modemu (delete_sms)
+        # nepovede (nestabilní modem/ModemManager - viz docs/modem-diagnostika.md,
+        # incident 2026-09-11), zůstane SMS na SIM ve stavu "received" a
+        # read_unread_sms() by ji vracelo znovu každý cyklus navždy - pravidla
+        # by se tak vyhodnotila znovu a znovu (reálně pozorováno: desítky
+        # duplicitních odchozích SMS během pár minut). Otisk už jednou
+        # zpracované SMS (odesílatel+čas+text) si pamatujeme po dobu běhu
+        # procesu, ať se nevyhodnotí podruhé, i když se smazání z modemu
+        # opakovaně nedaří.
+        self._processed_sms_fingerprints = set()
 
     @staticmethod
     def _get_configured_pin_code():
@@ -93,22 +103,33 @@ class GsmWorkerService:
         processed_count = 0
 
         for item in messages:
-            source = normalize_phone_number(item.sender)
-            settings_owner = GatewaySettings.objects.filter(allow_incoming_sms=True)
+            fingerprint = (item.sender, item.timestamp, item.message)
 
-            for settings_obj in settings_owner:
-                process_incoming_event(
-                    user=settings_obj.user,
-                    event_type='SMS',
-                    source_number=source,
-                    message_body=item.message,
+            if fingerprint in self._processed_sms_fingerprints:
+                logger.warning(
+                    'SMS od %s (čas %s) už byla v tomhle běhu workeru zpracovaná, ale pořád je na modemu '
+                    '- smazání zřejmě opakovaně selhává. Pravidla se podruhé nevyhodnocují, zkouším smazat znovu.',
+                    item.sender, item.timestamp,
                 )
+            else:
+                source = normalize_phone_number(item.sender)
+                settings_owner = GatewaySettings.objects.filter(allow_incoming_sms=True)
+
+                for settings_obj in settings_owner:
+                    process_incoming_event(
+                        user=settings_obj.user,
+                        event_type='SMS',
+                        source_number=source,
+                        message_body=item.message,
+                    )
+
+                self._processed_sms_fingerprints.add(fingerprint)
+                processed_count += 1
 
             try:
                 self.client.delete_sms(item.index)
             except ModemError as e:
                 logger.warning('Nepodařilo se smazat zpracovanou SMS (index %s): %s', item.index, e)
-            processed_count += 1
 
         return processed_count
 

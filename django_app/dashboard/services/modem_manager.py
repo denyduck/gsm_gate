@@ -14,6 +14,7 @@ class IncomingSms:
     index: int
     sender: str
     message: str
+    timestamp: str = ''
 
 
 def _run_mmcli(args: List[str], timeout: float = 20.0) -> dict:
@@ -180,6 +181,7 @@ class ModemManagerClient:
                 index=idx,
                 sender=content.get('number', ''),
                 message=content.get('text', ''),
+                timestamp=props.get('timestamp', '') or '',
             ))
 
         return messages
