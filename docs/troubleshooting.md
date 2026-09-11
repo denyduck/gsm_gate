@@ -33,15 +33,16 @@ Django test client používá host `testserver`, který nemusí být v `ALLOWED_
 
 ### Příčina
 
-Od zavedení `.env` (`ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS`, viz [Nasazení a obnova](nasazeni-a-obnova.md#3-konfigurace-prostředí-env)) appka odmítne požadavek na jakoukoliv IP/hostname, který v `ALLOWED_HOSTS` není – typicky po změně IP adresy RPi (DHCP) nebo po čerstvém nasazení bez `.env`.
+Od zavedení `.env` (`GATEWAY_HOST`, viz [Nasazení a obnova](nasazeni-a-obnova.md#3-konfigurace-prostředí-env)) appka odmítne požadavek na jakoukoliv IP/hostname, který neodpovídá `GATEWAY_HOST` – typicky po změně IP adresy RPi (DHCP) nebo po přesunu na jiné zařízení (viděno v praxi při testovací migraci RPi4 → RPi5).
 
 ### Řešení
 
 ```bash
-grep ALLOWED_HOSTS .env
+grep GATEWAY_HOST .env
+hostname -I
 ```
 
-Uprav `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` v `.env` na aktuální IP/hostname a restartuj:
+Uprav `GATEWAY_HOST` v `.env` na aktuální IP/hostname (stačí tahle jedna hodnota – `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` i `MKDOCS_BASE_URL` se z ní odvozují automaticky) a restartuj:
 
 ```bash
 docker compose up -d --build web

@@ -21,7 +21,7 @@ Poznámka:
 
 ## Spuštění v Dockeru
 
-Nejdřív nastav `.env` (viz [krok 3 níže](#3-konfigurace-prostředí-env) – hlavně `DJANGO_SECRET_KEY` a `ALLOWED_HOSTS`), pak:
+Nejdřív nastav `.env` (viz [krok 3 níže](#3-konfigurace-prostředí-env) – hlavně `DJANGO_SECRET_KEY` a `GATEWAY_HOST`), pak:
 
 ```bash
 cp .env.example .env   # jen poprvé
@@ -81,7 +81,7 @@ cp .env.example .env
 
 V `.env` uprav (viz komentáře v souboru):
 - `DJANGO_SECRET_KEY` – vygeneruj vlastní: `docker compose run --rm web python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`, výsledek vlož do `.env`. Bez vlastního klíče appka běží na nebezpečném vývojovém fallbacku.
-- `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` – IP/hostname, přes které bránu otvíráš v prohlížeči (výchozí je `10.10.10.234` – uprav, pokud je jiná nebo se změnila).
+- `GATEWAY_HOST` – IP/hostname, přes které bránu otvíráš v prohlížeči (výchozí `10.10.10.234` – uprav, pokud je jiná nebo se změnila). Jediná hodnota k úpravě – `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` i `MKDOCS_BASE_URL` se z ní odvozují automaticky.
 - `DJANGO_DEBUG` – nech `False`; `True` jen dočasně při ladění (odhaluje tracebacky).
 
 `.env` se necommituje (viz `.gitignore`) – po výměně SD karty/RPi tenhle krok udělej znovu.

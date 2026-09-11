@@ -240,7 +240,7 @@ Signál modemu se testuje nepřímo (přes stáří `last_signal_checked_at`, kt
 
 ## 15) Odkazy na dokumentaci v appce
 
-Proměnná `MKDOCS_BASE_URL` (`.env`, výchozí `http://10.10.10.234:8010`) nastavuje adresu běžícího MkDocs webu. Používá se:
+Adresu běžícího MkDocs webu appka dostává přes proměnnou `MKDOCS_BASE_URL`, kterou `docker-compose.yml` odvozuje z `GATEWAY_HOST` v `.env` (`http://<GATEWAY_HOST>:8010`) – není potřeba nastavovat zvlášť, mění se automaticky spolu s IP brány (viz [Nasazení a obnova](nasazeni-a-obnova.md#3-konfigurace-prostředí-env)). Používá se:
 
 - v hlavičce appky (odkaz „Dokumentace", vidí ho každý přihlášený uživatel),
 - u doporučení v Sebediagnostice,
