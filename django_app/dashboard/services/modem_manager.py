@@ -76,6 +76,15 @@ class ModemManagerClient:
             generic = data.get('modem', {}).get('generic', {})
 
         state = generic.get('state')
+        if state == 'disabled':
+            # Po restartu ModemManageru/kontejneru zůstává modem v "disabled",
+            # dokud ho něco explicitně nezapne - bez tohohle by tu zůstal
+            # navždy (worker sám o sobě žádný enable nikdy nevolal).
+            _run_mmcli(['-m', str(self._modem_index), '-e'])
+            data = _run_mmcli(['-m', str(self._modem_index)])
+            generic = data.get('modem', {}).get('generic', {})
+            state = generic.get('state')
+
         if state not in ('registered', 'connected'):
             raise ModemError(f'Modem není registrovaný v síti (aktuální stav: {state}).')
 
