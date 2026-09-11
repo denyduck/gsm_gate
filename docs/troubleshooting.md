@@ -103,6 +103,8 @@ docker compose exec web python manage.py migrate
 docker compose --profile rpi run --rm gsm_worker python manage.py gsm_gateway_worker --once
 ```
 
+**Modem je v logu jako `disabled`**: po restartu `ModemManageru`/kontejneru se modem umí vrátit do stavu `disabled` (rozpoznaný, ale nezapnutý). Worker se od teď v tomhle stavu sám zkusí zapnout (`mmcli -m X -e`) a počkat na registraci – pokud i po pár cyklech zůstává `disabled`, jde o hardwarový/driverový problém, ne jen o chybějící enable.
+
 Podrobný diagnostický postup krok za krokem (včetně `mmcli` příkazů a watchdogu) viz [Modem – hardware a diagnostika](modem-diagnostika.md).
 
 ## 8) Objekt API neposílá události
