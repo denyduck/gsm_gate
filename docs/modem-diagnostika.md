@@ -197,18 +197,6 @@ V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen p
    systemctl start ModemManager
    ```
 
-## Incident 2026-09-11: `disabled` + zaseknutý firmware + zastaralý index modemu
-
-Reálný produkční výpadek – appka přestala mít signál, worker donekonečna hlásil `Modem není registrovaný v síti (aktuální stav: disabled)`. Diagnostika (přes `journalctl -u ModemManager --debug`, viz postup výše) odhalila **tři nezávislé příčiny navrstvené na sobě**:
-
-1. **Appka nikdy nevolala enable.** `ModemManagerClient.connect()` jen kontroloval `state`, a když nebyl `registered`/`connected`, rovnou to vzdal – i kdyby stačilo poslat `mmcli -m X -e`. Po jakémkoliv restartu ModemManageru (watchdog, aktualizace, `systemctl restart`) se modem vždy vrací do `disabled` jako výchozí stav, takže appka byla trvale odkázaná na ruční zásah. **Opraveno** (`connect()` teď při `disabled` sám zavolá enable).
-
-2. **Skutečný firmware zásek.** I ruční `mmcli -m 0 -e` selhávalo s `MobileEquipment.Unknown: Unknown error`. Debug mód ModemManageru ukázal, že modem odmítal i nejzákladnější `ATZ` (`<-- ERROR`) – něco uvnitř modemu (pravděpodobně poškozený/nekonzistentní uložený profil v NVRAM) blokovalo i tenhle elementární příkaz. `mmcli -m 0 -r` (reset) hlásil `Cannot reset the modem: operation not supported` – přes ModemManager to řešit nešlo. Pomohl jedině **logický USB reset** (`unbind`/`bind` na sysfs cestě zařízení, viz krok 3 v checklistu výše) – ten modem donutil se kompletně re-enumerovat, což zaseknutý stav vyčistilo bez nutnosti fyzicky odpojovat napájení. Příčina zůstává neznámá (možná spouštěč: samotný restart ModemManageru), takže se to **může opakovat** – recept na rychlou opravu je teď zdokumentovaný výše.
-
-3. **Appka si po prvním rozpoznání index modemu natrvalo zapamatovala** (`ModemManagerClient._resolve_modem_index()` cachoval `self._modem_index` na celou dobu běhu procesu) a po USB re-enumeraci (index se změnil z `0` na `1`) se dál ptala na starý, neexistující index (`mmcli -m 0: couldn't find modem`), i když modem `mmcli -L` normálně viděl. **Opraveno** (`connect()` teď index před každým resolve zahodí, takže se zjišťuje znovu při každém cyklu workeru).
-
-**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 je hardwarová/firmwarová anomálie bez známé kořenové příčiny – `gsm_watchdog.sh` byl proto rozšířen o automatický USB reset jako mezikrok mezi restartem ModemManageru a rebootem celé RPi (viz sekce [Watchdog](#watchdog) výše), ať se tenhle konkrétní scénář příště vyřeší sám i bez ručního zásahu.
-
 4. **Vidí kontejner ModemManager vůbec?** (typická chyba po změně Dockeru/rebuildu)
    ```bash
    docker compose --profile rpi exec gsm_worker mmcli -L
@@ -246,6 +234,25 @@ Reálný produkční výpadek – appka přestala mít signál, worker donekone�
    docker compose --profile rpi rm -f gsm_worker
    docker compose --profile rpi up -d gsm_worker
    ```
+
+## Incident 2026-09-11: `disabled` + zaseknutý enable + zastaralý index modemu
+
+Reálný produkční výpadek – appka přestala mít signál, worker donekonečna hlásil `Modem není registrovaný v síti (aktuální stav: disabled)`. Diagnostika (přes `journalctl -u ModemManager --debug`, viz krok 3 výše) odhalila **tři nezávislé příčiny navrstvené na sobě**:
+
+1. **Appka nikdy nevolala enable.** `ModemManagerClient.connect()` jen kontroloval `state`, a když nebyl `registered`/`connected`, rovnou to vzdal – i kdyby stačilo poslat `mmcli -m X -e`. Po jakémkoliv restartu ModemManageru (watchdog, aktualizace, `systemctl restart`) se modem vždy vrací do `disabled` jako výchozí stav, takže appka byla trvale odkázaná na ruční zásah. **Opraveno natrvalo** (`connect()` teď při `disabled` sám zavolá enable).
+
+2. **`mmcli -m X -e` selhávalo s `MobileEquipment.Unknown: Unknown error`.** Debug mód ModemManageru poprvé ukázal, že modem odmítal i nejzákladnější `ATZ` (`<-- ERROR`). `mmcli -m 0 -r` (reset) hlásil `Cannot reset the modem: operation not supported` – přes ModemManager to řešit nešlo, pomohl jen **logický USB reset** (`unbind`/`bind`, viz krok 3 výše).
+
+3. **Appka si po prvním rozpoznání index modemu natrvalo zapamatovala** (`ModemManagerClient._resolve_modem_index()` cachoval `self._modem_index` na celou dobu běhu procesu) a po USB re-enumeraci (index se změnil z `0` na `1`) se dál ptala na starý, neexistující index (`mmcli -m 0: couldn't find modem`), i když modem `mmcli -L` normálně viděl. **Opraveno natrvalo** (`connect()` teď index před každým resolve zahodí).
+
+**Aktualizace téhož dne – reprodukce na úplně jiném hardwaru:** stejný `Unknown error` na `-e` nastal znovu o pár hodin později, tentokrát na **jiné fyzické Teltonice** (jiné IMEI) nasazené na **jiné RPi desce** (test migrace RPi4 → RPi5, stejná SD karta/SIM přenesená mezi zařízeními). Tohle prakticky vylučuje vadný kus hardwaru nebo problém specifický pro původní RPi4 (napájení, přehřátí) – ukazuje to na něco systémového, společného oběma sestavám:
+
+- buď neshoda mezi ModemManagerem 1.20.4 (`generic` plugin – viz krok 3 výše, plugin `quectel` je nainstalovaný, ale MM ho na tenhle Teltonika model nenamapoval) a firmwarem téhle Teltonika revize (`ALA440_A.57.8_EQ102`),
+- nebo časová podmínka (race condition) – ModemManager možná zkouší mluvit s modemem dřív, než je po USB enumeraci firmware modemu fakt připravený přijímat AT příkazy, a USB reset to "opraví" jen tím, že dá modemu druhý pokus s jiným časováním.
+
+Kořenová příčina zatím není potvrzená – log za log, oprava je zatím jen recept na rychlé zotavení (USB reset), ne skutečná prevence. **Další krok k prozkoumání:** zkusit vynutit plugin `quectel` místo `generic` přes udev pravidlo (pokud je tahle Teltonika interně Quectel modul), nebo ověřit, jestli jde o známý bug konkrétně ve verzi ModemManager 1.20.4.
+
+**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 zůstává nevyřešená hardwarová/firmwarová/timing anomálie – `gsm_watchdog.sh` byl proto rozšířen o automatický USB reset jako mezikrok mezi restartem ModemManageru a rebootem celé RPi (viz sekce [Watchdog](#watchdog) výše), ať se tenhle konkrétní scénář vyřeší sám i bez ručního zásahu, dokud nemáme skutečnou opravu.
 
 ## Historické poznámky (starý SIM7000E/GPIO UART setup)
 
