@@ -56,9 +56,12 @@ def reset_signal_history(user):
 
 
 def reset_gateway_settings(user):
+    # delivery_reports=False - viz help_text u GatewaySettings.delivery_reports
+    # a docs/modem-diagnostika.md (incident 2026-09-11): s touhle Teltonikou
+    # doručenky umí vyvolat nekonečnou smyčku odchozích SMS.
     GatewaySettings.objects.filter(user=user).update(
         pin_code='',
-        delivery_reports=True,
+        delivery_reports=False,
         allow_incoming_sms=True,
         webhook_url='',
         last_signal_quality=None,

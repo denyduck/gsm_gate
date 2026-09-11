@@ -257,6 +257,30 @@ Kořenová příčina zatím není potvrzená – log za log, oprava je zatím j
 
 **Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 zůstává nevyřešená hardwarová/firmwarová/timing anomálie, ale máme spolehlivý recept na zotavení – `gsm_watchdog.sh` proto **nepoužívá samostatný krok "restart ModemManageru"** (podle důkazů výše nepomáhá, možná i škodí) a jde rovnou na automatický USB reset, s rebootem RPi jako poslední pojistkou (viz sekce [Watchdog](#watchdog) výše). Skutečná kořenová příčina zůstává neprozkoumaná.
 
+## Incident 2026-09-11 (pokračování): doručenky vyvolávající nekonečnou smyčku odchozích SMS
+
+Souvisí s výše popsanou nestabilitou modemu, ale je to jiný a samostatně opravený bug.
+
+### Příznak
+
+Po **kompletním resetu brány** (stránka Zálohování → Reset dat) a vytvoření prvního pravidla s reakcí "Předat na číslo" a širokým `match_type='ANY'` ("Jakékoliv číslo") začala appka posílat SMS na cílové číslo v pravidelném intervalu (~4 s, v rytmu cyklu workeru) donekonečna. Log workeru u každého cyklu ukazoval genuinně **novou** příchozí SMS (rostoucí timestamp), ne opakované zpracování téže zprávy – takže to nebyl bug popsaný výše (ten byl mezitím ověřeně opravený a v logu bylo vidět, že správně odchytává duplicity).
+
+### Kořenová příčina
+
+`reset_gateway_settings()` (`services/reset.py`) při resetu natvrdo nastavovalo `GatewaySettings.delivery_reports = True` ("Vyžadovat doručenky"). Když je tohle zapnuté, každá odchozí SMS z brány žádá síť o doručenku (`delivery-report-request=yes` v `mmcli --messaging-create-sms`). S touhle Teltonikou a generickým ModemManager pluginem (stejné omezení jako jinde v tomhle dokumentu) appka doručenku nerozpoznala jako status report, ale vykázala ji jako běžnou novou příchozí SMS od příjemce. V kombinaci s pravidlem "Jakékoliv číslo → Předat na číslo" na **stejné** cílové číslo to vytvořilo samo-udržující se smyčku: odeslání SMS → doručenka nesprávně interpretovaná jako nová příchozí SMS → pravidlo ji znovu přeposílá → další doručenka → ...
+
+Proto se to dělo **jen u prvního pravidla po resetu** – reset byl jediné místo, které `delivery_reports` násilně zapínalo zpátky na `True`; u dalších pravidel v rámci stejné relace zůstávalo vypnuté (ať už ručně vypnuté dřív, nebo díky opravě níže).
+
+### Oprava
+
+- `GatewaySettings.delivery_reports` – výchozí hodnota modelu změněna z `True` na `False`, help_text vysvětluje proč.
+- `reset_gateway_settings()` – resetuje na `False`, ne na `True`.
+- Migrace `0051_gatewaysettings_delivery_reports_default_off` navíc vypne `delivery_reports` u všech existujících záznamů, které ho měly zapnuté ještě z doby před opravou.
+
+### Poučení pro budoucí nastavení pravidel
+
+I bez tohohle bugu je "Jakékoliv číslo → Předat na číslo X" riskantní kombinace, pokud by se X někdy mohlo objevit i jako zdroj (test, odpověď příjemce, cokoliv) – vytváří potenciál pro smyčku. Pro testování preferuj [Simulátor příchozí události](funkcionalita.md#7-simulátor-příchozí-události) místo reálných SMS.
+
 ## Historické poznámky (starý SIM7000E/GPIO UART setup)
 
 Pro referenci, kdyby se v budoucnu řešil jiný modem typu SIM7000/SIM800 s GPIO UART (ne USB) místo ModemManager přístupu:

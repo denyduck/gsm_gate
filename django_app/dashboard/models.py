@@ -197,8 +197,14 @@ class GatewaySettings(models.Model):
     )
     delivery_reports = models.BooleanField(
         'Vyžadovat doručenky',
-        default=True,
-        help_text='Při odeslání SMS požádá síť o potvrzení doručení příjemci.',
+        default=False,
+        help_text=(
+            'Při odeslání SMS požádá síť o potvrzení doručení příjemci. POZOR: s Teltonika Calyx '
+            '(generický ModemManager plugin) appka doručenku umí vykázat jako běžnou novou příchozí '
+            'SMS od příjemce - v kombinaci s pravidlem "Jakékoliv číslo → Předat na číslo" na stejné '
+            'číslo to vede k nekonečné smyčce odchozích SMS (reálný incident 2026-09-11, viz '
+            'docs/modem-diagnostika.md). Výchozí hodnota je proto vypnuto.'
+        ),
     )
     allow_incoming_sms = models.BooleanField(
         'Povolit příchozí SMS',
