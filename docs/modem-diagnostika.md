@@ -132,11 +132,11 @@ Zjištěno empiricky během integrace (ne z oficiální dokumentace – Teltonik
 
 Soubory: `scripts/gsm_watchdog.sh`, `scripts/gsm-watchdog.service`, `scripts/gsm-watchdog.timer`.
 
-Běží **na hostu** (ne v Dockeru, potřebuje `systemctl`/`reboot`), kontrola každé 2 minuty přes systemd timer:
+Běží **na hostu** (ne v Dockeru, potřebuje `systemctl`/`reboot`), kontrola každé 2 minuty přes systemd timer. Modem index se zjišťuje dynamicky přes `mmcli -L` (ne natvrdo `0`), stejně jako v appce – po USB resetu/restartu ModemManageru se totiž může změnit (viz incident 2026-09-11 výše). Eskalace podle toho, jak dlouho je modem nepřetržitě nezdravý (stav jiný než `registered`/`connected`), každá akce jen jednou za epizodu:
 
-1. Sleduje `state` z `mmcli -m 0 -J`.
-2. Není-li modem `registered`/`connected` déle než 5 minut → `systemctl restart ModemManager`.
-3. Nepomůže-li to do 15 minut → `sudo reboot`.
+1. **5 minut** → `systemctl restart ModemManager`.
+2. **10 minut** → logický USB reset modemu (`unbind`/`bind` – řeší i zaseknutý firmware, který samotný restart ModemManageru nespraví).
+3. **20 minut** → `sudo reboot`.
 
 Instalace/aktualizace watchdogu po změně skriptu v repu:
 
@@ -207,7 +207,7 @@ Reálný produkční výpadek – appka přestala mít signál, worker donekone�
 
 3. **Appka si po prvním rozpoznání index modemu natrvalo zapamatovala** (`ModemManagerClient._resolve_modem_index()` cachoval `self._modem_index` na celou dobu běhu procesu) a po USB re-enumeraci (index se změnil z `0` na `1`) se dál ptala na starý, neexistující index (`mmcli -m 0: couldn't find modem`), i když modem `mmcli -L` normálně viděl. **Opraveno** (`connect()` teď index před každým resolve zahodí, takže se zjišťuje znovu při každém cyklu workeru).
 
-**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 je hardwarová/firmwarová anomálie bez známé kořenové příčiny – doporučení do budoucna je zvážit rozšíření `gsm_watchdog.sh` o automatický USB reset (ne jen `systemctl restart ModemManager`), pokud watchdog zjistí, že modem zůstává `disabled` i po restartu ModemManageru delší dobu.
+**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 je hardwarová/firmwarová anomálie bez známé kořenové příčiny – `gsm_watchdog.sh` byl proto rozšířen o automatický USB reset jako mezikrok mezi restartem ModemManageru a rebootem celé RPi (viz sekce [Watchdog](#watchdog) výše), ať se tenhle konkrétní scénář příště vyřeší sám i bez ručního zásahu.
 
 4. **Vidí kontejner ModemManager vůbec?** (typická chyba po změně Dockeru/rebuildu)
    ```bash
