@@ -134,9 +134,10 @@ Soubory: `scripts/gsm_watchdog.sh`, `scripts/gsm-watchdog.service`, `scripts/gsm
 
 Běží **na hostu** (ne v Dockeru, potřebuje `systemctl`/`reboot`), kontrola každé 2 minuty přes systemd timer. Modem index se zjišťuje dynamicky přes `mmcli -L` (ne natvrdo `0`), stejně jako v appce – po USB resetu/restartu ModemManageru se totiž může změnit (viz incident 2026-09-11 výše). Eskalace podle toho, jak dlouho je modem nepřetržitě nezdravý (stav jiný než `registered`/`connected`), každá akce jen jednou za epizodu:
 
-1. **5 minut** → `systemctl restart ModemManager`.
-2. **10 minut** → logický USB reset modemu (`unbind`/`bind` – řeší i zaseknutý firmware, který samotný restart ModemManageru nespraví).
-3. **20 minut** → `sudo reboot`.
+1. **5 minut** → logický USB reset modemu (`unbind`/`bind`).
+2. **15 minut** → `sudo reboot`.
+
+**Proč tu není samostatný krok "restart ModemManageru"**: podle incidentu 2026-09-11 (druhá reprodukce, jiný hardware) samotný `systemctl restart ModemManager` – bez USB re-enumerace – zaseknutý stav modemu nevyřešil (modem po něm znovu skončil v `disabled`), zatímco USB reset ano, opakovaně a spolehlivě. Watchdog proto jde rovnou na USB reset, ne přes mezikrok, který podle důkazů nepomáhá.
 
 Instalace/aktualizace watchdogu po změně skriptu v repu:
 
@@ -252,7 +253,9 @@ Reálný produkční výpadek – appka přestala mít signál, worker donekone�
 
 Kořenová příčina zatím není potvrzená – log za log, oprava je zatím jen recept na rychlé zotavení (USB reset), ne skutečná prevence. **Další krok k prozkoumání:** zkusit vynutit plugin `quectel` místo `generic` přes udev pravidlo (pokud je tahle Teltonika interně Quectel modul), nebo ověřit, jestli jde o známý bug konkrétně ve verzi ModemManager 1.20.4.
 
-**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 zůstává nevyřešená hardwarová/firmwarová/timing anomálie – `gsm_watchdog.sh` byl proto rozšířen o automatický USB reset jako mezikrok mezi restartem ModemManageru a rebootem celé RPi (viz sekce [Watchdog](#watchdog) výše), ať se tenhle konkrétní scénář vyřeší sám i bez ručního zásahu, dokud nemáme skutečnou opravu.
+**Druhá aktualizace téhož dne – samotný restart ModemManageru nepomáhá:** na RPi5 se modem po USB resetu čistě zaregistroval (`disabled → enabling → enabled → registering → home → registered`), ale po následném **prostém `systemctl restart ModemManager` (bez USB re-enumerace)** znovu spadl do `disabled` a zůstal tam. To potvrzuje, že restart samotné služby ModemManager tenhle stav nespraví – jen USB reset ano.
+
+**Ponaučení:** body 1 a 3 byly softwarové bugy a jsou vyřešené natrvalo. Bod 2 zůstává nevyřešená hardwarová/firmwarová/timing anomálie, ale máme spolehlivý recept na zotavení – `gsm_watchdog.sh` proto **nepoužívá samostatný krok "restart ModemManageru"** (podle důkazů výše nepomáhá, možná i škodí) a jde rovnou na automatický USB reset, s rebootem RPi jako poslední pojistkou (viz sekce [Watchdog](#watchdog) výše). Skutečná kořenová příčina zůstává neprozkoumaná.
 
 ## Historické poznámky (starý SIM7000E/GPIO UART setup)
 

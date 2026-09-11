@@ -6,11 +6,14 @@
 # "connected"), každá akce se spustí jen jednou za epizodu (ne při každém
 # běhu timeru), ať se neopakuje zbytečně:
 #
-#   1) RESTART_THRESHOLD   -> restart ModemManageru
-#   2) USB_RESET_THRESHOLD -> logický USB reset modemu (unbind/bind) - řeší
-#      i zaseknutý firmware modemu, který samotný restart ModemManageru
-#      nespraví (reálný incident 2026-09-11, viz docs/modem-diagnostika.md)
-#   3) REBOOT_THRESHOLD    -> reboot celé RPi
+#   1) USB_RESET_THRESHOLD -> logický USB reset modemu (unbind/bind)
+#   2) REBOOT_THRESHOLD    -> reboot celé RPi
+#
+# Samotný `systemctl restart ModemManager` bez USB resetu se záměrně
+# nepoužívá - podle reálného incidentu 2026-09-11 (viz
+# docs/modem-diagnostika.md) modem po čistém restartu ModemManageru
+# (bez re-enumerace USB zařízení) zaseklý stav nevyřeší, zatímco USB
+# reset ano. Watchdog jde tedy rovnou na USB reset.
 #
 # Nasazení: viz scripts/gsm-watchdog.service + scripts/gsm-watchdog.timer
 
@@ -18,12 +21,10 @@ set -euo pipefail
 
 STATE_DIR="/var/tmp"
 SINCE_FILE="$STATE_DIR/gsm_watchdog_unhealthy_since"
-MM_RESTARTED_FILE="$STATE_DIR/gsm_watchdog_mm_restarted"
 USB_RESET_FILE="$STATE_DIR/gsm_watchdog_usb_reset"
 
-RESTART_THRESHOLD=300     # 5 min nezdravého stavu -> restart ModemManager
-USB_RESET_THRESHOLD=600   # 10 min -> logický USB reset modemu
-REBOOT_THRESHOLD=1200     # 20 min -> reboot RPi
+USB_RESET_THRESHOLD=300   # 5 min nezdravého stavu -> logický USB reset modemu
+REBOOT_THRESHOLD=900      # 15 min -> reboot RPi
 
 now=$(date +%s)
 
@@ -52,7 +53,7 @@ except Exception:
 fi
 
 if [ "$state" = "registered" ] || [ "$state" = "connected" ]; then
-    rm -f "$SINCE_FILE" "$MM_RESTARTED_FILE" "$USB_RESET_FILE"
+    rm -f "$SINCE_FILE" "$USB_RESET_FILE"
     exit 0
 fi
 
@@ -68,7 +69,7 @@ duration=$((now - unhealthy_since))
 
 if [ "$duration" -ge "$REBOOT_THRESHOLD" ]; then
     logger -t gsm_watchdog "Modem nezdravý $duration s, restartuji RPi"
-    rm -f "$SINCE_FILE" "$MM_RESTARTED_FILE" "$USB_RESET_FILE"
+    rm -f "$SINCE_FILE" "$USB_RESET_FILE"
     /sbin/reboot
     exit 0
 fi
@@ -84,11 +85,4 @@ if [ "$duration" -ge "$USB_RESET_THRESHOLD" ] && [ ! -f "$USB_RESET_FILE" ]; the
         logger -t gsm_watchdog "Modem nezdravý $duration s, USB reset přeskočen - cesta zařízení se nepodařila zjistit"
     fi
     touch "$USB_RESET_FILE"
-    exit 0
-fi
-
-if [ "$duration" -ge "$RESTART_THRESHOLD" ] && [ ! -f "$MM_RESTARTED_FILE" ]; then
-    logger -t gsm_watchdog "Modem nezdravý $duration s, restartuji ModemManager"
-    systemctl restart ModemManager
-    touch "$MM_RESTARTED_FILE"
 fi
