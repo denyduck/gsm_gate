@@ -42,6 +42,20 @@
             </div>
         </div>
     </div>
+
+    {% if perms.dashboard.change_gatewaysettings %}
+    <div class="mt-3 pt-3 border-top">
+        <div class="fw-semibold mb-1">Modem se chová divně / nemá signál?</div>
+        <p class="small text-muted-soft mb-2">
+            Pokud modem visí ve stavu „disabled" a nezaregistruje se sám, pomůže logický USB reset (bez nutnosti sahat na hardware).
+            {% if mkdocs_base_url %}<a href="{{ mkdocs_base_url }}/modem-diagnostika/#incident-2026-09-11-disabled-zaseknutý-enable-zastaralý-index-modemu" target="_blank" rel="noopener">Podrobnosti v dokumentaci</a>.{% endif %}
+        </p>
+        <form method="post" action="{% url 'gateway_modem_reset_request' %}" onsubmit="return confirm('Odeslat požadavek na USB reset modemu? Krátce (pár vteřin) se přeruší spojení s modemem.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-warning"><i class="bi bi-arrow-repeat"></i> Resetovat modem (USB reset)</button>
+        </form>
+    </div>
+    {% endif %}
 </section>
 
 <section class="app-panel mb-4">

@@ -41,7 +41,8 @@ Tři služby ve `scripts/` zajišťují, že po restartu/havárii naběhne vše 
 |---|---|
 | `calyx-usb-serial.service` | Zaregistruje Calyx modem u kernel `option` driveru po každém bootu. Runtime stav kernelu se resetuje při každém restartu – bez téhle služby `/dev/ttyUSB*` po rebootu nevznikne a `ModemManager` modem neuvidí. |
 | `gsm-gate-compose.service` | Po startu Dockeru spustí celý compose stack **včetně** `gsm_worker` (ten je v profilu `rpi`, běžný auto-start bez příznaku by ho vynechal). |
-| `gsm-watchdog.service` + `gsm-watchdog.timer` | Každé 2 minuty kontroluje stav modemu; při zaseknutí restartuje `ModemManager`, při přetrvávajícím problému restartuje RPi. Podrobně viz [Modem – hardware a diagnostika](modem-diagnostika.md#watchdog). |
+| `gsm-watchdog.service` + `gsm-watchdog.timer` | Každé 2 minuty kontroluje stav modemu; při zaseknutí (5 min) dělá logický USB reset, při přetrvávajícím problému (15 min) restartuje RPi. Podrobně viz [Modem – hardware a diagnostika](modem-diagnostika.md#watchdog). |
+| `gsm-modem-reset.service` + `gsm-modem-reset.path` | Reaguje na tlačítko "Resetovat modem" na stránce Stav brány – hlídá sentinel soubor, který appka zapíše, a okamžitě provede stejný logický USB reset jako watchdog. Podrobně viz [Modem – hardware a diagnostika](modem-diagnostika.md#ruční-reset-modemu-z-appky). |
 
 ```bash
 sudo cp scripts/calyx-usb-serial.service /etc/systemd/system/
@@ -49,11 +50,15 @@ sudo cp scripts/gsm-gate-compose.service /etc/systemd/system/
 sudo cp scripts/gsm-watchdog.service scripts/gsm-watchdog.timer /etc/systemd/system/
 sudo cp scripts/gsm_watchdog.sh /usr/local/bin/gsm_watchdog.sh
 sudo chmod +x /usr/local/bin/gsm_watchdog.sh
+sudo cp scripts/gsm-modem-reset.service scripts/gsm-modem-reset.path /etc/systemd/system/
+sudo cp scripts/gsm_modem_reset.sh /usr/local/bin/gsm_modem_reset.sh
+sudo chmod +x /usr/local/bin/gsm_modem_reset.sh
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now calyx-usb-serial.service
 sudo systemctl enable --now gsm-gate-compose.service
 sudo systemctl enable --now gsm-watchdog.timer
+sudo systemctl enable --now gsm-modem-reset.path
 ```
 
 ## 5) Ověření
@@ -63,7 +68,7 @@ mmcli -m 0                              # modem by měl mít state: registered
 docker compose --profile rpi ps         # web, db, pgadmin, gsm_worker běží
 docker compose --profile rpi logs --tail=20 gsm_worker
 systemctl list-timers gsm-watchdog.timer
-systemctl is-enabled calyx-usb-serial.service gsm-gate-compose.service gsm-watchdog.timer
+systemctl is-enabled calyx-usb-serial.service gsm-gate-compose.service gsm-watchdog.timer gsm-modem-reset.path
 ```
 
 ### Volitelně: pravidelné zálohování dat
@@ -120,7 +125,7 @@ Pokud update mění i `scripts/*.service`/`*.timer`, je potřeba je znovu zkopí
 
 - **Kontejner spadne** (`web`, `db`, `pgadmin`, `gsm_worker`) → Docker ho sám restartuje (`restart: unless-stopped`/`always` v `docker-compose.yml`), bez zásahu.
 - **RPi se restartuje** (výpadek proudu, watchdog reboot, ruční restart) → `gsm-gate-compose.service` po startu Dockeru postaví celý stack znovu, `calyx-usb-serial.service` znovu zaregistruje modem.
-- **Modem se zasekne, ale RPi běží dál** → `gsm-watchdog.timer` to detekuje do 2 minut a eskaluje (restart ModemManageru → restart RPi).
+- **Modem se zasekne, ale RPi běží dál** → `gsm-watchdog.timer` to detekuje do 2 minut a eskaluje (logický USB reset modemu → restart RPi). Případně jde reset vyvolat okamžitě ručně tlačítkem na stránce Stav brány.
 - **Někdo omylem udělá `docker compose down`** → při dalším startu (nebo příštím rebootu) `gsm-gate-compose.service` stack znovu postaví.
 - **Kontejner se zasekne, ale nespadne** (proces běží, ale nic neděje) → `docker ps`/`docker compose ps` u `web`/`gsm_worker` ukáže `unhealthy` (Docker healthcheck, viz [Architektura](architektura.md#docker-healthchecky)). Restart ručně: `docker compose restart web` / `docker compose --profile rpi restart gsm_worker`.
 

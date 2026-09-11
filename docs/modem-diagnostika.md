@@ -158,6 +158,33 @@ journalctl -u gsm-watchdog.service -n 50
 
 V normálním provozu watchdog nic nepíše do logu – zprávy se objeví jen při detekci problému.
 
+## Ruční reset modemu z appky
+
+Tlačítko **"Resetovat modem (USB reset)"** na stránce **Stav brány** (jen pro uživatele s právem měnit nastavení brány) provede stejný logický USB reset, jaký dělá watchdog automaticky – ale okamžitě, bez čekání na 5minutový práh.
+
+**Jak to funguje** (appka sama na `/sys/bus/usb` na hostu nemá přístup, viz [Docker specifika](#docker-specifika)):
+
+1. Appka (`views.gateway_modem_reset_request`) zapíše sentinel soubor do `django_app/tmp/gsm_modem_reset_requested` – díky bind-mountu (`./django_app:/usr/src/app`) se objeví i na hostu.
+2. Systemd path-unit `gsm-modem-reset.path` hlídá existenci tohohle souboru a při jeho objevení okamžitě spustí `gsm-modem-reset.service`.
+3. `scripts/gsm_modem_reset.sh` na hostu smaže sentinel soubor, zjistí aktuální USB cestu modemu (`mmcli -L` + `mmcli -m X -J`) a provede `unbind`/`bind`.
+
+Instalace (jednorázově, viz [Nasazení a obnova](nasazeni-a-obnova.md#4-instalace-systemd-služeb-jednorázově-host)):
+```bash
+sudo cp scripts/gsm-modem-reset.service scripts/gsm-modem-reset.path /etc/systemd/system/
+sudo cp scripts/gsm_modem_reset.sh /usr/local/bin/gsm_modem_reset.sh
+sudo chmod +x /usr/local/bin/gsm_modem_reset.sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now gsm-modem-reset.path
+```
+
+Ověření/diagnostika:
+```bash
+systemctl status gsm-modem-reset.path
+journalctl -u gsm-modem-reset.service -n 20
+```
+
+Pokud tlačítko v appce zprávu o úspěšném odeslání ukáže, ale modem se nezotaví, nejpravděpodobnější příčina je, že `gsm-modem-reset.path` není na daném stroji nainstalovaný/aktivní – appka sama o sobě reset provést nemůže, jen o něj požádá hosta.
+
 ## Postup při diagnostice „SMS nechodí“ (checklist)
 
 0. **Nejrychlejší první pohled**: stránka **Telemetrie** v appce – graf síly signálu a tabulka výpadků za poslední hodiny často rovnou ukážou, jestli šlo o výpadek signálu/modemu, bez nutnosti hrabat se v logu. Stránka **Sebediagnostika** k tomu přidá konkrétní doporučení (kategorie "Provoz").

@@ -1,0 +1,6 @@
+[Unit]
+Description=Provede logický USB reset GSM modemu na vyžádání z appky
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gsm_modem_reset.sh
