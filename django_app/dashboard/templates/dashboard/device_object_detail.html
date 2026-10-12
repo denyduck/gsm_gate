@@ -98,7 +98,7 @@
         <pre class="mb-0" style="white-space: pre-wrap;">curl -X POST "{{ api_ingest_url }}" \
   -H "Content-Type: application/json" \
   -H "X-Device-Token: {{ api_credential.token }}" \
-  -d '{"event_type":"SMS","source_number":"{{ obj.id }}","message_body":"{{ obj.status_label|default:"test event" }}"}'</pre>
+  -d '{"event_type":"API","source_number":"{{ obj.id }}","message_body":"{{ obj.status_label|default:"test event" }}"}'</pre>
     </div>
 
     <div class="p-3 border rounded mt-3">

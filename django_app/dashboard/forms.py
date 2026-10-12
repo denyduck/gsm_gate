@@ -520,14 +520,40 @@ class IncomingEventSimulationForm(forms.Form):
     EVENT_CHOICES = [
         ('SMS', 'Příchozí SMS'),
         ('CALL', 'Příchozí volání'),
+        ('API', 'Příchozí API událost'),
     ]
 
     event_type = forms.ChoiceField(choices=EVENT_CHOICES, widget=forms.Select(attrs={'class': 'form-select'}))
-    source_number = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+420777000111'}))
+    source_number = forms.CharField(max_length=30, required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+420777000111'}))
+    source_object = forms.ModelChoiceField(
+        queryset=DeviceObject.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
     message_body = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4}))
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['event_type'].label = 'Typ události'
         self.fields['source_number'].label = 'Příchozí číslo'
+        self.fields['source_object'].label = 'Zdrojový objekt'
         self.fields['message_body'].label = 'Obsah zprávy (pro SMS)'
+        if user is not None:
+            self.fields['source_object'].queryset = DeviceObject.objects.filter(owner=user).order_by('name')
+
+    def clean(self):
+        cleaned = super().clean()
+        event_type = cleaned.get('event_type')
+        source_number = cleaned.get('source_number')
+        source_object = cleaned.get('source_object')
+
+        if event_type == 'API':
+            if not source_object:
+                self.add_error('source_object', 'Pro simulaci API události je výběr zdrojového objektu povinný.')
+            # Simulovaná API událost používá ID objektu jako source_number,
+            # stejně jako skutečná volání z device_object_test_call.
+            cleaned['source_number'] = str(source_object.id) if source_object else ''
+        elif not source_number:
+            self.add_error('source_number', 'Pro tento typ události je příchozí číslo povinné.')
+
+        return cleaned

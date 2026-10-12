@@ -1137,13 +1137,14 @@ def incoming_simulator_view(request):
     generated_actions = OutgoingAction.objects.none()
 
     if request.method == 'POST':
-        form = IncomingEventSimulationForm(request.POST)
+        form = IncomingEventSimulationForm(request.POST, user=request.user)
         if form.is_valid():
             latest_log, matched_count, queued_count = process_incoming_event(
                 user=request.user,
                 event_type=form.cleaned_data['event_type'],
                 source_number=form.cleaned_data['source_number'],
                 message_body=form.cleaned_data['message_body'],
+                source_device_object=form.cleaned_data.get('source_object'),
             )
             generated_actions = latest_log.actions.all()
             messages.success(
@@ -1155,15 +1156,18 @@ def incoming_simulator_view(request):
         event_type = request.GET.get('event_type', '').strip().upper()
         source_number = request.GET.get('source_number', '').strip()
         message_body = request.GET.get('message_body', '').strip()
+        source_object = request.GET.get('source_object', '').strip()
 
-        if event_type in ('SMS', 'CALL'):
+        if event_type in ('SMS', 'CALL', 'API'):
             initial_data['event_type'] = event_type
         if source_number:
             initial_data['source_number'] = source_number
         if message_body:
             initial_data['message_body'] = message_body
+        if source_object:
+            initial_data['source_object'] = source_object
 
-        form = IncomingEventSimulationForm(initial=initial_data)
+        form = IncomingEventSimulationForm(initial=initial_data, user=request.user)
 
     recent_logs = IncomingEventLog.objects.filter(owner=request.user).prefetch_related('actions')[:20]
     context = {
