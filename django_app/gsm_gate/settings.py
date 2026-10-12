@@ -35,7 +35,7 @@ SECRET_KEY = os.environ.get(
 # Verze appky a autor - zobrazuje se v patičce (base.html) přes context
 # processor dashboard.context_processors.app_info.
 APP_VERSION = '1.0.0'
-APP_AUTHOR = 'Daniel Matyuš'
+APP_AUTHOR = 'Daniel Matyuš pro Fontea a.s.'
 
 # Adresa běžícího MkDocs webu (docker-compose.mkdocs.yml) - používá se na
 # odkazy "Dokumentace" v patičce/menu a u doporučení v Sebediagnostice.

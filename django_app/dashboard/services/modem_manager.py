@@ -192,11 +192,21 @@ class ModemManagerClient:
         _run_mmcli(['-m', str(modem_idx), f'--messaging-delete-sms={sms_path}'])
 
     def get_signal_quality(self) -> Optional[int]:
-        """Vrací sílu signálu jako procento (0-100), na rozdíl od starého CSQ (0-31)."""
+        """Vrací sílu signálu jako procento (0-100), na rozdíl od starého CSQ (0-31).
+
+        ModemManager k hodnotě posílá i příznak "recent" - "no" znamená, že
+        se mu signál dlouho nepodařilo čerstvě přeměřit a vrací starou/
+        poslední známou hodnotu (reálně pozorováno: "0" po 4 dny, i když
+        modem byl celou dobu registrovaný a SMS chodily - viz
+        docs/modem-diagnostika.md). Takovou zastaralou hodnotu bereme jako
+        neznámou, ne jako aktuální (a často zavádějící) nulu."""
         modem_idx = self._resolve_modem_index()
         data = _run_mmcli(['-m', str(modem_idx)])
-        value = data.get('modem', {}).get('generic', {}).get('signal-quality', {}).get('value')
+        signal_quality = data.get('modem', {}).get('generic', {}).get('signal-quality', {})
+        value = signal_quality.get('value')
         if value in (None, '--'):
+            return None
+        if signal_quality.get('recent') == 'no':
             return None
         try:
             return int(value)
