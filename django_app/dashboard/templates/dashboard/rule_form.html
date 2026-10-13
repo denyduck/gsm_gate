@@ -243,7 +243,12 @@
                                                     {% if selected_target_numbers %}
                                                         {% if phone.pk|stringformat:"s" in selected_target_numbers or phone.pk in selected_target_numbers %}checked{% endif %}
                                                     {% endif %}>
-                                                <span class="group-item-text">{{ phone.number }}{% if phone.description %} — {{ phone.description }}{% endif %}{% if phone.owner %} (vlastník: {{ phone.owner.username }}){% endif %}</span>
+                                                <span class="group-item-text">
+                                                    {{ phone.number }}{% if phone.description %} — {{ phone.description }}{% endif %}{% if phone.owner %} (vlastník: {{ phone.owner.username }}){% endif %}
+                                                    {% for group in phone.groups.all %}
+                                                        <span class="pill">{{ group.name }}</span>
+                                                    {% endfor %}
+                                                </span>
                                             </label>
                                         {% endfor %}
                                     {% endwith %}

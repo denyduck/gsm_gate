@@ -60,7 +60,12 @@
                                         {% if selected_existing %}
                                             {% if number.pk|stringformat:"s" in selected_existing or number.pk in selected_existing %}checked{% endif %}
                                         {% endif %}>
-                                    <span class="group-item-text">{{ number.number }}{% if number.description %} — {{ number.description }}{% endif %}</span>
+                                    <span class="group-item-text">
+                                        {{ number.number }}{% if number.description %} — {{ number.description }}{% endif %}
+                                        {% for group in number.groups.all %}
+                                            <span class="pill">{{ group.name }}</span>
+                                        {% endfor %}
+                                    </span>
                                 </label>
                             {% endfor %}
                         {% endwith %}

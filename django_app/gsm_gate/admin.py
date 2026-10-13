@@ -117,18 +117,28 @@ def users_list(obj):
 users_list.short_description = "Uživatelé"
 
 
+# Funkce pro zobrazení všech skupin M2M v jednom sloupci (čísla mohou být
+# v několika skupinách zároveň)
+def groups_list(obj):
+    return ", ".join([g.name for g in obj.groups.all()])
+groups_list.short_description = "Skupiny"
+
+
 ##################################################################################################
 #POLOŽKA V ADMIN ROZHRANÍ "Phone Numbers"
 ##################################################################################################
 # Registrace modelu PhoneNumber do admin rozhraní django a další přdané funkce
 @admin.register(PhoneNumber)
 class PhoneNumberAdmin(admin.ModelAdmin):
-    list_display = ('number', 'description', 'active', 'owner', users_list)
+    list_display = ('number', 'description', 'active', 'owner', groups_list, users_list)
     list_filter = ('active', 'owner', 'groups', GroupAssignmentFilter)
-    search_fields = ('number', 'description', 'owner__username')
+    search_fields = ('number', 'description', 'owner__username', 'groups__name')
     filter_horizontal = ('groups', 'users')  # funguje jen pokud pole groups a users existuje
     raw_id_fields = ('owner',)  # místo neexistujícího 'user'
     ordering = ('number',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('groups', 'users')
     fieldsets = (
         (None, {
             'fields': ('number', 'description', 'active', 'owner', 'groups', 'users')

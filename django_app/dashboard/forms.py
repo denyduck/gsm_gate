@@ -91,7 +91,7 @@ class BulkNumberGroupAssignForm(forms.Form):
         super().__init__(*args, **kwargs)
         if user is not None and user.is_authenticated:
             self.fields['groups'].queryset = Group.objects.filter(users=user)
-            self.fields['existing_numbers'].queryset = PhoneNumber.objects.filter(users=user).order_by('number')
+            self.fields['existing_numbers'].queryset = PhoneNumber.objects.filter(users=user).prefetch_related('groups').order_by('number')
 
     @staticmethod
     def normalize_phone(raw_value):
@@ -328,7 +328,7 @@ class AutomationRuleForm(forms.ModelForm):
 
         if user is not None and user.is_authenticated:
             user_groups = Group.objects.filter(users=user)
-            user_numbers = PhoneNumber.objects.filter(users=user, active=True).order_by('number')
+            user_numbers = PhoneNumber.objects.filter(users=user, active=True).prefetch_related('groups').order_by('number')
             user_objects = DeviceObject.objects.filter(
                 Q(owner=user) | Q(users=user), active=True,
             ).distinct().order_by('name')

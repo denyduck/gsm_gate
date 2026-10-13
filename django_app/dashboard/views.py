@@ -1029,7 +1029,7 @@ def rules_list_view(request):
 def rule_detail(request, pk):
     rule = get_object_or_404(
         AutomationRule.objects.filter(owner=request.user)
-        .prefetch_related('source_groups', 'target_numbers', 'target_groups'),
+        .prefetch_related('source_groups', 'target_numbers__groups', 'target_groups'),
         pk=pk,
     )
 
