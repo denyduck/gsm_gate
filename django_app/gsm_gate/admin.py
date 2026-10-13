@@ -48,7 +48,11 @@ class CustomUserChangeForm(UserChangeForm):
         label='Telefonní čísla',
         queryset=PhoneNumber.objects.all().order_by('number'),
         required=False,
-        help_text='Čísla, ke kterým bude mít uživatel přístup (sdílení).',
+        help_text=(
+            'Čísla, ke kterým bude mít uživatel přístup (sdílení). Předvyplněna jsou i čísla '
+            'zděděná z přiřazených skupin níže - uložením se jejich přístup zapíše i sem přímo, '
+            'takže číslo nezůstane "duplicitně" jen v jednom z polí.'
+        ),
         widget=admin.widgets.FilteredSelectMultiple('Telefonní čísla', is_stacked=False),
     )
     assigned_groups = forms.ModelMultipleChoiceField(
@@ -65,8 +69,11 @@ class CustomUserChangeForm(UserChangeForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
-            self.fields['assigned_phone_numbers'].initial = self.instance.shared_numbers.all()
-            self.fields['assigned_groups'].initial = self.instance.shared.all()
+            assigned_groups = self.instance.shared.all()
+            self.fields['assigned_phone_numbers'].initial = PhoneNumber.objects.filter(
+                Q(users=self.instance) | Q(groups__in=assigned_groups)
+            ).distinct()
+            self.fields['assigned_groups'].initial = assigned_groups
 
 
 @admin.register(User)
