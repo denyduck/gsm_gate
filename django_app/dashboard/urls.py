@@ -48,6 +48,8 @@ urlpatterns = [
     path('api/device-events/ingest/', views.device_event_ingest_api, name='device_event_ingest_api'),
     path('t/<str:token>/', views.device_object_trigger, name='device_object_trigger'),
 
+    path('users/assign/', views.user_access_assign_view, name='user_access_assign'),
+
     path('backup/', views.backup_view, name='backup'),
     path('backup/export/<str:kind>/', views.backup_export, name='backup_export'),
     path('backup/import/', views.backup_import, name='backup_import'),
