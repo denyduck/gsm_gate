@@ -338,7 +338,8 @@ class AutomationRule(models.Model):
         max_length=20,
         choices=FIRST_CONTACT_TIMING_CHOICES,
         default='ON_TRIGGER',
-        help_text='"Hned po uložení" pošle SMS ihned všem aktuálním cílovým číslům, ne až při skutečné události.',
+        blank=True,
+        help_text='"Hned po uložení" pošle SMS ihned všem aktuálním cílovým číslům, ne až při skutečné události. Nepovinné - relevantní jen když je zapnuté "Odeslat informační SMS při prvním kontaktu" výše; JS formulář toto pole při vypnutém přepínači schová a zakáže (nejde pak odeslat), takže bez "blank=True" by server validaci odmítl jako chybějící povinné pole (reálně pozorováno).',
     )
     first_contact_message = models.CharField(
         'Text informační SMS',

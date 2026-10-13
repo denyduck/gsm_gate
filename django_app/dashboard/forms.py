@@ -496,6 +496,14 @@ class AutomationRuleForm(forms.ModelForm):
         else:
             cleaned['forward_to_number'] = ''
 
+        # JS skrývá a zakazuje tohle pole, když je notify_first_contact
+        # vypnuté - zakázané pole se neodešle, takže cleaned_data by tu
+        # měl prázdnou hodnotu. Doplnit model default ručně, ať se uloží
+        # platná volba bez ohledu na to (hodnota je beztak irelevantní,
+        # dokud je notify_first_contact vypnuté).
+        if not cleaned.get('first_contact_timing'):
+            cleaned['first_contact_timing'] = 'ON_TRIGGER'
+
         return cleaned
 
     def save(self, commit=True):
