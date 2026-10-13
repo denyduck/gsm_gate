@@ -3,6 +3,7 @@
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import User
 from django import forms
 from django.db.models import Q
@@ -34,10 +35,55 @@ approve_users.short_description = 'Schválit vybrané uživatele (aktivovat úč
 admin.site.unregister(User)
 
 
+class CustomUserChangeForm(UserChangeForm):
+    """Rozšíření o hromadné přiřazení existujících čísel/skupin (sdílení -
+    viz PhoneNumber.users / Group.users) přímo z editace uživatele - typicky
+    hned po schválení nového účtu, ať má okamžitě přístup k tomu, co
+    potřebuje, bez ručního zaškrtávání jednoho po druhém na detailu
+    každého čísla/skupiny. Stejný vzor jako assign_to_users u
+    AutomationRuleAdminForm, jen v opačném směru (odtud se obsazuje
+    reverzní M2M PhoneNumber.users / Group.users)."""
+
+    assigned_phone_numbers = forms.ModelMultipleChoiceField(
+        label='Telefonní čísla',
+        queryset=PhoneNumber.objects.all().order_by('number'),
+        required=False,
+        help_text='Čísla, ke kterým bude mít uživatel přístup (sdílení).',
+        widget=admin.widgets.FilteredSelectMultiple('Telefonní čísla', is_stacked=False),
+    )
+    assigned_groups = forms.ModelMultipleChoiceField(
+        label='Skupiny',
+        queryset=Group.objects.all().order_by('name'),
+        required=False,
+        help_text='Skupiny, ke kterým bude mít uživatel přístup (sdílení).',
+        widget=admin.widgets.FilteredSelectMultiple('Skupiny', is_stacked=False),
+    )
+
+    class Meta(UserChangeForm.Meta):
+        model = User
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['assigned_phone_numbers'].initial = self.instance.shared_numbers.all()
+            self.fields['assigned_groups'].initial = self.instance.shared.all()
+
+
 @admin.register(User)
 class CustomUserAdmin(DjangoUserAdmin):
+    form = CustomUserChangeForm
     list_filter = DjangoUserAdmin.list_filter + ('is_active',)
     actions = (approve_users,)
+    fieldsets = DjangoUserAdmin.fieldsets + (
+        ('Přiřazené kontakty (sdílení)', {'fields': ('assigned_phone_numbers', 'assigned_groups')}),
+    )
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if 'assigned_phone_numbers' in form.cleaned_data:
+            obj.shared_numbers.set(form.cleaned_data['assigned_phone_numbers'])
+        if 'assigned_groups' in form.cleaned_data:
+            obj.shared.set(form.cleaned_data['assigned_groups'])
 
 
 class GroupAssignmentFilter(admin.SimpleListFilter):

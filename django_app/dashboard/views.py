@@ -46,7 +46,6 @@ from .forms import (
     GatewaySettingsForm,
     AutomationRuleForm,
     IncomingEventSimulationForm,
-    UserAccessAssignForm,
 )
 from .services import backup as backup_service
 from .services import ratelimit
@@ -1370,37 +1369,6 @@ def outgoing_actions_view(request):
 # formát, žádná vlastní serializace, sdíleno s management příkazem
 # export_backup pro plánované zálohy - viz services/backup.py). Jen pro
 # superusera - dotýká se dat napříč všemi uživateli, ne jen vlastníka.
-
-@login_required
-def user_access_assign_view(request):
-    """Hromadné přiřazení existujících čísel/skupin (sdílení) jinému
-    uživateli - typicky hned po schválení nového účtu, ať má okamžitě
-    přístup k tomu, co potřebuje, bez ručního přidávání jednoho po druhém."""
-    if not request.user.is_superuser:
-        raise PermissionDenied('Přiřazení přístupu je dostupné jen pro superusera.')
-
-    if request.method == 'POST':
-        form = UserAccessAssignForm(request.POST, owner=request.user)
-        if form.is_valid():
-            target_user = form.cleaned_data['user']
-            numbers = form.cleaned_data['numbers']
-            groups = form.cleaned_data['groups']
-
-            for number in numbers:
-                number.users.add(target_user)
-            for group in groups:
-                group.users.add(target_user)
-
-            messages.success(
-                request,
-                f'Uživateli „{target_user.username}“ přiřazeno {numbers.count()} čísel a {groups.count()} skupin.',
-            )
-            return redirect('user_access_assign')
-    else:
-        form = UserAccessAssignForm(owner=request.user)
-
-    return render(request, 'dashboard/user_access_assign.html', {'form': form})
-
 
 @login_required
 def backup_view(request):
