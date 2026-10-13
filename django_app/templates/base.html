@@ -104,6 +104,7 @@
                     <a class="nav-link-app" href="/admin/">Admin</a>
                 {% endif %}
                 {% if user.is_superuser %}
+                    <a class="nav-link-app" href="{% url 'user_access_assign' %}">Přiřadit přístup</a>
                     <a class="nav-link-app" href="{% url 'backup' %}">Zálohování</a>
                     <a class="nav-link-app" href="{% url 'self_test' %}">Sebediagnostika</a>
                 {% endif %}

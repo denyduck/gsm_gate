@@ -1,5 +1,6 @@
 # Formulář pro přidání/úpravu telefonního čísla
 from django import forms
+from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import BlockedNumber, DeviceObject, PhoneNumber, Group, GatewaySettings, AutomationRule  # ← správný model
 
@@ -564,4 +565,44 @@ class IncomingEventSimulationForm(forms.Form):
         elif not source_number:
             self.add_error('source_number', 'Pro tento typ události je příchozí číslo povinné.')
 
+        return cleaned
+
+
+class UserAccessAssignForm(forms.Form):
+    """Hromadné přiřazení existujících čísel/skupin (sdílení - viz
+    PhoneNumber.users / Group.users) jinému uživateli, např. hned po
+    schválení nového účtu. Jen přidává (nikdy neodebírá) - stejně jako
+    "Přidat čísla do vybraných skupin" u BulkNumberGroupAssignForm."""
+
+    user = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        label='Uživatel',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    numbers = forms.ModelMultipleChoiceField(
+        queryset=PhoneNumber.objects.none(),
+        required=False,
+        label='Telefonní čísla',
+        widget=forms.CheckboxSelectMultiple,
+    )
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.none(),
+        required=False,
+        label='Skupiny',
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    def __init__(self, *args, owner=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if owner is not None:
+            self.fields['user'].queryset = User.objects.exclude(pk=owner.pk).order_by('username')
+            self.fields['numbers'].queryset = PhoneNumber.objects.filter(owner=owner).order_by('number')
+            self.fields['groups'].queryset = Group.objects.filter(owner=owner).order_by('name')
+
+    def clean(self):
+        cleaned = super().clean()
+        numbers = cleaned.get('numbers')
+        groups = cleaned.get('groups')
+        if not numbers and not groups:
+            self.add_error('numbers', 'Vyber alespoň jedno číslo nebo skupinu k přiřazení.')
         return cleaned
