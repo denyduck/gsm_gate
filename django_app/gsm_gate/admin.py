@@ -35,6 +35,24 @@ approve_users.short_description = 'Schválit vybrané uživatele (aktivovat úč
 admin.site.unregister(User)
 
 
+# Vlastníka čísla/skupiny je potřeba vidět přímo v "picker" výběrech
+# (FilteredSelectMultiple) - jinak v adminu nejde poznat, komu položka patří,
+# když ji chce superuser přiřadit/sdílet jinam.
+class PhoneNumberMultipleChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        label = obj.number
+        if obj.description:
+            label = f"{label} — {obj.description}"
+        owner_name = obj.owner.username if obj.owner_id else '—'
+        return f"{label} (vlastník: {owner_name})"
+
+
+class GroupMultipleChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        owner_name = obj.owner.username if obj.owner_id else '—'
+        return f"{obj.name} (vlastník: {owner_name})"
+
+
 class CustomUserChangeForm(UserChangeForm):
     """Rozšíření o hromadné přiřazení existujících čísel/skupin (sdílení -
     viz PhoneNumber.users / Group.users) přímo z editace uživatele - typicky
@@ -44,9 +62,9 @@ class CustomUserChangeForm(UserChangeForm):
     AutomationRuleAdminForm, jen v opačném směru (odtud se obsazuje
     reverzní M2M PhoneNumber.users / Group.users)."""
 
-    assigned_phone_numbers = forms.ModelMultipleChoiceField(
+    assigned_phone_numbers = PhoneNumberMultipleChoiceField(
         label='Telefonní čísla',
-        queryset=PhoneNumber.objects.all().order_by('number'),
+        queryset=PhoneNumber.objects.all().select_related('owner').order_by('number'),
         required=False,
         help_text=(
             'Čísla, ke kterým bude mít uživatel přístup (sdílení). Předvyplněna jsou i čísla '
@@ -55,9 +73,9 @@ class CustomUserChangeForm(UserChangeForm):
         ),
         widget=admin.widgets.FilteredSelectMultiple('Telefonní čísla', is_stacked=False),
     )
-    assigned_groups = forms.ModelMultipleChoiceField(
+    assigned_groups = GroupMultipleChoiceField(
         label='Skupiny',
-        queryset=Group.objects.all().order_by('name'),
+        queryset=Group.objects.all().select_related('owner').order_by('name'),
         required=False,
         help_text='Skupiny, ke kterým bude mít uživatel přístup (sdílení).',
         widget=admin.widgets.FilteredSelectMultiple('Skupiny', is_stacked=False),
@@ -127,13 +145,27 @@ groups_list.short_description = "Skupiny"
 ##################################################################################################
 #POLOŽKA V ADMIN ROZHRANÍ "Phone Numbers"
 ##################################################################################################
+class PhoneNumberAdminForm(forms.ModelForm):
+    groups = GroupMultipleChoiceField(
+        label='Skupiny',
+        queryset=Group.objects.all().select_related('owner').order_by('name'),
+        required=False,
+        widget=admin.widgets.FilteredSelectMultiple('Skupiny', is_stacked=False),
+    )
+
+    class Meta:
+        model = PhoneNumber
+        fields = '__all__'
+
+
 # Registrace modelu PhoneNumber do admin rozhraní django a další přdané funkce
 @admin.register(PhoneNumber)
 class PhoneNumberAdmin(admin.ModelAdmin):
+    form = PhoneNumberAdminForm
     list_display = ('number', 'description', 'active', 'owner', groups_list, users_list)
     list_filter = ('active', 'owner', 'groups', GroupAssignmentFilter)
     search_fields = ('number', 'description', 'owner__username', 'groups__name')
-    filter_horizontal = ('groups', 'users')  # funguje jen pokud pole groups a users existuje
+    filter_horizontal = ('users',)  # 'groups' má vlastní pole ve formuláři (popisek včetně vlastníka)
     raw_id_fields = ('owner',)  # místo neexistujícího 'user'
     ordering = ('number',)
 
@@ -158,6 +190,13 @@ class GroupAdmin(admin.ModelAdmin):
 
 
 class UserGroupVisibilityOverrideAdminForm(forms.ModelForm):
+    hidden_numbers = PhoneNumberMultipleChoiceField(
+        label='Skrytá čísla',
+        queryset=PhoneNumber.objects.none(),
+        required=False,
+        widget=admin.widgets.FilteredSelectMultiple('Skrytá čísla', is_stacked=False),
+    )
+
     class Meta:
         model = UserGroupVisibilityOverride
         fields = '__all__'
@@ -172,7 +211,7 @@ class UserGroupVisibilityOverrideAdminForm(forms.ModelForm):
             selected_group = Group.objects.filter(pk=self.data.get('group')).first()
 
         if selected_group is not None:
-            self.fields['hidden_numbers'].queryset = selected_group.phone_numbers.order_by('number')
+            self.fields['hidden_numbers'].queryset = selected_group.phone_numbers.select_related('owner').order_by('number')
         else:
             self.fields['hidden_numbers'].queryset = PhoneNumber.objects.none()
 
@@ -220,6 +259,25 @@ class AutomationRuleAdminForm(forms.ModelForm):
         widget=admin.widgets.FilteredSelectMultiple('Uživatelé', is_stacked=False),
     )
 
+    source_groups = GroupMultipleChoiceField(
+        label='Zdrojové skupiny',
+        queryset=Group.objects.all().select_related('owner').order_by('name'),
+        required=False,
+        widget=admin.widgets.FilteredSelectMultiple('Zdrojové skupiny', is_stacked=False),
+    )
+    target_numbers = PhoneNumberMultipleChoiceField(
+        label='Cílová čísla',
+        queryset=PhoneNumber.objects.all().select_related('owner').order_by('number'),
+        required=False,
+        widget=admin.widgets.FilteredSelectMultiple('Cílová čísla', is_stacked=False),
+    )
+    target_groups = GroupMultipleChoiceField(
+        label='Cílové skupiny',
+        queryset=Group.objects.all().select_related('owner').order_by('name'),
+        required=False,
+        widget=admin.widgets.FilteredSelectMultiple('Cílové skupiny', is_stacked=False),
+    )
+
     class Meta:
         model = AutomationRule
         fields = '__all__'
@@ -260,7 +318,10 @@ class AutomationRuleAdmin(admin.ModelAdmin):
     list_filter = ('event_type', 'match_type', 'action', 'active', 'use_message_flag', 'is_protected')
     search_fields = ('name', 'description', 'owner__username', 'source_number', 'forward_to_number', 'message_flag')
     ordering = ('priority', 'id')
-    filter_horizontal = ('source_groups', 'source_objects', 'target_numbers', 'target_groups', 'users')
+    # source_groups/target_numbers/target_groups mají vlastní pole ve
+    # formuláři (AutomationRuleAdminForm) - FilteredSelectMultiple s popiskem
+    # včetně vlastníka, takže tady už nejsou (byl by to no-op).
+    filter_horizontal = ('source_objects', 'users')
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
