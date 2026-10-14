@@ -86,7 +86,7 @@
                     <th>Cílová čísla</th>
                     <td>
                         {% for number in rule.target_numbers.all %}
-                            <a href="{% url 'number_detail' number.id %}" class="pill pill-link">{{ number.number }}</a>
+                            <a href="{% url 'number_detail' number.id %}" class="pill pill-link">{{ number.number }}{% if number.contact_name %} — {{ number.contact_name }}{% endif %}</a>
                             {% for group in number.groups.all %}
                                 <span class="pill">{{ group.name }}</span>
                             {% endfor %}
@@ -102,7 +102,7 @@
                             {% with forward_targets=rule.target_numbers.all %}
                                 {% if forward_targets %}
                                     {% for number in forward_targets %}
-                                        <a href="{% url 'number_detail' number.id %}" class="pill pill-link">{{ number.number }}</a>
+                                        <a href="{% url 'number_detail' number.id %}" class="pill pill-link">{{ number.number }}{% if number.contact_name %} — {{ number.contact_name }}{% endif %}</a>
                                         {% for group in number.groups.all %}
                                             <span class="pill">{{ group.name }}</span>
                                         {% endfor %}

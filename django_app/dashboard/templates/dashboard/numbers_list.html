@@ -96,6 +96,9 @@
                                 <span class="pill ms-2">Jste vlastník</span>
                             {% endif %}
                         </div>
+                        {% if number.contact_name %}
+                            <small class="d-block text-muted-soft">{{ number.contact_name }}{% if number.role %} ({{ number.role }}){% endif %}</small>
+                        {% endif %}
                         {% if number.description %}
                             <small class="d-block text-muted-soft">{{ number.description }}</small>
                         {% endif %}
@@ -134,6 +137,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Číslo</th>
+                        <th>Jméno</th>
                         <th>Popis</th>
                         <th>Kontaktní e-mail</th>
                         <th>Skupiny</th>
@@ -152,6 +156,7 @@
                                 <span class="pill ms-2">Jste vlastník</span>
                             {% endif %}
                         </td>
+                        <td>{{ number.contact_name|default:"—" }}{% if number.role %} <span class="text-muted-soft">({{ number.role }})</span>{% endif %}</td>
                         <td>{{ number.description|default:"—" }}</td>
                         <td>{{ number.contact_email|default:"—" }}</td>
                         <td>

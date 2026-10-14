@@ -41,8 +41,8 @@ admin.site.unregister(User)
 class PhoneNumberMultipleChoiceField(forms.ModelMultipleChoiceField):
     def label_from_instance(self, obj):
         label = obj.number
-        if obj.description:
-            label = f"{label} — {obj.description}"
+        if obj.contact_label:
+            label = f"{label} — {obj.contact_label}"
         owner_name = obj.owner.username if obj.owner_id else '—'
         return f"{label} (vlastník: {owner_name})"
 
@@ -162,9 +162,9 @@ class PhoneNumberAdminForm(forms.ModelForm):
 @admin.register(PhoneNumber)
 class PhoneNumberAdmin(admin.ModelAdmin):
     form = PhoneNumberAdminForm
-    list_display = ('number', 'description', 'active', 'owner', groups_list, users_list)
+    list_display = ('number', 'contact_name', 'role', 'description', 'active', 'owner', groups_list, users_list)
     list_filter = ('active', 'owner', 'groups', GroupAssignmentFilter)
-    search_fields = ('number', 'description', 'owner__username', 'groups__name')
+    search_fields = ('number', 'description', 'first_name', 'last_name', 'role', 'owner__username', 'groups__name')
     filter_horizontal = ('users',)  # 'groups' má vlastní pole ve formuláři (popisek včetně vlastníka)
     raw_id_fields = ('owner',)  # místo neexistujícího 'user'
     ordering = ('number',)
@@ -174,6 +174,9 @@ class PhoneNumberAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             'fields': ('number', 'description', 'active', 'owner', 'groups', 'users')
+        }),
+        ('Kontaktní údaje', {
+            'fields': ('first_name', 'last_name', 'role', 'note', 'contact_email')
         }),
     )
 

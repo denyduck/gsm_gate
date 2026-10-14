@@ -45,6 +45,14 @@
                                     <div class="form-text">Zadejte číslo v mezinárodním formátu, např. +420777000111.</div>
                                 {% elif field.name == "description" %}
                                     <div class="form-text">Volitelné interní označení pro lepší orientaci.</div>
+                                {% elif field.name == "first_name" %}
+                                    <div class="form-text">Volitelné jméno osoby za číslem.</div>
+                                {% elif field.name == "last_name" %}
+                                    <div class="form-text">Volitelné příjmení osoby za číslem.</div>
+                                {% elif field.name == "role" %}
+                                    <div class="form-text">Volitelná funkce/pozice (např. vedoucí skladu, servis).</div>
+                                {% elif field.name == "note" %}
+                                    <div class="form-text">Volitelná další poznámka k číslu.</div>
                                 {% elif field.name == "contact_email" %}
                                     <div class="form-text">Volitelný e-mail kontaktu pro notifikace (může se použít v pravidlech).</div>
                                 {% elif field.name == "active" %}

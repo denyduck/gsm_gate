@@ -4,7 +4,7 @@
 {% block content %}
 <section class="app-panel mb-4">
     <span class="status-badge"><i class="bi bi-telephone"></i> Detail položky</span>
-    <h1 class="hero-title">Telefonní číslo {{ number.number }}</h1>
+    <h1 class="hero-title">Telefonní číslo {{ number.number }}{% if number.contact_name %} — {{ number.contact_name }}{% endif %}</h1>
     <p class="hero-subtitle">Přehled všech souvisejících dat: skupiny, pravidla, logy i odchozí akce.</p>
 
     <div class="d-flex flex-wrap gap-2">
@@ -27,6 +27,10 @@
                 <tr><th>ID</th><td>{{ number.id }}</td></tr>
                 <tr><th>Číslo</th><td class="mono">{{ number.number }}</td></tr>
                 <tr><th>Popis</th><td>{{ number.description|default:"—" }}</td></tr>
+                <tr><th>Jméno</th><td>{{ number.first_name|default:"—" }}</td></tr>
+                <tr><th>Příjmení</th><td>{{ number.last_name|default:"—" }}</td></tr>
+                <tr><th>Funkce</th><td>{{ number.role|default:"—" }}</td></tr>
+                <tr><th>Poznámka</th><td>{{ number.note|default:"—"|linebreaksbr }}</td></tr>
                 <tr><th>Kontaktní e-mail</th><td>{{ number.contact_email|default:"—" }}</td></tr>
                 <tr><th>Vlastník</th><td>{{ number.owner.username }}</td></tr>
                 <tr><th>Aktivní</th><td>{% if number.active %}Ano{% else %}Ne{% endif %}</td></tr>

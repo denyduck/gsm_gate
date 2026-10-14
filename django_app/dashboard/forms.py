@@ -12,9 +12,13 @@ class BlockedNumberForm(forms.ModelForm):
 class PhoneNumberForm(forms.ModelForm):
     class Meta:
         model = PhoneNumber
-        fields = ['number', 'description', 'active', 'groups']
+        fields = [
+            'number', 'description', 'first_name', 'last_name', 'role', 'note',
+            'contact_email', 'active', 'groups',
+        ]
         widgets = {
             'groups': forms.CheckboxSelectMultiple(),  # pouze widget
+            'note': forms.Textarea(attrs={'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -340,6 +344,8 @@ class AutomationRuleForm(forms.ModelForm):
             source_number_choices = [('', '— Vyberte zdrojové číslo —')]
             for number in user_numbers:
                 label = number.number
+                if number.contact_name:
+                    label = f'{label} — {number.contact_name}'
                 if number.description:
                     label = f'{label} — {number.description}'
                 source_number_choices.append((number.number, label))
@@ -568,12 +574,12 @@ class IncomingEventSimulationForm(forms.Form):
 
 
 class PhoneNumberChoiceField(forms.ModelChoiceField):
-    """Zobrazí v <option> i popis (jméno) čísla, ne jen holé číslo - aby šlo
-    ve výběru poznat, komu číslo patří."""
+    """Zobrazí v <option> i jméno/popis čísla (PhoneNumber.contact_label),
+    ne jen holé číslo - aby šlo ve výběru poznat, komu číslo patří."""
 
     def label_from_instance(self, obj):
-        if obj.description:
-            return f'{obj.number} — {obj.description}'
+        if obj.contact_label:
+            return f'{obj.number} — {obj.contact_label}'
         return obj.number
 
 
@@ -625,7 +631,7 @@ class NumberShareForm(forms.Form):
         lines = ['Sdílená telefonní čísla:']
         for number in numbers:
             line = number.number
-            if number.description:
-                line = f'{line} — {number.description}'
+            if number.contact_label:
+                line = f'{line} — {number.contact_label}'
             lines.append(line)
         return '\n'.join(lines)

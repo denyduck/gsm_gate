@@ -57,11 +57,12 @@
     <div class="table-wrap table-responsive">
         {% if members %}
         <table class="table table-striped table-hover align-middle mb-0">
-            <thead><tr><th>Číslo</th><th>Popis</th><th>Skupiny</th><th>Aktivní</th><th></th></tr></thead>
+            <thead><tr><th>Číslo</th><th>Jméno</th><th>Popis</th><th>Skupiny</th><th>Aktivní</th><th></th></tr></thead>
             <tbody>
                 {% for number in members %}
                 <tr class="clickable-row" onclick="window.location='{% url 'number_detail' number.id %}'">
                     <td class="mono"><a href="{% url 'number_detail' number.id %}" class="table-link">{{ number.number }}</a></td>
+                    <td>{{ number.contact_name|default:"—" }}{% if number.role %} <span class="text-muted-soft">({{ number.role }})</span>{% endif %}</td>
                     <td>{{ number.description|default:"—" }}</td>
                     <td>
                         {% for g in number.groups.all %}

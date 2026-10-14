@@ -53,6 +53,12 @@ class PhoneNumber(models.Model):
     # volitelný popis čísla
     description = models.CharField('Popis', max_length=100, blank=True)
 
+    # volitelné údaje o osobě za číslem - pro lepší orientaci, kdo to je
+    first_name = models.CharField('Jméno', max_length=100, blank=True)
+    last_name = models.CharField('Příjmení', max_length=100, blank=True)
+    role = models.CharField('Funkce', max_length=100, blank=True)
+    note = models.TextField('Poznámka', blank=True)
+
     # volitelný e-mail kontaktu k číslu
     contact_email = models.EmailField('Kontaktní e-mail', blank=True)
 
@@ -66,6 +72,21 @@ class PhoneNumber(models.Model):
     # zobrazení čísla jako textu
     def __str__(self):
         return self.number
+
+    @property
+    def contact_name(self):
+        """Jméno a příjmení dohromady, nebo prázdný string, pokud nejsou vyplněné."""
+        return f'{self.first_name} {self.last_name}'.strip()
+
+    @property
+    def contact_label(self):
+        """Krátký identifikační popisek pro výpisy/pickery - jméno (+ funkce
+        v závorce), jinak popis, jinak nic. Jedno místo, ať se logika
+        "jak zobrazit, kdo je to" neduplikuje v šablonách/formulářích."""
+        name = self.contact_name
+        if name:
+            return f'{name} ({self.role})' if self.role else name
+        return self.description
 
     class Meta:
         verbose_name = 'Telefonní číslo'
