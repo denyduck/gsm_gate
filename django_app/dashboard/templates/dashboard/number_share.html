@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Sdílet telefonní čísla{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-share"></i> Sdílení</span>
+    <h1 class="hero-title">Sdílet telefonní čísla</h1>
+    <p class="hero-subtitle">Vyber jedno nebo více čísel a pošli je dál - buď jako SMS přes bránu na číslo, které už v bráně máš, nebo si text jen zkopíruj a odešli si ho jinudy (jiná SMS appka, e-mail apod.).</p>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="form-shell">
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="col-12 alert alert-danger">
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="col-md-7" id="share-numbers-wrap">
+                <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                    <label class="form-label mb-0">{{ form.numbers.label }}</label>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-app-outline btn-sm" id="share-numbers-select-all">Vybrat vše</button>
+                        <button type="button" class="btn btn-app-outline btn-sm" id="share-numbers-clear-all">Zrušit vše</button>
+                    </div>
+                </div>
+
+                <input type="text" id="share-numbers-search" class="form-control mb-2" placeholder="Filtrovat čísla nebo popis...">
+
+                {% if form.fields.numbers.queryset.exists %}
+                    <div class="list-group list-scroll" id="share-numbers-list">
+                        {% with selected_numbers=form.numbers.value %}
+                            {% for number in form.fields.numbers.queryset %}
+                                <label class="list-group-item group-item mb-1 rounded">
+                                    <input class="group-checkbox me-2" type="checkbox" name="numbers" value="{{ number.pk }}"
+                                        {% if selected_numbers %}
+                                            {% if number.pk|stringformat:"s" in selected_numbers or number.pk in selected_numbers %}checked{% endif %}
+                                        {% endif %}>
+                                    <span class="group-item-text">
+                                        {{ number.number }}{% if number.description %} — {{ number.description }}{% endif %}
+                                        {% for group in number.groups.all %}
+                                            <span class="pill">{{ group.name }}</span>
+                                        {% endfor %}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        {% endwith %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning mb-0">Nemáte žádná čísla ke sdílení.</div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-5">
+                <label class="form-label d-block mb-1">{{ form.delivery_method.label }}</label>
+                <div id="share-delivery-method">
+                    {% for radio in form.delivery_method %}
+                        <div class="form-check mb-2">
+                            {{ radio.tag }}
+                            <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div id="share-target-wrap" class="mt-2">
+                    <label class="form-label">{{ form.target_number.label }}</label>
+                    {{ form.target_number }}
+                    <div class="form-text">{{ form.target_number.help_text }}</div>
+                </div>
+
+                <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-app-primary">Potvrdit</button>
+                    <a href="{% url 'numbers_list' %}" class="btn btn-app-outline">Zpět</a>
+                </div>
+            </div>
+        </form>
+
+        {% if share_text %}
+            <div class="mt-4" id="share-text-result">
+                <label class="form-label">Text ke zkopírování</label>
+                <textarea id="share-text-output" class="form-control" rows="{{ form.cleaned_data.numbers|length|add:1 }}" readonly>{{ share_text }}</textarea>
+                <button type="button" class="btn btn-app-outline btn-sm mt-2" id="share-text-copy-btn">
+                    <i class="bi bi-clipboard"></i> Kopírovat
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const checkboxes = Array.from(document.querySelectorAll('#share-numbers-list input[name="numbers"]'));
+        const selectAllBtn = document.getElementById('share-numbers-select-all');
+        const clearAllBtn = document.getElementById('share-numbers-clear-all');
+        const searchInput = document.getElementById('share-numbers-search');
+        const items = Array.from(document.querySelectorAll('#share-numbers-list .group-item'));
+        const deliveryRadios = Array.from(document.querySelectorAll('#share-delivery-method input[name="delivery_method"]'));
+        const targetWrap = document.getElementById('share-target-wrap');
+        const targetField = document.getElementById('id_target_number');
+        const copyBtn = document.getElementById('share-text-copy-btn');
+        const copyOutput = document.getElementById('share-text-output');
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => checkboxes.forEach((c) => { c.checked = true; }));
+        }
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => checkboxes.forEach((c) => { c.checked = false; }));
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.trim().toLowerCase();
+                items.forEach((item) => {
+                    const text = item.textContent.toLowerCase();
+                    item.classList.toggle('d-none', term !== '' && !text.includes(term));
+                });
+            });
+        }
+
+        function updateDeliveryVisibility() {
+            const selected = deliveryRadios.find((r) => r.checked);
+            const needsTarget = selected ? selected.value === 'SMS' : false;
+            if (targetWrap) {
+                targetWrap.classList.toggle('d-none', !needsTarget);
+            }
+            if (targetField) {
+                targetField.disabled = false; // nikdy neschováváme zakázáním - jen schováním wrapperu, ať validace projde
+            }
+        }
+        deliveryRadios.forEach((radio) => radio.addEventListener('change', updateDeliveryVisibility));
+        updateDeliveryVisibility();
+
+        if (copyBtn && copyOutput) {
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(copyOutput.value);
+                    copyBtn.innerHTML = '<i class="bi bi-check2"></i> Zkopírováno';
+                } catch (e) {
+                    copyOutput.select();
+                    copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Kopírovat (vyber a Ctrl+C)';
+                }
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Kopírovat';
+                }, 2000);
+            });
+        }
+    })();
+</script>
+{% endblock %}
