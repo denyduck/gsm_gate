@@ -565,3 +565,57 @@ class IncomingEventSimulationForm(forms.Form):
             self.add_error('source_number', 'Pro tento typ události je příchozí číslo povinné.')
 
         return cleaned
+
+
+class NumberShareForm(forms.Form):
+    """Sdílení vybraných telefonních čísel (jejich čísla + popisy) formou
+    textové zprávy - buď odeslat jako SMS přes bránu na už existující číslo
+    v bráně, nebo jen text zkopírovat a poslat si ho jinudy (JS, bez
+    serverové logiky - proto delivery_method=COPY nic neukládá)."""
+
+    DELIVERY_CHOICES = [
+        ('COPY', 'Jen zkopírovat text (poslat si to jinudy)'),
+        ('SMS', 'Odeslat SMS přes bránu na existující číslo'),
+    ]
+
+    numbers = forms.ModelMultipleChoiceField(
+        queryset=PhoneNumber.objects.none(),
+        label='Telefonní čísla ke sdílení',
+        widget=forms.CheckboxSelectMultiple,
+    )
+    delivery_method = forms.ChoiceField(
+        label='Způsob sdílení',
+        choices=DELIVERY_CHOICES,
+        widget=forms.RadioSelect,
+        initial='COPY',
+    )
+    target_number = forms.ModelChoiceField(
+        queryset=PhoneNumber.objects.none(),
+        label='Odeslat na číslo',
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Vyber cílové číslo, které už je v bráně vytvořené.',
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None and user.is_authenticated:
+            queryset = PhoneNumber.objects.filter(users=user).order_by('number')
+            self.fields['numbers'].queryset = queryset
+            self.fields['target_number'].queryset = queryset
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('delivery_method') == 'SMS' and not cleaned.get('target_number'):
+            self.add_error('target_number', 'Pro odeslání SMS přes bránu vyber cílové číslo.')
+        return cleaned
+
+    @staticmethod
+    def build_share_text(numbers):
+        lines = ['Sdílená telefonní čísla:']
+        for number in numbers:
+            line = number.number
+            if number.description:
+                line = f'{line} — {number.description}'
+            lines.append(line)
+        return '\n'.join(lines)

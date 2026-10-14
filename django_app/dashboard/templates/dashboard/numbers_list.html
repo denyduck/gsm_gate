@@ -11,6 +11,9 @@
         {% if can_bulk_add_numbers %}
             <a href="{% url 'number_bulk_add' %}" class="btn btn-app-outline">Hromadné úpravy</a>
         {% endif %}
+        {% if can_view_number %}
+            <a href="{% url 'number_share' %}" class="btn btn-app-outline"><i class="bi bi-share"></i> Sdílet čísla</a>
+        {% endif %}
         {% if can_add_number %}
             <a href="{% url 'add_number' %}" class="btn btn-app-primary">Nové číslo</a>
         {% endif %}
@@ -116,6 +119,9 @@
                             {% if can_delete_number and number.id in deletable_number_ids %}
                                 <a href="{% url 'delete_number' number.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
                             {% endif %}
+                            {% if can_view_number %}
+                                <a href="{% url 'number_share' %}?number={{ number.id }}" class="btn btn-sm btn-app-outline"><i class="bi bi-share"></i> Sdílet</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -166,6 +172,9 @@
                             {% endif %}
                             {% if can_delete_number and number.id in deletable_number_ids %}
                                 <a href="{% url 'delete_number' number.id %}" class="btn btn-sm btn-outline-danger">Smazat</a>
+                            {% endif %}
+                            {% if can_view_number %}
+                                <a href="{% url 'number_share' %}?number={{ number.id }}" class="btn btn-sm btn-app-outline"><i class="bi bi-share"></i> Sdílet</a>
                             {% endif %}
                         </td>
                     </tr>

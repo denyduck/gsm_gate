@@ -46,6 +46,7 @@ from .forms import (
     GatewaySettingsForm,
     AutomationRuleForm,
     IncomingEventSimulationForm,
+    NumberShareForm,
 )
 from .services import backup as backup_service
 from .services import ratelimit
@@ -430,6 +431,51 @@ def number_bulk_add(request):
         form = BulkNumberGroupAssignForm(user=request.user)
 
     return render(request, 'dashboard/number_bulk_add.html', {'form': form})
+
+
+# Sdílení čísel formou textové zprávy - buď jen zkopírovat text (COPY, nic
+# se neukládá), nebo reálně odeslat SMS přes bránu na jiné, už existující
+# číslo (SMS). Stejný vzor jako fire_first_contact_on_save: bez skutečné
+# příchozí události vytvoříme syntetický IncomingEventLog (event_type
+# SYSTEM), protože OutgoingAction.event_log je povinné pole.
+@login_required
+@permission_required('dashboard.view_phonenumber', raise_exception=True)
+def number_share_view(request):
+    share_text = ''
+    if request.method == 'POST':
+        form = NumberShareForm(request.POST, user=request.user)
+        if form.is_valid():
+            numbers = form.cleaned_data['numbers']
+            share_text = NumberShareForm.build_share_text(numbers)
+
+            if form.cleaned_data['delivery_method'] == 'SMS':
+                target = form.cleaned_data['target_number']
+                event_log = IncomingEventLog.objects.create(
+                    owner=request.user,
+                    event_type='SYSTEM',
+                    source_number='',
+                    message_body=f'Sdílení {numbers.count()} telefonních čísel formou SMS.',
+                    processed=True,
+                    result_summary=f'Vygenerováno ručním sdílením čísel na {target.number}.',
+                )
+                OutgoingAction.objects.create(
+                    owner=request.user,
+                    event_log=event_log,
+                    action_type='NOTIFY_SMS',
+                    target_number=target.number,
+                    payload_message=share_text,
+                    status='PENDING',
+                )
+                messages.success(request, f'SMS se sdílenými čísly byla zařazena k odeslání na {target.number}.')
+                return redirect('number_share')
+    else:
+        initial = {}
+        preselected_number = request.GET.get('number')
+        if preselected_number:
+            initial['numbers'] = [preselected_number]
+        form = NumberShareForm(user=request.user, initial=initial)
+
+    return render(request, 'dashboard/number_share.html', {'form': form, 'share_text': share_text})
 
 
 @login_required
