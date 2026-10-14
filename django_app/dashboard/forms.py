@@ -567,6 +567,16 @@ class IncomingEventSimulationForm(forms.Form):
         return cleaned
 
 
+class PhoneNumberChoiceField(forms.ModelChoiceField):
+    """Zobrazí v <option> i popis (jméno) čísla, ne jen holé číslo - aby šlo
+    ve výběru poznat, komu číslo patří."""
+
+    def label_from_instance(self, obj):
+        if obj.description:
+            return f'{obj.number} — {obj.description}'
+        return obj.number
+
+
 class NumberShareForm(forms.Form):
     """Sdílení vybraných telefonních čísel (jejich čísla + popisy) formou
     textové zprávy - buď odeslat jako SMS přes bránu na už existující číslo
@@ -589,7 +599,7 @@ class NumberShareForm(forms.Form):
         widget=forms.RadioSelect,
         initial='COPY',
     )
-    target_number = forms.ModelChoiceField(
+    target_number = PhoneNumberChoiceField(
         queryset=PhoneNumber.objects.none(),
         label='Odeslat na číslo',
         required=False,
