@@ -6,6 +6,11 @@
     <span class="status-badge"><i class="bi bi-share"></i> Sdílení</span>
     <h1 class="hero-title">Sdílet telefonní čísla</h1>
     <p class="hero-subtitle">Vyber jedno nebo více čísel a pošli je dál - buď jako SMS přes bránu na číslo, které už v bráně máš, nebo si text jen zkopíruj a odešli si ho jinudy (jiná SMS appka, e-mail apod.).</p>
+    {% if mkdocs_base_url %}
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#sdílení-telefonních-čísel" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+        </div>
+    {% endif %}
 </section>
 
 <section class="app-panel mb-4">

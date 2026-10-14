@@ -16,7 +16,7 @@
             {% endif %}
 
             <div class="form-shell">
-                <form method="post">
+                <form method="post" action="{{ request.get_full_path }}">
                     {% csrf_token %}
 
                     <!-- Chyby -->
@@ -60,13 +60,17 @@
 
                         {% if form.fields.groups.queryset.exists %}
                             <div class="list-group list-scroll">
-                                {% for group in form.fields.groups.queryset %}
-                                    <label class="list-group-item group-item mb-1 rounded">
-                                        <input class="group-checkbox me-2" type="checkbox" name="groups" value="{{ group.pk }}"
-                                            {% if form.instance.pk and group in form.instance.groups.all %}checked{% endif %}>
-                                        <span class="group-item-text">{{ group.name }}</span>
-                                    </label>
-                                {% endfor %}
+                                {% with selected_groups=form.groups.value %}
+                                    {% for group in form.fields.groups.queryset %}
+                                        <label class="list-group-item group-item mb-1 rounded">
+                                            <input class="group-checkbox me-2" type="checkbox" name="groups" value="{{ group.pk }}"
+                                                {% if selected_groups %}
+                                                    {% if group.pk|stringformat:"s" in selected_groups or group.pk in selected_groups %}checked{% endif %}
+                                                {% endif %}>
+                                            <span class="group-item-text">{{ group.name }}</span>
+                                        </label>
+                                    {% endfor %}
+                                {% endwith %}
                             </div>
                             <div class="form-text text-center mt-1">
                                 Vyberte jednu nebo více skupin, do kterých číslo patří.

@@ -46,7 +46,14 @@
 </section>
 
 <section class="app-panel mb-4">
-    <div class="panel-header"><h2 class="panel-title">Členové skupiny</h2></div>
+    <div class="panel-header">
+        <h2 class="panel-title">Členové skupiny</h2>
+        {% if can_add_number %}
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'add_number' %}?group={{ group.id }}" class="btn btn-app-primary btn-sm"><i class="bi bi-person-plus"></i> Přidat kontakt do skupiny</a>
+            </div>
+        {% endif %}
+    </div>
     <div class="table-wrap table-responsive">
         {% if members %}
         <table class="table table-striped table-hover align-middle mb-0">

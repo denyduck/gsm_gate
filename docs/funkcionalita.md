@@ -35,6 +35,13 @@ Detail typicky zahrnuje:
 - související pravidla,
 - související příchozí/odchozí záznamy.
 
+### Sdílení telefonních čísel
+
+Stránka „Sdílet čísla" (dostupná z detailu čísla, seznamu čísel, dashboardu i detailu skupiny – tlačítko „Sdílet") umožní vybrat jedno nebo víc čísel (zobrazují se jako `číslo — popis`, stejně jako všude jinde v appce) a poslat je dál dvěma způsoby:
+
+- **Jen zkopírovat text** – appka vygeneruje textový seznam vybraných čísel (číslo + popis) a zobrazí ho v poli s tlačítkem „Kopírovat" (JS clipboard API) – nic se neukládá, text si uživatel poslal jinudy (jiná SMS appka, e-mail apod.).
+- **Odeslat SMS přes bránu** – vybere se cílové číslo, které už v bráně existuje (dropdown s popisem/jménem, ne jen holé číslo), a text se zařadí do fronty odchozích akcí (`OutgoingAction`, `action_type='NOTIFY_SMS'`) stejně jako SMS z pravidel. Protože `OutgoingAction.event_log` je povinné pole a žádná reálná příchozí událost tu neexistuje, appka k tomu vytvoří syntetický `IncomingEventLog` s `event_type='SYSTEM'` – stejný vzor jako u `first_contact_timing=ON_SAVE` (sekce 6).
+
 ## 4) Skupiny
 
 ### Co lze dělat
@@ -112,7 +119,7 @@ Umožňuje:
 - detail události,
 - vazba na pravidla/akce,
 - auditní stopa pro troubleshooting.
-- typy událostí (`IncomingEventLog.event_type`): `SMS`, `API`, `SECURITY` (viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)) a `SYSTEM` – syntetický záznam, který appka sama vytvoří jen jako nosič pro informační SMS odeslanou hned po uložení pravidla (`first_contact_timing=ON_SAVE`, viz sekce 6 výše), nejde o skutečnou příchozí událost.
+- typy událostí (`IncomingEventLog.event_type`): `SMS`, `API`, `SECURITY` (viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)) a `SYSTEM` – syntetický záznam, který appka sama vytvoří jen jako nosič pro `OutgoingAction`, když neexistuje žádná skutečná příchozí událost: informační SMS odeslaná hned po uložení pravidla (`first_contact_timing=ON_SAVE`, viz sekce 6) nebo ruční sdílení čísel formou SMS (sekce 3).
 
 ## 9) Odchozí akce
 

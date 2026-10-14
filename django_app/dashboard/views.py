@@ -326,6 +326,15 @@ def groups_list_view(request):
 @login_required
 @permission_required('dashboard.add_phonenumber', raise_exception=True)
 def number_create(request):
+    # ?group=<id> - zkratka "Přidat kontakt" přímo z detailu skupiny:
+    # předvyplní danou skupinu a po uložení vrátí zpět na její detail.
+    # Query string zůstává stejný i při POSTu (viz action v number_form.html),
+    # takže request.GET funguje v obou případech.
+    return_group = None
+    group_param = request.GET.get('group')
+    if group_param and group_param.isdigit():
+        return_group = Group.objects.filter(pk=group_param, users=request.user).first()
+
     if request.method == 'POST':
         form = PhoneNumberForm(request.POST, user=request.user)
         if form.is_valid():
@@ -338,9 +347,13 @@ def number_create(request):
             if request.user not in number.users.all():
                 number.users.add(request.user)
 
+            if return_group:
+                messages.success(request, f'Kontakt {number.number} byl přidán do skupiny „{return_group.name}“.')
+                return redirect('group_detail', pk=return_group.pk)
             return redirect('dashboard')
     else:
-        form = PhoneNumberForm(user=request.user)
+        initial = {'groups': [return_group.pk]} if return_group else None
+        form = PhoneNumberForm(user=request.user, initial=initial)
     return render(request, 'dashboard/number_form.html', {'form': form})
 
 
@@ -661,6 +674,7 @@ def group_detail(request, pk):
             and (request.user.is_superuser or group.owner_id == request.user.id),
         'can_delete_group': request.user.has_perm('dashboard.delete_group')
             and (request.user.is_superuser or group.owner_id == request.user.id),
+        'can_add_number': request.user.has_perm('dashboard.add_phonenumber'),
     }
     return render(request, 'dashboard/group_detail.html', context)
 
