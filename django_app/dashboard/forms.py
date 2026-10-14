@@ -573,16 +573,6 @@ class IncomingEventSimulationForm(forms.Form):
         return cleaned
 
 
-class PhoneNumberChoiceField(forms.ModelChoiceField):
-    """Zobrazí v <option> i jméno/popis čísla (PhoneNumber.contact_label),
-    ne jen holé číslo - aby šlo ve výběru poznat, komu číslo patří."""
-
-    def label_from_instance(self, obj):
-        if obj.contact_label:
-            return f'{obj.number} — {obj.contact_label}'
-        return obj.number
-
-
 class NumberShareForm(forms.Form):
     """Sdílení vybraných telefonních čísel (jejich čísla + popisy) formou
     textové zprávy - buď odeslat jako SMS přes bránu na už existující číslo
@@ -605,12 +595,12 @@ class NumberShareForm(forms.Form):
         widget=forms.RadioSelect,
         initial='COPY',
     )
-    target_number = PhoneNumberChoiceField(
+    target_numbers = forms.ModelMultipleChoiceField(
         queryset=PhoneNumber.objects.none(),
-        label='Odeslat na číslo',
+        label='Odeslat na čísla',
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'}),
-        help_text='Vyber cílové číslo, které už je v bráně vytvořené.',
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Vyber jedno nebo víc cílových čísel, která už jsou v bráně vytvořená.',
     )
 
     def __init__(self, *args, user=None, **kwargs):
@@ -618,12 +608,12 @@ class NumberShareForm(forms.Form):
         if user is not None and user.is_authenticated:
             queryset = PhoneNumber.objects.filter(users=user).order_by('number')
             self.fields['numbers'].queryset = queryset
-            self.fields['target_number'].queryset = queryset
+            self.fields['target_numbers'].queryset = queryset
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get('delivery_method') == 'SMS' and not cleaned.get('target_number'):
-            self.add_error('target_number', 'Pro odeslání SMS přes bránu vyber cílové číslo.')
+        if cleaned.get('delivery_method') == 'SMS' and not cleaned.get('target_numbers'):
+            self.add_error('target_numbers', 'Pro odeslání SMS přes bránu vyber alespoň jedno cílové číslo.')
         return cleaned
 
     @staticmethod

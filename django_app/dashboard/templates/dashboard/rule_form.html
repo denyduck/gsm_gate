@@ -235,7 +235,8 @@
                                 </div>
                             </div>
                             {% if form.fields.target_numbers.queryset.exists %}
-                                <div class="list-group list-scroll mt-2">
+                                <input type="text" id="target-numbers-search" class="form-control mb-2" placeholder="Filtrovat čísla, jméno, popis nebo skupinu...">
+                                <div class="list-group list-scroll mt-2" id="target-numbers-list">
                                     {% with selected_target_numbers=form.target_numbers.value %}
                                         {% for phone in form.fields.target_numbers.queryset %}
                                             <label class="list-group-item group-item mb-1 rounded">
@@ -253,6 +254,7 @@
                                         {% endfor %}
                                     {% endwith %}
                                 </div>
+                                <div id="target-numbers-empty" class="text-muted-soft text-center py-2 d-none">Žádné číslo neodpovídá filtru.</div>
                             {% else %}
                                 <div class="alert alert-warning mb-0">Nemáte žádná aktivní cílová čísla k výběru.</div>
                             {% endif %}
@@ -269,7 +271,8 @@
                                 </div>
                             </div>
                             {% if form.fields.target_groups.queryset.exists %}
-                                <div class="list-group list-scroll mt-2">
+                                <input type="text" id="target-groups-search" class="form-control mb-2" placeholder="Filtrovat skupiny nebo čísla v nich...">
+                                <div class="list-group list-scroll mt-2" id="target-groups-list">
                                     {% with selected_target_groups=form.target_groups.value %}
                                         {% for group in form.fields.target_groups.queryset %}
                                             <label class="list-group-item group-item mb-1 rounded">
@@ -282,7 +285,7 @@
                                                     <div class="small text-muted-soft mb-1">Cíle ve skupině:</div>
                                                     <div class="d-flex flex-wrap gap-1">
                                                         {% for phone in group.phone_numbers.all %}
-                                                            <span class="pill">{{ phone.number }}{% if phone.description %} — {{ phone.description }}{% endif %}</span>
+                                                            <span class="pill">{{ phone.number }}{% if phone.contact_name %} — {{ phone.contact_name }}{% endif %}{% if phone.description %} — {{ phone.description }}{% endif %}</span>
                                                         {% empty %}
                                                             <span class="text-muted-soft">Skupina je zatím bez čísel.</span>
                                                         {% endfor %}
@@ -292,6 +295,7 @@
                                         {% endfor %}
                                     {% endwith %}
                                 </div>
+                                <div id="target-groups-empty" class="text-muted-soft text-center py-2 d-none">Žádná skupina neodpovídá filtru.</div>
                             {% else %}
                                 <div class="alert alert-warning mb-0">Nemáte žádné cílové skupiny k výběru.</div>
                             {% endif %}
@@ -614,6 +618,30 @@
         const sourceObjectCheckboxes = Array.from(document.querySelectorAll('input[name="source_objects"]'));
         const targetNumberCheckboxes = Array.from(document.querySelectorAll('input[name="target_numbers"]'));
         const targetGroupCheckboxes = Array.from(document.querySelectorAll('input[name="target_groups"]'));
+
+        function wireListFilter(searchInputId, listId, emptyId) {
+            const searchInput = document.getElementById(searchInputId);
+            const list = document.getElementById(listId);
+            const emptyHint = document.getElementById(emptyId);
+            if (!searchInput || !list) return;
+
+            const items = Array.from(list.querySelectorAll('.group-item'));
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.trim().toLowerCase();
+                let visibleCount = 0;
+                items.forEach((item) => {
+                    const matches = term === '' || item.textContent.toLowerCase().includes(term);
+                    item.classList.toggle('d-none', !matches);
+                    if (matches) visibleCount += 1;
+                });
+                if (emptyHint) {
+                    emptyHint.classList.toggle('d-none', visibleCount !== 0);
+                }
+            });
+        }
+
+        wireListFilter('target-numbers-search', 'target-numbers-list', 'target-numbers-empty');
+        wireListFilter('target-groups-search', 'target-groups-list', 'target-groups-empty');
         const notifyViaEmailField = document.getElementById('id_notify_via_email');
         const notifyViaSmsField = document.getElementById('id_notify_via_sms');
         const notifyViaTeamsField = document.getElementById('id_notify_via_teams');

@@ -40,7 +40,7 @@ Detail typicky zahrnuje:
 Stránka „Sdílet čísla" (dostupná z detailu čísla, seznamu čísel, dashboardu i detailu skupiny – tlačítko „Sdílet") umožní vybrat jedno nebo víc čísel (zobrazují se jako `číslo — popis`, stejně jako všude jinde v appce) a poslat je dál dvěma způsoby:
 
 - **Jen zkopírovat text** – appka vygeneruje textový seznam vybraných čísel (číslo + popis) a zobrazí ho v poli s tlačítkem „Kopírovat" (JS clipboard API) – nic se neukládá, text si uživatel poslal jinudy (jiná SMS appka, e-mail apod.).
-- **Odeslat SMS přes bránu** – vybere se cílové číslo, které už v bráně existuje (dropdown s popisem/jménem, ne jen holé číslo), a text se zařadí do fronty odchozích akcí (`OutgoingAction`, `action_type='NOTIFY_SMS'`) stejně jako SMS z pravidel. Protože `OutgoingAction.event_log` je povinné pole a žádná reálná příchozí událost tu neexistuje, appka k tomu vytvoří syntetický `IncomingEventLog` s `event_type='SYSTEM'` – stejný vzor jako u `first_contact_timing=ON_SAVE` (sekce 6).
+- **Odeslat SMS přes bránu** – vybere se jedno nebo víc cílových čísel, která už v bráně existují (zaškrtávací seznam s popisem/jménem, ne jen holé číslo, s vyhledáváním), a pro každé z nich se text zařadí do fronty odchozích akcí (`OutgoingAction`, `action_type='NOTIFY_SMS'`) stejně jako SMS z pravidel. Protože `OutgoingAction.event_log` je povinné pole a žádná reálná příchozí událost tu neexistuje, appka k tomu vytvoří jeden syntetický `IncomingEventLog` s `event_type='SYSTEM'`, sdílený všemi vzniklými akcemi – stejný vzor jako u `first_contact_timing=ON_SAVE` (sekce 6).
 
 ## 4) Skupiny
 
