@@ -48,6 +48,7 @@ from .forms import (
     IncomingEventSimulationForm,
     NumberShareForm,
 )
+from . import access
 from .services import backup as backup_service
 from .services import ratelimit
 from .services import reset as reset_service
@@ -95,7 +96,7 @@ def dashboard_view(request):
     # Upravovat i mazat může jen vlastník (autor) čísla/skupiny, ne každý se
     # sdíleným přístupem - sdílení (PhoneNumber.users/Group.users) dává jen
     # zobrazení, ne právo zasahovat do cizí položky.
-    if request.user.is_superuser:
+    if access.is_admin(request.user):
         editable_number_ids = all_number_ids
         deletable_number_ids = all_number_ids
         editable_group_ids = all_group_ids
@@ -232,7 +233,7 @@ def numbers_list_view(request):
     page_obj = paginator.get_page(request.GET.get('page'))
     number_ids = list(numbers.values_list('id', flat=True))
     # Upravovat i mazat může jen vlastník (autor) čísla, ne každý se sdíleným přístupem.
-    if request.user.is_superuser:
+    if access.is_admin(request.user):
         editable_number_ids = number_ids
         deletable_number_ids = number_ids
     else:
@@ -290,7 +291,7 @@ def groups_list_view(request):
     page_obj = paginator.get_page(request.GET.get('page'))
     group_ids = list(groups.values_list('id', flat=True))
     # Upravovat i mazat může jen vlastník (autor) skupiny, ne každý se sdíleným přístupem.
-    if request.user.is_superuser:
+    if access.is_admin(request.user):
         editable_group_ids = group_ids
         deletable_group_ids = group_ids
     else:
@@ -514,7 +515,7 @@ def number_bulk_csv_template(request):
 @permission_required('dashboard.change_phonenumber', raise_exception=True)
 def number_update(request, pk):
     number = get_object_or_404(PhoneNumber, pk=pk, users=request.user)
-    if not request.user.is_superuser and number.owner_id != request.user.id:
+    if not access.is_admin(request.user) and number.owner_id != request.user.id:
         raise PermissionDenied('Číslo může upravovat jen jeho vlastník (autor), případně administrátor.')
     if request.method == 'POST':
         form = PhoneNumberForm(request.POST, instance=number, user=request.user)
@@ -531,7 +532,7 @@ def number_update(request, pk):
 @permission_required('dashboard.delete_phonenumber', raise_exception=True)
 def number_delete(request, pk):
     number = get_object_or_404(PhoneNumber, pk=pk, users=request.user)
-    if not request.user.is_superuser and number.owner_id != request.user.id:
+    if not access.is_admin(request.user) and number.owner_id != request.user.id:
         raise PermissionDenied('Číslo může smazat jen jeho vlastník (autor), případně administrátor.')
     if request.method == 'POST':
         number.delete()
@@ -575,9 +576,9 @@ def number_detail(request, pk):
         'related_logs': related_logs,
         'related_actions': related_actions,
         'can_change_number': request.user.has_perm('dashboard.change_phonenumber')
-            and (request.user.is_superuser or number.owner_id == request.user.id),
+            and (access.is_admin(request.user) or number.owner_id == request.user.id),
         'can_delete_number': request.user.has_perm('dashboard.delete_phonenumber')
-            and (request.user.is_superuser or number.owner_id == request.user.id),
+            and (access.is_admin(request.user) or number.owner_id == request.user.id),
     }
     return render(request, 'dashboard/number_detail.html', context)
 
@@ -609,7 +610,7 @@ def group_create(request):
 @permission_required('dashboard.change_group', raise_exception=True)
 def group_update(request, pk):
     group = get_object_or_404(Group, pk=pk, users=request.user)
-    if not request.user.is_superuser and group.owner_id != request.user.id:
+    if not access.is_admin(request.user) and group.owner_id != request.user.id:
         raise PermissionDenied('Skupinu může upravovat jen její vlastník (autor), případně administrátor.')
     if request.method == 'POST':
         form = GroupForm(request.POST, instance=group)
@@ -626,7 +627,7 @@ def group_update(request, pk):
 @permission_required('dashboard.delete_group', raise_exception=True)
 def group_delete(request, pk):
     group = get_object_or_404(Group, pk=pk, users=request.user)
-    if not request.user.is_superuser and group.owner_id != request.user.id:
+    if not access.is_admin(request.user) and group.owner_id != request.user.id:
         raise PermissionDenied('Skupinu může smazat jen její vlastník (autor), případně administrátor.')
     if request.method == 'POST':
         group.delete()
@@ -673,9 +674,9 @@ def group_detail(request, pk):
         'target_rules': target_rules,
         'related_actions': related_actions,
         'can_change_group': request.user.has_perm('dashboard.change_group')
-            and (request.user.is_superuser or group.owner_id == request.user.id),
+            and (access.is_admin(request.user) or group.owner_id == request.user.id),
         'can_delete_group': request.user.has_perm('dashboard.delete_group')
-            and (request.user.is_superuser or group.owner_id == request.user.id),
+            and (access.is_admin(request.user) or group.owner_id == request.user.id),
         'can_add_number': request.user.has_perm('dashboard.add_phonenumber'),
     }
     return render(request, 'dashboard/group_detail.html', context)
@@ -1478,8 +1479,8 @@ def outgoing_actions_view(request):
 
 @login_required
 def backup_view(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Zálohování je dostupné jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Zálohování je dostupné jen pro administrátora.')
 
     context = {
         'reset_categories': [(key, label) for key, (label, _func) in reset_service.RESET_ACTIONS.items()],
@@ -1490,8 +1491,8 @@ def backup_view(request):
 
 @login_required
 def backup_export(request, kind):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Zálohování je dostupné jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Zálohování je dostupné jen pro administrátora.')
 
     model_labels = backup_service.MODEL_SETS.get(kind)
     if model_labels is None:
@@ -1508,8 +1509,8 @@ def backup_export(request, kind):
 @login_required
 @require_http_methods(['POST'])
 def backup_import(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Import zálohy je dostupný jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Import zálohy je dostupný jen pro administrátora.')
 
     upload = request.FILES.get('backup_file')
     if not upload:
@@ -1543,8 +1544,8 @@ def backup_import(request):
 @login_required
 @require_http_methods(['POST'])
 def data_reset(request, kind):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Reset dat je dostupný jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Reset dat je dostupný jen pro administrátora.')
 
     if request.POST.get('confirm', '').strip().upper() != reset_service.CONFIRM_PHRASE:
         messages.error(request, f'Pro potvrzení je nutné napsat přesně „{reset_service.CONFIRM_PHRASE}“. Nic nebylo smazáno.')
@@ -1568,8 +1569,8 @@ def data_reset(request, kind):
 
 @login_required
 def self_test_view(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Sebediagnostika je dostupná jen pro administrátora.')
 
     latest_run = SelfTestRun.objects.filter(owner=request.user).first()
     history = SelfTestRun.objects.filter(owner=request.user)[1:20]
@@ -1584,8 +1585,8 @@ def self_test_view(request):
 
 @login_required
 def self_test_detail_view(request, pk):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Sebediagnostika je dostupná jen pro administrátora.')
 
     run = get_object_or_404(SelfTestRun, pk=pk, owner=request.user)
     context = {
@@ -1598,8 +1599,8 @@ def self_test_detail_view(request, pk):
 @login_required
 @require_http_methods(['POST'])
 def self_test_run_view(request):
-    if not request.user.is_superuser:
-        raise PermissionDenied('Sebediagnostika je dostupná jen pro superusera.')
+    if not access.is_admin(request.user):
+        raise PermissionDenied('Sebediagnostika je dostupná jen pro administrátora.')
 
     overall, results = selftest_service.run_self_test(request.user)
     counts = selftest_service.summarize_counts(results)

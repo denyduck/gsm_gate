@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from . import access
 from .models import SecurityRule
 
 # Pozor: AutomationRule je už zaregistrovaný v gsm_gate/admin.py (viz
@@ -41,4 +42,9 @@ class SecurityRuleAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        # Samostatně (z vlastního seznamu/detailu) ho běžný uživatel smazat
+        # nemá jak - na to by potřeboval "dashboard.delete_securityrule", což
+        # žádná ze seedovaných rolí neuděluje. Admin/superuser smazat může -
+        # bez téhle výjimky by Django Admin blokoval i legitimní kaskádové
+        # smazání SecurityRule jako součásti mazání jeho vlastníka (User).
+        return access.is_admin(request.user)

@@ -18,7 +18,7 @@
         {% endif %}
         {% if rule.is_protected %}
             <span class="badge text-bg-secondary" title="Nejde smazat ani upravit v appce, jen přes Django Admin"><i class="bi bi-lock-fill"></i> Chráněné systémové pravidlo</span>
-            {% if user.is_superuser %}
+            {% if is_admin %}
                 <a href="/admin/dashboard/automationrule/{{ rule.id }}/change/" class="btn btn-app-outline">Upravit v Django Admin</a>
             {% endif %}
         {% else %}

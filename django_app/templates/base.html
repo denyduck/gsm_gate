@@ -103,7 +103,7 @@
                 {% if user.is_staff %}
                     <a class="nav-link-app" href="/admin/">Admin</a>
                 {% endif %}
-                {% if user.is_superuser %}
+                {% if is_admin %}
                     <a class="nav-link-app" href="{% url 'backup' %}">Zálohování</a>
                     <a class="nav-link-app" href="{% url 'self_test' %}">Sebediagnostika</a>
                 {% endif %}

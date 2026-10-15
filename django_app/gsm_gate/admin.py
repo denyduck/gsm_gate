@@ -18,6 +18,7 @@ from dashboard.models import (
     OutgoingAction,
     UserGroupVisibilityOverride,
 )
+from dashboard.access import is_admin
 
 admin.site.site_header = 'Správa GSM brány'
 admin.site.site_title = 'Admin GSM brány'
@@ -328,21 +329,21 @@ class AutomationRuleAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        if request.user.is_superuser:
+        if is_admin(request.user):
             return queryset
         return queryset.filter(owner=request.user)
 
     def has_view_permission(self, request, obj=None):
         if not super().has_view_permission(request, obj):
             return False
-        if obj is None or request.user.is_superuser:
+        if obj is None or is_admin(request.user):
             return True
         return obj.owner_id == request.user.id
 
     def has_change_permission(self, request, obj=None):
         if not super().has_change_permission(request, obj):
             return False
-        if obj is None or request.user.is_superuser:
+        if obj is None or is_admin(request.user):
             return True
         return obj.owner_id == request.user.id
 
@@ -351,12 +352,12 @@ class AutomationRuleAdmin(admin.ModelAdmin):
             return False
         if not super().has_delete_permission(request, obj):
             return False
-        if obj is None or request.user.is_superuser:
+        if obj is None or is_admin(request.user):
             return True
         return obj.owner_id == request.user.id
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'owner' and not request.user.is_superuser:
+        if db_field.name == 'owner' and not is_admin(request.user):
             kwargs['queryset'] = User.objects.filter(pk=request.user.pk)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
@@ -366,12 +367,12 @@ class AutomationRuleAdmin(admin.ModelAdmin):
             fields.insert(0, 'quick_preset')
         if 'users' in fields:
             fields.remove('users')
-        if not request.user.is_superuser and 'assign_to_users' in fields:
+        if not is_admin(request.user) and 'assign_to_users' in fields:
             fields.remove('assign_to_users')
         return fields
 
     def save_model(self, request, obj, form, change):
-        if request.user.is_superuser:
+        if is_admin(request.user):
             super().save_model(request, obj, form, change)
             return
 
@@ -384,7 +385,7 @@ class AutomationRuleAdmin(admin.ModelAdmin):
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
 
-        if not request.user.is_superuser:
+        if not is_admin(request.user):
             return
 
         selected_users = form.cleaned_data.get('assign_to_users')
@@ -406,7 +407,7 @@ class OwnerRestrictedAdminMixin:
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        if request.user.is_superuser:
+        if is_admin(request.user):
             return queryset
         return queryset.filter(**{self.owner_field_name: request.user})
 
@@ -416,31 +417,31 @@ class OwnerRestrictedAdminMixin:
     def has_view_permission(self, request, obj=None):
         if not super().has_view_permission(request, obj):
             return False
-        if obj is None or request.user.is_superuser:
+        if obj is None or is_admin(request.user):
             return True
         return self._is_owner(request, obj)
 
     def has_change_permission(self, request, obj=None):
         if not super().has_change_permission(request, obj):
             return False
-        if obj is None or request.user.is_superuser:
+        if obj is None or is_admin(request.user):
             return True
         return self._is_owner(request, obj)
 
     def has_delete_permission(self, request, obj=None):
         if not super().has_delete_permission(request, obj):
             return False
-        if obj is None or request.user.is_superuser:
+        if obj is None or is_admin(request.user):
             return True
         return self._is_owner(request, obj)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == self.owner_field_name and not request.user.is_superuser:
+        if db_field.name == self.owner_field_name and not is_admin(request.user):
             kwargs['queryset'] = User.objects.filter(pk=request.user.pk)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        if request.user.is_superuser:
+        if is_admin(request.user):
             super().save_model(request, obj, form, change)
             return
 
@@ -477,7 +478,7 @@ class OutgoingActionAdmin(OwnerRestrictedAdminMixin, admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super(OwnerRestrictedAdminMixin, self).get_queryset(request)
-        if request.user.is_superuser:
+        if is_admin(request.user):
             return queryset
         return queryset.filter(Q(rule__owner=request.user) | Q(rule__isnull=True, owner=request.user)).distinct()
 
@@ -487,12 +488,12 @@ class OutgoingActionAdmin(OwnerRestrictedAdminMixin, admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if not request.user.is_superuser and db_field.name == 'rule':
+        if not is_admin(request.user) and db_field.name == 'rule':
             kwargs['queryset'] = AutomationRule.objects.filter(owner=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        if request.user.is_superuser:
+        if is_admin(request.user):
             super().save_model(request, obj, form, change)
             return
 

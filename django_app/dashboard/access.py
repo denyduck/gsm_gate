@@ -2,12 +2,25 @@ from django.db.models import Q
 
 from .models import AutomationRule, DeviceObject, Group, PhoneNumber, UserGroupVisibilityOverride
 
+# Tři úrovně práv: superuser > admin > user. "Admin" je Django auth Group
+# "Admin" (django.contrib.auth.models.Group, ne dashboard.models.Group výše! -
+# ta slouží pro telefonní skupiny) - kdo je v ní, má zjednodušeně stejná
+# práva jako superuser, jen bez samotného is_superuser flagu (ten zůstává
+# vyhrazený pro "super admina"). Použij is_admin() místo user.is_superuser
+# všude, kde se kontroluje právo zasahovat do cizích dat/objektů.
+
+
+def is_admin(user):
+    if user is None or not user.is_authenticated:
+        return False
+    return user.is_superuser or user.groups.filter(name='Admin').exists()
+
 
 def get_accessible_groups_qs(user):
     if user is None or not user.is_authenticated:
         return Group.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return Group.objects.all()
 
     django_group_names = user.groups.values_list('name', flat=True)
@@ -21,7 +34,7 @@ def get_accessible_numbers_qs(user, active_only=False):
     if user is None or not user.is_authenticated:
         return PhoneNumber.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         queryset = PhoneNumber.objects.all()
         if active_only:
             queryset = queryset.filter(active=True)
@@ -60,7 +73,7 @@ def get_manageable_numbers_qs(user, action='change'):
     if user is None or not user.is_authenticated:
         return PhoneNumber.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return PhoneNumber.objects.all()
 
     return PhoneNumber.objects.filter(owner=user)
@@ -70,7 +83,7 @@ def get_manageable_groups_qs(user, action='change'):
     if user is None or not user.is_authenticated:
         return Group.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return Group.objects.all()
 
     return Group.objects.filter(owner=user)
@@ -80,7 +93,7 @@ def get_accessible_rules_qs(user):
     if user is None or not user.is_authenticated:
         return AutomationRule.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return AutomationRule.objects.all()
 
     return AutomationRule.objects.filter(Q(owner=user) | Q(users=user)).distinct()
@@ -90,7 +103,7 @@ def get_manageable_rules_qs(user, action='change'):
     if user is None or not user.is_authenticated:
         return AutomationRule.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return AutomationRule.objects.all()
 
     return AutomationRule.objects.filter(owner=user)
@@ -100,7 +113,7 @@ def get_accessible_device_objects_qs(user):
     if user is None or not user.is_authenticated:
         return DeviceObject.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return DeviceObject.objects.all()
 
     return DeviceObject.objects.filter(owner=user)
@@ -110,7 +123,7 @@ def get_manageable_device_objects_qs(user, action='change'):
     if user is None or not user.is_authenticated:
         return DeviceObject.objects.none()
 
-    if user.is_superuser:
+    if is_admin(user):
         return DeviceObject.objects.all()
 
     return DeviceObject.objects.filter(owner=user)

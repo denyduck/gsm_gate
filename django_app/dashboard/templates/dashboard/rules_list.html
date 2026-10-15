@@ -39,7 +39,7 @@
     </p>
     <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'blocked_numbers' %}" class="btn btn-app-outline">Blokovaná čísla</a>
-        {% if user.is_superuser %}
+        {% if is_admin %}
             <a href="/admin/dashboard/securityrule/" class="btn btn-app-outline">Upravit v Django Admin</a>
         {% endif %}
         {% if mkdocs_base_url %}
@@ -147,7 +147,7 @@
                             {% if can_change_rule and rule.id in editable_rule_ids %}
                                 <a href="{% url 'rule_edit' rule.id %}" class="btn btn-sm btn-app-outline">Upravit</a>
                             {% endif %}
-                            {% if rule.is_protected and user.is_superuser %}
+                            {% if rule.is_protected and is_admin %}
                                 <a href="/admin/dashboard/automationrule/{{ rule.id }}/change/" class="btn btn-sm btn-app-outline">Django Admin</a>
                             {% endif %}
                             {% if can_delete_rule and rule.id in deletable_rule_ids %}
@@ -229,7 +229,7 @@
                             {% if can_change_rule and rule.id in editable_rule_ids %}
                                 <a href="{% url 'rule_edit' rule.id %}" class="btn btn-sm btn-app-outline">Upravit</a>
                             {% endif %}
-                            {% if rule.is_protected and user.is_superuser %}
+                            {% if rule.is_protected and is_admin %}
                                 <a href="/admin/dashboard/automationrule/{{ rule.id }}/change/" class="btn btn-sm btn-app-outline">Upravit v Django Admin</a>
                             {% endif %}
                             {% if can_delete_rule and rule.id in deletable_rule_ids %}
