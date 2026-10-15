@@ -49,6 +49,29 @@ def _index_from_path(path: str) -> int:
     return int(path.rsplit('/', 1)[-1])
 
 
+# Odhad počtu SMS částí pro dynamický timeout --send (viz send_sms) - delší
+# zprávy (např. sdílení více čísel najednou) mají víc částí, modem je
+# odesílá postupně přes AT příkazy a pevných 20s na celé odeslání nemusí
+# stačit. Čeština běžně obsahuje znaky mimo základní GSM-7 abecedu (ř, ě, ů,
+# ...), takže se musí počítat s horším případem - UCS-2 (70/67 znaků na
+# část) - jednodušší a bezpečnější než přesně parsovat GSM-7 abecedu.
+_GSM7_BASIC = (
+    "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
+)
+
+
+def _estimate_sms_parts(text: str) -> int:
+    length = len(text)
+    if length == 0:
+        return 1
+    if all(ch in _GSM7_BASIC for ch in text):
+        limit = 160 if length <= 160 else 153
+    else:
+        limit = 70 if length <= 70 else 67
+    return max(1, -(-length // limit))  # ceil division
+
+
 # Hodnoty MMModemLock, které znamenají "SIM není zamčená" - liší se podle
 # verze ModemManager/mmcli (u našeho zařízení se ukázalo "--").
 _NO_LOCK_VALUES = ('--', 'none', '')
@@ -135,7 +158,12 @@ class ModemManagerClient:
             raise ModemError(f'mmcli nevrátil cestu k nově vytvořené SMS: {data}')
 
         sms_idx = _index_from_path(sms_path)
-        send_result = _run_mmcli(['-s', str(sms_idx), '--send'])
+        # Vícečásťové SMS (dlouhý text, např. sdílení víc čísel najednou)
+        # odesílá modem po částech přes AT příkazy - pevných 20s nemusí na
+        # celé odeslání stačit. 15s/část s rozumným stropem, ať jedna
+        # obrovská zpráva nezablokuje worker cyklus na věčnost.
+        send_timeout = min(180.0, max(20.0, 15.0 * _estimate_sms_parts(text)))
+        send_result = _run_mmcli(['-s', str(sms_idx), '--send'], timeout=send_timeout)
 
         # --send při úspěchu často nevrátí žádný JSON (viz _run_mmcli) - v tom
         # případě je jediným signálem úspěchu nulový návratový kód a `state`
