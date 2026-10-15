@@ -25,6 +25,7 @@ urlpatterns = [
     path('numbers/add/', views.number_create, name='add_number'),               # správný název
     path('numbers/bulk-add/', views.number_bulk_add, name='number_bulk_add'),
     path('numbers/share/', views.number_share_view, name='number_share'),
+    path('sms/send/', views.send_sms_view, name='send_sms'),
     path('numbers/bulk-add/template.csv', views.number_bulk_csv_template, name='number_bulk_csv_template'),
     path('numbers/<int:pk>/', views.number_detail, name='number_detail'),
     path('numbers/<int:pk>/edit/', views.number_update, name='edit_number'),

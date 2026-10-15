@@ -78,6 +78,9 @@
             {% if user.is_authenticated %}
                 <a class="nav-link-app" href="{% url 'home' %}">Přehled</a>
                 <a class="nav-link-app" href="{% url 'dashboard' %}">Kontakty</a>
+                {% if perms.dashboard.view_phonenumber %}
+                    <a class="nav-link-app" href="{% url 'send_sms' %}"><i class="bi bi-chat-dots"></i> Odeslat SMS</a>
+                {% endif %}
                 {% if perms.dashboard.view_automationrule %}
                     <a class="nav-link-app" href="{% url 'rules_list' %}">Pravidla</a>
                 {% endif %}

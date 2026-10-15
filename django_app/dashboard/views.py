@@ -47,6 +47,7 @@ from .forms import (
     AutomationRuleForm,
     IncomingEventSimulationForm,
     NumberShareForm,
+    SendSmsForm,
 )
 from . import access
 from .services import backup as backup_service
@@ -492,6 +493,50 @@ def number_share_view(request):
         form = NumberShareForm(user=request.user, initial=initial)
 
     return render(request, 'dashboard/number_share.html', {'form': form, 'share_text': share_text})
+
+
+# Obecné odeslání SMS - vlastní text, na vybrané existující kontakty a/nebo
+# ručně zadaná čísla (nemusí být v bráně evidovaná). Stejný vzor jako
+# number_share_view (syntetický IncomingEventLog, jedna OutgoingAction na
+# cíl), jen appka text zprávy nevytváří sama - jen odešle, co uživatel napsal.
+@login_required
+@permission_required('dashboard.view_phonenumber', raise_exception=True)
+def send_sms_view(request):
+    if request.method == 'POST':
+        form = SendSmsForm(request.POST, user=request.user)
+        if form.is_valid():
+            message = form.cleaned_data['message']
+            selected_numbers = {n.number for n in form.cleaned_data['numbers']}
+            manual_numbers = set(form.cleaned_data['manual_number_list'])
+            target_numbers = sorted(selected_numbers | manual_numbers)
+
+            event_log = IncomingEventLog.objects.create(
+                owner=request.user,
+                event_type='SYSTEM',
+                source_number='',
+                message_body=f'Ruční odeslání SMS na {len(target_numbers)} čísel.',
+                processed=True,
+                result_summary=f'Vygenerováno ručním odesláním SMS na {", ".join(target_numbers)}.',
+            )
+            for target in target_numbers:
+                OutgoingAction.objects.create(
+                    owner=request.user,
+                    event_log=event_log,
+                    action_type='NOTIFY_SMS',
+                    target_number=target,
+                    payload_message=message,
+                    status='PENDING',
+                )
+            messages.success(request, f'SMS zařazena k odeslání na {len(target_numbers)} čísel: {", ".join(target_numbers)}.')
+            return redirect('send_sms')
+    else:
+        initial = {}
+        preselected_number = request.GET.get('number')
+        if preselected_number:
+            initial['numbers'] = [preselected_number]
+        form = SendSmsForm(user=request.user, initial=initial)
+
+    return render(request, 'dashboard/send_sms.html', {'form': form})
 
 
 @login_required

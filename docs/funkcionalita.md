@@ -42,6 +42,17 @@ Stránka „Sdílet čísla" (dostupná z detailu čísla, seznamu čísel, dash
 - **Jen zkopírovat text** – appka vygeneruje textový seznam vybraných čísel (číslo + popis) a zobrazí ho v poli s tlačítkem „Kopírovat" (JS clipboard API) – nic se neukládá, text si uživatel poslal jinudy (jiná SMS appka, e-mail apod.).
 - **Odeslat SMS přes bránu** – vybere se jedno nebo víc cílových čísel, která už v bráně existují (zaškrtávací seznam s popisem/jménem, ne jen holé číslo, s vyhledáváním), a pro každé z nich se text zařadí do fronty odchozích akcí (`OutgoingAction`, `action_type='NOTIFY_SMS'`) stejně jako SMS z pravidel. Protože `OutgoingAction.event_log` je povinné pole a žádná reálná příchozí událost tu neexistuje, appka k tomu vytvoří jeden syntetický `IncomingEventLog` s `event_type='SYSTEM'`, sdílený všemi vzniklými akcemi – stejný vzor jako u `first_contact_timing=ON_SAVE` (sekce 6).
 
+### Odeslání SMS
+
+Stránka „Odeslat SMS" (hlavní menu, detail čísla, seznam čísel i dashboard – tlačítko „Odeslat SMS"/„SMS") je obecný composer – na rozdíl od sdílení výše appka text zprávy nijak nevytváří, jen odešle přesně to, co uživatel napíše.
+
+Adresáti se kombinují ze dvou zdrojů (aspoň jeden musí dát alespoň jedno číslo):
+
+- **Vybraná čísla** – zaškrtávací seznam s vyhledáváním, stejný vzor jako u sdílení výše – jen čísla, která už appka eviduje.
+- **Ručně zadaná čísla** – libovolná čísla (jedno na řádek, nebo oddělená čárkou/středníkem), která v bráně vůbec nemusí existovat jako záznam – appka je jen normalizuje (`normalize_phone_number`) a použije.
+
+Výsledné cíle (sjednocení obou zdrojů, bez duplicit) se zpracují stejně jako u sdílení – jeden syntetický `IncomingEventLog` (`event_type='SYSTEM'`) a pro každé cílové číslo samostatná `OutgoingAction` (`action_type='NOTIFY_SMS'`, `status='PENDING'`), kterou pak odešle `gsm_worker` v běžném cyklu.
+
 ## 4) Skupiny telefonních čísel
 
 Pozor na rozlišení: tohle jsou skupiny **telefonních čísel/příjemců** (`dashboard.Group`) – ne uživatelské skupiny/role pro přihlášení a oprávnění (Django `auth.Group` – Jen čtení/Operátor/Admin/..., viz [Role a oprávnění](role-a-opravneni.md)). V appce samotné se druhý typ nikde nepoužívá, jen v Django Adminu.

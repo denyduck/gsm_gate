@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Odeslat SMS{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-chat-dots"></i> SMS</span>
+    <h1 class="hero-title">Odeslat SMS</h1>
+    <p class="hero-subtitle">Napiš text a vyber komu ho poslat - z kontaktů evidovaných v bráně, na libovolná ručně zadaná čísla, nebo obojí najednou.</p>
+    {% if mkdocs_base_url %}
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#odeslání-sms" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="app-panel mb-4">
+    <div class="form-shell">
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="col-12 alert alert-danger">
+                <ul class="mb-0">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="col-12">
+                <label class="form-label">{{ form.message.label }}</label>
+                {{ form.message }}
+            </div>
+
+            <div class="col-md-7" id="sms-numbers-wrap">
+                <div class="d-flex justify-content-between align-items-center mb-1 gap-2">
+                    <label class="form-label mb-0">{{ form.numbers.label }}</label>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-app-outline btn-sm" id="sms-numbers-select-all">Vybrat vše</button>
+                        <button type="button" class="btn btn-app-outline btn-sm" id="sms-numbers-clear-all">Zrušit vše</button>
+                    </div>
+                </div>
+
+                <input type="text" id="sms-numbers-search" class="form-control mb-2" placeholder="Filtrovat čísla, jméno nebo popis...">
+
+                {% if form.fields.numbers.queryset.exists %}
+                    <div class="list-group list-scroll" id="sms-numbers-list">
+                        {% with selected_numbers=form.numbers.value %}
+                            {% for number in form.fields.numbers.queryset %}
+                                <label class="list-group-item group-item mb-1 rounded">
+                                    <input class="group-checkbox me-2" type="checkbox" name="numbers" value="{{ number.pk }}"
+                                        {% if selected_numbers %}
+                                            {% if number.pk|stringformat:"s" in selected_numbers or number.pk in selected_numbers %}checked{% endif %}
+                                        {% endif %}>
+                                    <span class="group-item-text">
+                                        {{ number.number }}{% if number.contact_name %} — {{ number.contact_name }}{% endif %}{% if number.description %} — {{ number.description }}{% endif %}
+                                        {% for group in number.groups.all %}
+                                            <span class="pill">{{ group.name }}</span>
+                                        {% endfor %}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        {% endwith %}
+                    </div>
+                    <div id="sms-numbers-empty" class="text-muted-soft text-center py-2 d-none">Žádné číslo neodpovídá filtru.</div>
+                {% else %}
+                    <div class="alert alert-warning mb-0">Nemáte žádná evidovaná čísla - můžeš i tak poslat na ručně zadané číslo níže.</div>
+                {% endif %}
+                <div class="form-text">{{ form.numbers.help_text }}</div>
+            </div>
+
+            <div class="col-md-5">
+                <label class="form-label">{{ form.manual_numbers.label }}</label>
+                {{ form.manual_numbers }}
+                <div class="form-text">{{ form.manual_numbers.help_text }}</div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-app-primary">Odeslat</button>
+                    <a href="{% url 'numbers_list' %}" class="btn btn-app-outline">Zpět</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const checkboxes = Array.from(document.querySelectorAll('#sms-numbers-list input[name="numbers"]'));
+        const selectAllBtn = document.getElementById('sms-numbers-select-all');
+        const clearAllBtn = document.getElementById('sms-numbers-clear-all');
+        const searchInput = document.getElementById('sms-numbers-search');
+        const items = Array.from(document.querySelectorAll('#sms-numbers-list .group-item'));
+        const emptyHint = document.getElementById('sms-numbers-empty');
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => checkboxes.forEach((c) => { c.checked = true; }));
+        }
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => checkboxes.forEach((c) => { c.checked = false; }));
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.trim().toLowerCase();
+                let visibleCount = 0;
+                items.forEach((item) => {
+                    const matches = term === '' || item.textContent.toLowerCase().includes(term);
+                    item.classList.toggle('d-none', !matches);
+                    if (matches) visibleCount += 1;
+                });
+                if (emptyHint) {
+                    emptyHint.classList.toggle('d-none', visibleCount !== 0);
+                }
+            });
+        }
+    })();
+</script>
+{% endblock %}

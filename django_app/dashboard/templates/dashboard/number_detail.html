@@ -16,6 +16,7 @@
             <a href="{% url 'delete_number' number.id %}" class="btn btn-outline-danger">Smazat</a>
         {% endif %}
         <a href="{% url 'number_share' %}?number={{ number.id }}" class="btn btn-app-outline"><i class="bi bi-share"></i> Sdílet</a>
+        <a href="{% url 'send_sms' %}?number={{ number.id }}" class="btn btn-app-outline"><i class="bi bi-chat-dots"></i> Odeslat SMS</a>
     </div>
 </section>
 

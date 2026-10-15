@@ -625,3 +625,61 @@ class NumberShareForm(forms.Form):
                 line = f'{line} — {number.contact_label}'
             lines.append(line)
         return '\n'.join(lines)
+
+
+class SendSmsForm(forms.Form):
+    """Obecné odeslání SMS (běžný "napsat a odeslat" composer) - libovolný
+    vlastní text, na vybrané existující kontakty a/nebo na ručně zadaná
+    čísla, která v bráně vůbec nemusí být evidovaná. Na rozdíl od
+    NumberShareForm výše appka text zprávy nijak nevytváří - jen ho
+    odešle, přesně jak ho uživatel napsal."""
+
+    message = forms.CharField(
+        label='Text zprávy',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Text SMS...'}),
+    )
+    numbers = forms.ModelMultipleChoiceField(
+        queryset=PhoneNumber.objects.none(),
+        label='Vybraná čísla',
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text='Čísla, která už máš v bráně evidovaná.',
+    )
+    manual_numbers = forms.CharField(
+        label='Další čísla (ručně, nemusí být v bráně)',
+        required=False,
+        widget=forms.Textarea(
+            attrs={'class': 'form-control', 'rows': 3, 'placeholder': '+420777111222\n+420777111333\n00420777111444'}
+        ),
+        help_text='Libovolná čísla, jedno na řádek (nebo oddělená čárkou/středníkem) - nemusí být v bráně vůbec evidovaná.',
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None and user.is_authenticated:
+            self.fields['numbers'].queryset = PhoneNumber.objects.filter(users=user).order_by('number')
+
+    def clean(self):
+        cleaned = super().clean()
+        numbers = cleaned.get('numbers') or PhoneNumber.objects.none()
+        manual_raw = cleaned.get('manual_numbers') or ''
+
+        candidates = BulkNumberGroupAssignForm.parse_text_candidates(manual_raw)
+        manual_normalized = []
+        invalid_values = []
+        for candidate in candidates:
+            normalized = BulkNumberGroupAssignForm.normalize_phone(candidate)
+            if normalized:
+                manual_normalized.append(normalized)
+            else:
+                invalid_values.append(candidate)
+
+        if invalid_values:
+            self.add_error('manual_numbers', f'Nerozpoznaná čísla: {", ".join(invalid_values)}.')
+
+        cleaned['manual_number_list'] = sorted(set(manual_normalized))
+
+        if not numbers.exists() and not cleaned['manual_number_list']:
+            self.add_error('numbers', 'Vyber alespoň jedno existující číslo, nebo zadej číslo ručně.')
+
+        return cleaned

@@ -74,6 +74,7 @@
                     <td>{% if number.active %}Ano{% else %}Ne{% endif %}</td>
                     <td onclick="event.stopPropagation()">
                         <a href="{% url 'number_share' %}?number={{ number.id }}" class="btn btn-sm btn-app-outline"><i class="bi bi-share"></i> Sdílet</a>
+                        <a href="{% url 'send_sms' %}?number={{ number.id }}" class="btn btn-sm btn-app-outline"><i class="bi bi-chat-dots"></i> SMS</a>
                     </td>
                 </tr>
                 {% endfor %}
