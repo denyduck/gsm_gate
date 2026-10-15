@@ -35,8 +35,11 @@ class Group(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = 'Skupina'
-        verbose_name_plural = 'Skupiny'
+        # Pozor na rozlišení od Django auth.Group ("Uživatelské skupiny" -
+        # role pro přihlášení/oprávnění, viz gsm_gate/admin.py) - tohle je
+        # úplně jiný model, skupina TELEFONNÍCH ČÍSEL (příjemců).
+        verbose_name = 'Skupina telefonních čísel'
+        verbose_name_plural = 'Skupiny telefonních čísel'
 
 
 # tabulka pro telefonní čísla
@@ -95,12 +98,12 @@ class PhoneNumber(models.Model):
 
 class UserGroupVisibilityOverride(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='group_visibility_overrides', verbose_name='Uživatel')
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='visibility_overrides', verbose_name='Skupina')
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='visibility_overrides', verbose_name='Skupina telefonních čísel')
     hidden_numbers = models.ManyToManyField(PhoneNumber, blank=True, related_name='hidden_in_visibility_overrides', verbose_name='Skrytá čísla')
 
     class Meta:
-        verbose_name = 'Výjimka viditelnosti skupiny'
-        verbose_name_plural = 'Výjimky viditelnosti skupin'
+        verbose_name = 'Výjimka viditelnosti skupiny telefonních čísel'
+        verbose_name_plural = 'Výjimky viditelnosti skupin telefonních čísel'
         constraints = [
             models.UniqueConstraint(fields=['user', 'group'], name='unique_user_group_visibility_override')
         ]

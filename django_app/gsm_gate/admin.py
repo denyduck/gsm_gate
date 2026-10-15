@@ -4,6 +4,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import UserChangeForm
+from django.contrib.auth.models import Group as AuthGroup
 from django.contrib.auth.models import Permission, User
 from django import forms
 from django.db.models import Q
@@ -23,6 +24,15 @@ from dashboard.access import is_admin
 admin.site.site_header = 'Správa GSM brány'
 admin.site.site_title = 'Admin GSM brány'
 admin.site.index_title = 'Administrace systému'
+
+# Django auth.Group (role pro přihlášení/oprávnění - Jen čtení/Operátor/
+# Admin/...) se v adminu jmenuje stejně jako appková dashboard.Group
+# (skupiny telefonních čísel/příjemců), obojí "Skupiny" - matoucí, obě
+# položky v postranním menu adminu nerozeznatelné. Přejmenování jen
+# metadat (ne DB sloupec, žádná migrace potřeba), jde o standardní
+# vestavěný model, nejde ho upravit v dashboard/models.py.
+AuthGroup._meta.verbose_name = 'Uživatelská skupina'
+AuthGroup._meta.verbose_name_plural = 'Uživatelské skupiny'
 
 
 def approve_users(modeladmin, request, queryset):
@@ -88,9 +98,25 @@ class CustomUserChangeForm(UserChangeForm):
     bez téhle úpravy appka nabízela i desítky nerelevantních oprávnění
     z vestavěných Django aplikací (admin, contenttypes, sessions) a každé
     bylo napůl v angličtině ("Can add"), napůl v češtině (název modelu).
-    Skutečná správa práv ale stejně vede přes skupiny (pole "Skupiny" níže,
-    viz role-a-opravneni.md) - tohle pole je jen pro výjimečné doladění
-    jednotlivce nad rámec jeho skupin."""
+    Skutečná správa práv ale stejně vede přes uživatelské skupiny (pole
+    "Uživatelské skupiny" níže, viz role-a-opravneni.md) - tohle pole je
+    jen pro výjimečné doladění jednotlivce nad rámec jeho skupin.
+
+    Pole "groups" tu je přeznačené explicitně (včetně popisku widgetu),
+    protože bez toho by se jmenovalo stejně jako appkové "Skupiny"
+    (dashboard.Group = skupiny telefonních čísel) hned vedle - viz
+    assigned_groups níže. Django totiž popisek widgetu FilteredSelectMultiple
+    u M2M pole bere z verbose_name POLE "groups" (vždy "skupiny"), ne
+    z verbose_name_plural modelu auth.Group (ten je přeznačený v admin.py
+    při importu, ale na tohle konkrétní pole to nemá vliv)."""
+
+    groups = forms.ModelMultipleChoiceField(
+        label='Uživatelské skupiny',
+        queryset=AuthGroup.objects.all().order_by('name'),
+        required=False,
+        help_text='Role pro přihlášení/oprávnění (Jen čtení, Operátor, Admin, ...) - NE skupiny telefonních čísel.',
+        widget=admin.widgets.FilteredSelectMultiple('uživatelské skupiny', is_stacked=False),
+    )
 
     user_permissions = CleanPermissionMultipleChoiceField(
         label='Oprávnění (výjimky nad rámec skupin)',
@@ -99,7 +125,7 @@ class CustomUserChangeForm(UserChangeForm):
         ).select_related('content_type').order_by('content_type__model', 'codename'),
         required=False,
         help_text=(
-            'Většinu práv přiřazuj přes skupiny (pole "Skupiny" níže - Jen čtení / Operátor / Admin / ...), '
+            'Většinu práv přiřazuj přes uživatelské skupiny výše (Jen čtení / Operátor / Admin / ...), '
             'ne tady jednotlivě. Tohle pole je pro výjimečné doladění konkrétního uživatele nad rámec jeho skupin.'
         ),
         widget=admin.widgets.FilteredSelectMultiple('oprávnění', is_stacked=False),
@@ -117,11 +143,11 @@ class CustomUserChangeForm(UserChangeForm):
         widget=admin.widgets.FilteredSelectMultiple('Telefonní čísla', is_stacked=False),
     )
     assigned_groups = GroupMultipleChoiceField(
-        label='Skupiny',
+        label='Skupiny telefonních čísel',
         queryset=Group.objects.all().select_related('owner').order_by('name'),
         required=False,
-        help_text='Skupiny, ke kterým bude mít uživatel přístup (sdílení).',
-        widget=admin.widgets.FilteredSelectMultiple('Skupiny', is_stacked=False),
+        help_text='Skupiny telefonních čísel, ke kterým bude mít uživatel přístup (sdílení) - NE uživatelské skupiny/role.',
+        widget=admin.widgets.FilteredSelectMultiple('skupiny telefonních čísel', is_stacked=False),
     )
 
     class Meta(UserChangeForm.Meta):
@@ -182,7 +208,7 @@ users_list.short_description = "Uživatelé"
 # v několika skupinách zároveň)
 def groups_list(obj):
     return ", ".join([g.name for g in obj.groups.all()])
-groups_list.short_description = "Skupiny"
+groups_list.short_description = "Skupiny čísel"
 
 
 ##################################################################################################
@@ -190,10 +216,10 @@ groups_list.short_description = "Skupiny"
 ##################################################################################################
 class PhoneNumberAdminForm(forms.ModelForm):
     groups = GroupMultipleChoiceField(
-        label='Skupiny',
+        label='Skupiny telefonních čísel',
         queryset=Group.objects.all().select_related('owner').order_by('name'),
         required=False,
-        widget=admin.widgets.FilteredSelectMultiple('Skupiny', is_stacked=False),
+        widget=admin.widgets.FilteredSelectMultiple('skupiny telefonních čísel', is_stacked=False),
     )
 
     class Meta:

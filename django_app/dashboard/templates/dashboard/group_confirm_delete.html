@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Smazat skupinu{% endblock %}
+{% block title %}Smazat skupinu telefonních čísel{% endblock %}
 
 {% block content %}
 <section class="app-panel confirm-box">
     <span class="status-badge"><i class="bi bi-exclamation-triangle"></i> Nevratná akce</span>
-    <h1 class="hero-title fs-3">Smazat skupinu {{ group.name }}?</h1>
+    <h1 class="hero-title fs-3">Smazat skupinu telefonních čísel {{ group.name }}?</h1>
     <p class="hero-subtitle mb-3">Tato akce je nevratná. Čísla zůstanou zachována, ale vazba na skupinu bude odstraněna.</p>
     <p class="mb-3">
         <strong>Vlastník:</strong> {{ group.owner.username|default:"—" }}

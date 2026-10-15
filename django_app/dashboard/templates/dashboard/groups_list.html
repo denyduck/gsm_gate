@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Skupiny{% endblock %}
+{% block title %}Skupiny telefonních čísel{% endblock %}
 
 {% block content %}
 <section class="app-panel mb-4">
-    <span class="status-badge"><i class="bi bi-collection"></i> Skupiny</span>
-    <h1 class="hero-title">Přehled skupin příjemců</h1>
+    <span class="status-badge"><i class="bi bi-collection"></i> Skupiny telefonních čísel</span>
+    <h1 class="hero-title">Přehled skupin telefonních čísel (příjemců)</h1>
     <p class="hero-subtitle">Kompletní seznam skupin s možností filtrování, řazení a přepnutí zobrazení.</p>
     <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'dashboard' %}" class="btn btn-app-outline">Zpět na dashboard</a>
@@ -12,14 +12,14 @@
             <a href="{% url 'add_group' %}" class="btn btn-app-primary">Nová skupina</a>
         {% endif %}
         {% if mkdocs_base_url %}
-            <a href="{{ mkdocs_base_url }}/funkcionalita/#4-skupiny" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
+            <a href="{{ mkdocs_base_url }}/funkcionalita/#4-skupiny-telefonních-čísel" target="_blank" rel="noopener" class="btn btn-app-outline"><i class="bi bi-book"></i> Dokumentace</a>
         {% endif %}
     </div>
 </section>
 
 <section class="app-panel">
     <div class="panel-header">
-        <h2 class="panel-title">Skupiny ({{ total_count }})</h2>
+        <h2 class="panel-title">Skupiny telefonních čísel ({{ total_count }})</h2>
         <div class="d-flex gap-2 flex-wrap align-items-center">
             <div class="btn-group" role="group" aria-label="Přepnutí zobrazení">
                 <button type="button" id="view-toggle-grid" class="btn btn-sm btn-app-outline" title="Zobrazit jako dlaždice"><i class="bi bi-grid-3x3-gap"></i> Dlaždice</button>

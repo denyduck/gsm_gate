@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% load widget_tweaks %}
 
-{% block title %}Přidat / Upravit skupinu{% endblock %}
+{% block title %}Přidat / Upravit skupinu telefonních čísel{% endblock %}
 
 {% block content %}
 <section class="row justify-content-center">
     <div class="col-md-7 col-lg-6">
         <div class="app-panel">
             <div class="panel-header">
-                <h2 class="panel-title">{{ form.instance.pk|yesno:"Upravit skupinu,Přidat novou skupinu" }}</h2>
-                <span class="pill">Záznam skupiny</span>
+                <h2 class="panel-title">{{ form.instance.pk|yesno:"Upravit skupinu telefonních čísel,Přidat novou skupinu telefonních čísel" }}</h2>
+                <span class="pill">Záznam skupiny telefonních čísel</span>
             </div>
             {% if mkdocs_base_url %}
-                <a href="{{ mkdocs_base_url }}/funkcionalita/#4-skupiny" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline mb-3"><i class="bi bi-book"></i> Dokumentace: Skupiny</a>
+                <a href="{{ mkdocs_base_url }}/funkcionalita/#4-skupiny-telefonních-čísel" target="_blank" rel="noopener" class="btn btn-sm btn-app-outline mb-3"><i class="bi bi-book"></i> Dokumentace: Skupiny telefonních čísel</a>
             {% endif %}
 
             <div class="form-shell">

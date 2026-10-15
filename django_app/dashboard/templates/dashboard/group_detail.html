@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Detail skupiny{% endblock %}
+{% block title %}Detail skupiny telefonních čísel{% endblock %}
 
 {% block content %}
 <section class="app-panel mb-4">
     <span class="status-badge"><i class="bi bi-collection"></i> Detail položky</span>
-    <h1 class="hero-title">Skupina {{ group.name }}</h1>
+    <h1 class="hero-title">Skupina telefonních čísel {{ group.name }}</h1>
     <p class="hero-subtitle">Přehled souvisejících dat: členové, pravidla i akce navázané na tuto skupinu.</p>
 
     <div class="d-flex flex-wrap gap-2">
@@ -57,7 +57,7 @@
     <div class="table-wrap table-responsive">
         {% if members %}
         <table class="table table-striped table-hover align-middle mb-0">
-            <thead><tr><th>Číslo</th><th>Jméno</th><th>Popis</th><th>Skupiny</th><th>Aktivní</th><th></th></tr></thead>
+            <thead><tr><th>Číslo</th><th>Jméno</th><th>Popis</th><th>Skupiny čísel</th><th>Aktivní</th><th></th></tr></thead>
             <tbody>
                 {% for number in members %}
                 <tr class="clickable-row" onclick="window.location='{% url 'number_detail' number.id %}'">

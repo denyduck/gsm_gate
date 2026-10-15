@@ -35,7 +35,7 @@
                 <tr><th>Vlastník</th><td>{{ number.owner.username }}</td></tr>
                 <tr><th>Aktivní</th><td>{% if number.active %}Ano{% else %}Ne{% endif %}</td></tr>
                 <tr>
-                    <th>Skupiny</th>
+                    <th>Skupiny čísel</th>
                     <td>
                         {% for group in number.groups.all %}
                             <a href="{% url 'group_detail' group.id %}" class="pill pill-link">{{ group.name }}</a>
