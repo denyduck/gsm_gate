@@ -4,7 +4,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import UserChangeForm
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
 from django import forms
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
@@ -54,6 +54,27 @@ class GroupMultipleChoiceField(forms.ModelMultipleChoiceField):
         return f"{obj.name} (vlastník: {owner_name})"
 
 
+PERMISSION_ACTION_LABELS = {
+    'add': 'Přidat',
+    'change': 'Upravit',
+    'delete': 'Smazat',
+    'view': 'Zobrazit',
+}
+
+
+class CleanPermissionMultipleChoiceField(forms.ModelMultipleChoiceField):
+    """Čitelný popisek místo výchozí "Can add Foo" (anglický sloveso +
+    Permission.name zmrazené v DB v angličtině při prvním migrate, bez
+    ohledu na LANGUAGE_CODE) - vezme sloveso z codename a přeloží ho,
+    model jde přes content_type.name (to respektuje verbose_name z
+    models.py, tedy už česky)."""
+
+    def label_from_instance(self, obj):
+        action, _, _ = obj.codename.partition('_')
+        action_label = PERMISSION_ACTION_LABELS.get(action, action)
+        return f'{obj.content_type.name} – {action_label}'
+
+
 class CustomUserChangeForm(UserChangeForm):
     """Rozšíření o hromadné přiřazení existujících čísel/skupin (sdílení -
     viz PhoneNumber.users / Group.users) přímo z editace uživatele - typicky
@@ -61,7 +82,28 @@ class CustomUserChangeForm(UserChangeForm):
     potřebuje, bez ručního zaškrtávání jednoho po druhém na detailu
     každého čísla/skupiny. Stejný vzor jako assign_to_users u
     AutomationRuleAdminForm, jen v opačném směru (odtud se obsazuje
-    reverzní M2M PhoneNumber.users / Group.users)."""
+    reverzní M2M PhoneNumber.users / Group.users).
+
+    Taky zpřehledňuje výchozí "Oprávnění uživatele" (user_permissions) -
+    bez téhle úpravy appka nabízela i desítky nerelevantních oprávnění
+    z vestavěných Django aplikací (admin, contenttypes, sessions) a každé
+    bylo napůl v angličtině ("Can add"), napůl v češtině (název modelu).
+    Skutečná správa práv ale stejně vede přes skupiny (pole "Skupiny" níže,
+    viz role-a-opravneni.md) - tohle pole je jen pro výjimečné doladění
+    jednotlivce nad rámec jeho skupin."""
+
+    user_permissions = CleanPermissionMultipleChoiceField(
+        label='Oprávnění (výjimky nad rámec skupin)',
+        queryset=Permission.objects.filter(
+            content_type__app_label__in=['dashboard', 'auth'],
+        ).select_related('content_type').order_by('content_type__model', 'codename'),
+        required=False,
+        help_text=(
+            'Většinu práv přiřazuj přes skupiny (pole "Skupiny" níže - Jen čtení / Operátor / Admin / ...), '
+            'ne tady jednotlivě. Tohle pole je pro výjimečné doladění konkrétního uživatele nad rámec jeho skupin.'
+        ),
+        widget=admin.widgets.FilteredSelectMultiple('oprávnění', is_stacked=False),
+    )
 
     assigned_phone_numbers = PhoneNumberMultipleChoiceField(
         label='Telefonní čísla',
