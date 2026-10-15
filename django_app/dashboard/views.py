@@ -90,7 +90,11 @@ def dashboard_view(request):
     numbers = PhoneNumber.objects.filter(users=request.user).prefetch_related('groups').order_by('number')
     # vyber všechny skupiny, kde je uživatel vlastníkem nebo je alespon v uživatelích
     groups = Group.objects.filter(users=request.user).prefetch_related('phone_numbers').order_by('name')
-    objects = DeviceObject.objects.filter(owner=request.user).order_by('name', 'id')
+    # Vlastněné NEBO sdílené (DeviceObject.users) - na rozdíl od PhoneNumber/
+    # Group není vlastník automaticky i ve "users", proto Q(owner=...)|Q(users=...).
+    objects = DeviceObject.objects.filter(
+        Q(owner=request.user) | Q(users=request.user)
+    ).distinct().order_by('name', 'id')
 
     all_number_ids = list(numbers.values_list('id', flat=True))
     all_group_ids = list(groups.values_list('id', flat=True))
@@ -108,8 +112,12 @@ def dashboard_view(request):
         editable_group_ids = list(groups.filter(owner=request.user).values_list('id', flat=True))
         deletable_group_ids = editable_group_ids
     object_ids = list(objects.values_list('id', flat=True))
-    editable_object_ids = object_ids
-    deletable_object_ids = object_ids
+    if access.is_admin(request.user):
+        editable_object_ids = object_ids
+        deletable_object_ids = object_ids
+    else:
+        editable_object_ids = list(objects.filter(owner=request.user).values_list('id', flat=True))
+        deletable_object_ids = editable_object_ids
     # předání čísel a skupin do šablony
 
     active_numbers_count = numbers.filter(active=True).count()
@@ -730,7 +738,11 @@ def group_detail(request, pk):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_objects_list_view(request):
-    objects = DeviceObject.objects.filter(owner=request.user).order_by('name', 'id')
+    # Vlastněné NEBO sdílené (DeviceObject.users) - na rozdíl od PhoneNumber/
+    # Group není vlastník automaticky i ve "users", proto Q(owner=...)|Q(users=...).
+    objects = DeviceObject.objects.filter(
+        Q(owner=request.user) | Q(users=request.user)
+    ).distinct().order_by('name', 'id')
 
     object_type_filter = request.GET.get('object_type', '')
     status_filter = request.GET.get('status_flag', '')
@@ -749,14 +761,21 @@ def device_objects_list_view(request):
         objects = objects.filter(Q(name__icontains=query) | Q(object_label__icontains=query))
 
     object_ids = list(objects.values_list('id', flat=True))
+    # Upravovat i mazat může jen vlastník (autor) objektu, ne každý se sdíleným přístupem.
+    if access.is_admin(request.user):
+        editable_object_ids = object_ids
+        deletable_object_ids = object_ids
+    else:
+        editable_object_ids = list(objects.filter(owner=request.user).values_list('id', flat=True))
+        deletable_object_ids = editable_object_ids
     context = {
         'objects': objects,
         'can_view_object': request.user.has_perm('dashboard.view_deviceobject'),
         'can_add_object': request.user.has_perm('dashboard.add_deviceobject'),
         'can_change_object': request.user.has_perm('dashboard.change_deviceobject'),
         'can_delete_object': request.user.has_perm('dashboard.delete_deviceobject'),
-        'editable_object_ids': object_ids,
-        'deletable_object_ids': object_ids,
+        'editable_object_ids': editable_object_ids,
+        'deletable_object_ids': deletable_object_ids,
         'object_type_choices': DeviceObject.OBJECT_TYPE_CHOICES,
         'status_choices': DeviceObject.STATUS_CHOICES,
         'active_object_type_filter': object_type_filter,
@@ -806,7 +825,7 @@ def device_object_create(request):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_object_detail(request, pk):
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
     api_credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -816,8 +835,10 @@ def device_object_detail(request, pk):
         'obj': obj,
         'api_credential': api_credential,
         'api_ingest_url': request.build_absolute_uri(reverse('device_event_ingest_api')),
-        'can_change_object': request.user.has_perm('dashboard.change_deviceobject'),
-        'can_delete_object': request.user.has_perm('dashboard.delete_deviceobject'),
+        'can_change_object': request.user.has_perm('dashboard.change_deviceobject')
+            and (access.is_admin(request.user) or obj.owner_id == request.user.id),
+        'can_delete_object': request.user.has_perm('dashboard.delete_deviceobject')
+            and (access.is_admin(request.user) or obj.owner_id == request.user.id),
     }
     return render(request, 'dashboard/device_object_detail.html', context)
 
@@ -825,7 +846,9 @@ def device_object_detail(request, pk):
 @login_required
 @permission_required('dashboard.change_deviceobject', raise_exception=True)
 def device_object_update(request, pk):
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    if not access.is_admin(request.user) and obj.owner_id != request.user.id:
+        raise PermissionDenied('Objekt může upravovat jen jeho vlastník (autor), případně administrátor.')
     DeviceObjectForm = modelform_factory(
         DeviceObject,
         fields=['name', 'object_label', 'object_type', 'icon', 'status_flag', 'status_label', 'active', 'description', 'specification'],
@@ -855,7 +878,9 @@ def device_object_update(request, pk):
 @login_required
 @permission_required('dashboard.delete_deviceobject', raise_exception=True)
 def device_object_delete(request, pk):
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    if not access.is_admin(request.user) and obj.owner_id != request.user.id:
+        raise PermissionDenied('Objekt může smazat jen jeho vlastník (autor), případně administrátor.')
     if request.method == 'POST':
         obj.delete()
         messages.success(request, 'Objekt zařízení byl smazán.')
@@ -866,7 +891,9 @@ def device_object_delete(request, pk):
 @login_required
 @permission_required('dashboard.change_deviceobject', raise_exception=True)
 def device_object_regenerate_api_key(request, pk):
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    if not access.is_admin(request.user) and obj.owner_id != request.user.id:
+        raise PermissionDenied('API klíč objektu může regenerovat jen jeho vlastník (autor), případně administrátor.')
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -881,7 +908,7 @@ def device_object_regenerate_api_key(request, pk):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_object_export_config(request, pk):
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -914,7 +941,7 @@ def device_object_test_call(request, pk):
     """Skutečně zavolá reálný ingest endpoint reálným HTTP požadavkem se
     skutečným tokenem objektu - ověří tak celou cestu (token, síť, ALLOWED_HOSTS
     apod.), ne jen interní logiku vyhodnocení pravidel."""
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -950,7 +977,7 @@ def device_object_test_call(request, pk):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_object_qr_code(request, pk):
-    obj = get_object_or_404(DeviceObject, pk=pk, owner=request.user)
+    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},

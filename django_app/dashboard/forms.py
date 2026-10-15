@@ -553,7 +553,9 @@ class IncomingEventSimulationForm(forms.Form):
         self.fields['source_object'].label = 'Zdrojový objekt'
         self.fields['message_body'].label = 'Obsah zprávy (pro SMS)'
         if user is not None:
-            self.fields['source_object'].queryset = DeviceObject.objects.filter(owner=user).order_by('name')
+            self.fields['source_object'].queryset = DeviceObject.objects.filter(
+                Q(owner=user) | Q(users=user)
+            ).distinct().order_by('name')
 
     def clean(self):
         cleaned = super().clean()
