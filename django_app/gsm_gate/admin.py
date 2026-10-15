@@ -348,7 +348,15 @@ class AutomationRuleAdmin(admin.ModelAdmin):
         return obj.owner_id == request.user.id
 
     def has_delete_permission(self, request, obj=None):
-        if obj is not None and obj.is_protected:
+        # Chráněné pravidlo (is_protected) nejde smazat v běžné appce
+        # (rule_edit/rule_delete ve views.py to odmítají natvrdo, bez
+        # výjimky - tam ta ochrana reálně žije a zůstává nedotčená).
+        # V Django Adminu ji admin/superuser smí smazat - jinak by šlo
+        # kaskádově smazat jen uživatele, kteří žádné takové pravidlo
+        # nemají (get_or_create_default_security_notification_rule ho
+        # založí téměř každému), a šlo by ho tu stejně libovolně upravit,
+        # jen ne smazat - nekonzistentní asymetrie bez reálného přínosu.
+        if obj is not None and obj.is_protected and not is_admin(request.user):
             return False
         if not super().has_delete_permission(request, obj):
             return False

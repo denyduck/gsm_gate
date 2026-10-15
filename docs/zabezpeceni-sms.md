@@ -25,7 +25,7 @@ Toto je reprezentované modelem `SecurityRule` (`dashboard/models.py`) – **sin
 | `rate_limit_max_events` | 20 | Max. povolených událostí v okně |
 | `auto_block_cooldown_minutes` | 30 | Jak dlouho trvá automatická blokace |
 
-**Pravidlo nejde smazat** ani přidat další – v Django Adminu (`dashboard/admin.py`, `SecurityRuleAdmin`) je `has_add_permission`/`has_delete_permission` natvrdo `False`. Jde jen **zapnout/vypnout a upravit prahy**, a to výhradně přes Django Admin (`/admin/dashboard/securityrule/`), tedy jen jako **superuser** – v běžné appce se pravidlo pouze zobrazuje (stránka Pravidla), needá se odtud editovat.
+**Pravidlo nejde přidat další** – `has_add_permission` je v Django Adminu (`dashboard/admin.py`, `SecurityRuleAdmin`) natvrdo `False` (singleton na uživatele, založí se sám). **Smazat** ho jde jen jako admin/superuser (`access.is_admin()`) – kvůli kaskádovému smazání celého uživatele, kterému patří, jinak stejná výjimka jako u `AutomationRule.is_protected` výše. Jde jen **zapnout/vypnout a upravit prahy**, a to výhradně přes Django Admin (`/admin/dashboard/securityrule/`), tedy jen jako **admin/superuser** – v běžné appce se pravidlo pouze zobrazuje (stránka Pravidla), needá se odtud editovat.
 
 ### 3) Navázání vlastního pravidla na bezpečnostní událost
 
@@ -35,9 +35,11 @@ Když automatická ochrana číslo zablokuje, vygeneruje se navíc **samostatná
 
 Vzorové pravidlo **"Výchozí: Upozornění na bezpečnostní blokaci"** (`event_type=SECURITY`, akce `NOTIFY_NUM`) se zakládá **líně** – funkcí `get_or_create_default_security_notification_rule()` v `rules_engine.py`, volanou z `rules_list_view()` při každé návštěvě stránky Pravidla. Není spoléháno jen na datovou migraci (`0039_...py`), protože ta prochází pouze uživatele existující v okamžiku spuštění migrace – na čerstvém nasazení, kde `migrate` proběhne dřív než `createsuperuser`, by tak pro jediný (první) účet pravidlo nikdy nevzniklo. Díky lazy `get_or_create` vznikne pravidlo pro **kohokoliv**, bez ohledu na to, kdy byl jeho účet založený. Nově vzniklé pravidlo je **vypnuté**, dokud si v jeho detailu nenastavíš cílová čísla/skupiny nebo e-mail/Teams kanál a ručně ho nezaktivuješ.
 
-**Tohle pravidlo je chráněné** (`AutomationRule.is_protected = True`) – stejná logika jako u `SecurityRule`: na stránce Pravidla/v detailu se u něj místo tlačítek "Upravit"/"Smazat" zobrazí jen badge "Chráněné" a (pro superusera) odkaz do Django Adminu. `rule_edit`/`rule_delete` views navíc chráněné pravidlo odmítnou i při přímém volání URL (server-side kontrola, ne jen skryté tlačítko).
+**Tohle pravidlo je chráněné** (`AutomationRule.is_protected = True`) – stejná logika jako u `SecurityRule`: na stránce Pravidla/v detailu se u něj místo tlačítek "Upravit"/"Smazat" zobrazí jen badge "Chráněné" a (pro admina/superusera) odkaz do Django Adminu. `rule_edit`/`rule_delete` views (běžná appka) chráněné pravidlo odmítnou **vždy**, i při přímém volání URL, bez výjimky pro kohokoliv (server-side kontrola, ne jen skryté tlačítko) – tady ta ochrana reálně žije, chrání běžného uživatele před nechtěným smazáním vlastního vzorového pravidla.
 
-**Admin registrace:** `AutomationRule` je registrovaný v `gsm_gate/admin.py` (`AutomationRuleAdmin`), ne v `dashboard/admin.py` – tam je jen `SecurityRuleAdmin`. Ochrana `is_protected` proti smazání je doplněná přímo do existující `has_delete_permission()` v `gsm_gate/admin.py`. **Nezakládat druhou `@admin.register(AutomationRule)`** nikde jinde – Django admin dovolí zaregistrovat model jen jednou, jinak appka spadne hned při startu (`AlreadyRegistered`).
+V Django Adminu (`AutomationRuleAdmin.has_delete_permission()`) je to jinak: smazání chráněného pravidla tam může admin/superuser (`access.is_admin()`) – jinak by nešlo smazat kaskádou žádného uživatele, kterému se tohle pravidlo (téměř každému) založilo, a šlo by ho tam stejně libovolně upravit nebo přeřadit vlastníka, jen ne smazat. Editace zůstává beze změny dostupná jen adminovi/superuserovi, stejně jako dřív.
+
+**Admin registrace:** `AutomationRule` je registrovaný v `gsm_gate/admin.py` (`AutomationRuleAdmin`), ne v `dashboard/admin.py` – tam je jen `SecurityRuleAdmin` (ten má podobně `has_delete_permission()` omezené na `access.is_admin()`, ne natvrdo `False` – jinak by taky blokoval kaskádové smazání vlastníka). **Nezakládat druhou `@admin.register(AutomationRule)`** nikde jinde – Django admin dovolí zaregistrovat model jen jednou, jinak appka spadne hned při startu (`AlreadyRegistered`).
 
 ### 4) Rate limit na API ingest a zámek proti brute-force na přihlášení
 
