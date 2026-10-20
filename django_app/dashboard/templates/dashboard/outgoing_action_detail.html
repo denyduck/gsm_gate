@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Detail odchozí akce{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-send"></i> Detail odchozí akce</span>
+    <h1 class="hero-title">Odchozí akce #{{ action.id }}</h1>
+    <p class="hero-subtitle">Kompletní informace o akci: co se stalo, kam, podle jakého pravidla a s jakým výsledkem.</p>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'outgoing_actions' %}" class="btn btn-app-outline">Zpět na odchozí akce</a>
+        {% if action.event_log_id %}
+            <a href="{% url 'event_log_detail' action.event_log_id %}" class="btn btn-app-outline">Zdrojová událost</a>
+        {% endif %}
+        {% if action.rule_id %}
+            <a href="{% url 'rule_detail' action.rule_id %}" class="btn btn-app-outline">Pravidlo</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Základní informace</h2></div>
+    <div class="table-wrap table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <tbody>
+                <tr><th>ID akce</th><td>{{ action.id }}</td></tr>
+                <tr><th>Vytvořeno</th><td>{{ action.created_at|date:"d.m.Y H:i:s" }}</td></tr>
+                <tr><th>Zpracováno</th><td>{% if action.processed_at %}{{ action.processed_at|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td></tr>
+                <tr><th>Typ akce</th><td>{{ action.get_action_type_display }}</td></tr>
+                <tr><th>Cílové číslo</th><td class="mono">{{ action.target_number|default:"—" }}</td></tr>
+                <tr>
+                    <th>Stav</th>
+                    <td>
+                        {% if action.status == 'SENT' %}
+                            <span class="badge text-bg-success">{{ action.get_status_display }}</span>
+                        {% elif action.status == 'FAILED' %}
+                            <span class="badge text-bg-danger">{{ action.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">{{ action.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Pravidlo</th>
+                    <td>
+                        {% if action.rule %}
+                            <a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a>
+                            {% if action.flag_label %}
+                                <span class="pill ms-2">{{ action.flag_label }}</span>
+                            {% endif %}
+                        {% else %}
+                            — (vygenerováno appkou, ne pravidlem)
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Zdrojová událost</th>
+                    <td>
+                        {% if action.event_log %}
+                            <a href="{% url 'event_log_detail' action.event_log.id %}" class="table-link">#{{ action.event_log.id }} — {{ action.event_log.get_event_type_display }}{% if action.event_log.source_number %} ({{ action.event_log.source_number }}){% endif %}</a>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr><th>Vlastník</th><td>{{ action.owner.username }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Text akce (payload)</h2></div>
+    <pre class="p-3 result-box mb-0">{{ action.payload_message|default:"Bez textu." }}</pre>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Co se stalo (detail zpracování)</h2></div>
+    <pre class="p-3 result-box mb-0">{{ action.execution_detail|default:"Zatím zpracováno nebylo." }}</pre>
+</section>
+{% endblock %}

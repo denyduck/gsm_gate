@@ -825,7 +825,10 @@ def device_object_create(request):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_object_detail(request, pk):
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     api_credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -846,7 +849,10 @@ def device_object_detail(request, pk):
 @login_required
 @permission_required('dashboard.change_deviceobject', raise_exception=True)
 def device_object_update(request, pk):
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     if not access.is_admin(request.user) and obj.owner_id != request.user.id:
         raise PermissionDenied('Objekt může upravovat jen jeho vlastník (autor), případně administrátor.')
     DeviceObjectForm = modelform_factory(
@@ -878,7 +884,10 @@ def device_object_update(request, pk):
 @login_required
 @permission_required('dashboard.delete_deviceobject', raise_exception=True)
 def device_object_delete(request, pk):
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     if not access.is_admin(request.user) and obj.owner_id != request.user.id:
         raise PermissionDenied('Objekt může smazat jen jeho vlastník (autor), případně administrátor.')
     if request.method == 'POST':
@@ -891,7 +900,10 @@ def device_object_delete(request, pk):
 @login_required
 @permission_required('dashboard.change_deviceobject', raise_exception=True)
 def device_object_regenerate_api_key(request, pk):
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     if not access.is_admin(request.user) and obj.owner_id != request.user.id:
         raise PermissionDenied('API klíč objektu může regenerovat jen jeho vlastník (autor), případně administrátor.')
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
@@ -908,7 +920,10 @@ def device_object_regenerate_api_key(request, pk):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_object_export_config(request, pk):
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -941,7 +956,10 @@ def device_object_test_call(request, pk):
     """Skutečně zavolá reálný ingest endpoint reálným HTTP požadavkem se
     skutečným tokenem objektu - ověří tak celou cestu (token, síť, ALLOWED_HOSTS
     apod.), ne jen interní logiku vyhodnocení pravidel."""
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -977,7 +995,10 @@ def device_object_test_call(request, pk):
 @login_required
 @permission_required('dashboard.view_deviceobject', raise_exception=True)
 def device_object_qr_code(request, pk):
-    obj = get_object_or_404(DeviceObject, Q(owner=request.user) | Q(users=request.user), pk=pk)
+    obj = get_object_or_404(
+        DeviceObject.objects.filter(Q(owner=request.user) | Q(users=request.user)).distinct(),
+        pk=pk,
+    )
     credential, _ = DeviceObjectApiCredential.objects.get_or_create(
         device_object=obj,
         defaults={'token': DeviceObjectApiCredential.generate_token(), 'active': True},
@@ -1542,6 +1563,29 @@ def outgoing_actions_view(request):
         'gateway_settings': gateway_settings,
     }
     return render(request, 'dashboard/outgoing_actions.html', context)
+
+
+# Detail jedné odchozí akce - stejný vzor jako event_log_detail_view
+# (flag_label pro NOTIFY_NUM/NOTIFY_GRP/FORWARD), jen pro jednu konkrétní
+# akci, ne celou časovou osu k události.
+@login_required
+@permission_required('dashboard.view_outgoingaction', raise_exception=True)
+def outgoing_action_detail_view(request, pk):
+    action = get_object_or_404(
+        OutgoingAction.objects.filter(owner=request.user).select_related('event_log', 'rule'),
+        pk=pk,
+    )
+    flag_map = {
+        'NOTIFY_NUM': 'Notifikace na cílová čísla',
+        'NOTIFY_GRP': 'Notifikace na cílové skupiny',
+        'FORWARD': 'Předání na číslo',
+    }
+    action.flag_label = flag_map.get(action.rule.action, '') if action.rule else ''
+
+    context = {
+        'action': action,
+    }
+    return render(request, 'dashboard/outgoing_action_detail.html', context)
 
 
 # Zálohování - export/import dat pomocí Django dumpdata/loaddata (osvědčený

@@ -391,6 +391,17 @@
         setInterval(refresh, 20000);
     })();
 </script>
+<script>
+    // Filtry a "Na stránku" se mají aplikovat hned po výběru, ne až po
+    // kliknutí na tlačítko (to zůstává jen pro textové vyhledávání) - platí
+    // pro VŠECHNY GET filtrovací formuláře v appce (čísla, skupiny, pravidla,
+    // logy, odchozí akce, objekty...), jedno místo, ne kopie v každé šabloně.
+    (function () {
+        document.querySelectorAll('form[method="get"] select').forEach((select) => {
+            select.addEventListener('change', () => select.form.submit());
+        });
+    })();
+</script>
 {% block scripts %}{% endblock scripts %}
 {% block extra_modals %}{% endblock extra_modals %}
 

@@ -21,6 +21,7 @@ urlpatterns = [
     path('security/blocked-numbers/', views.blocked_numbers_view, name='blocked_numbers'),
     path('security/blocked-numbers/<int:pk>/delete/', views.blocked_number_delete, name='blocked_number_delete'),
     path('events/outgoing/', views.outgoing_actions_view, name='outgoing_actions'),
+    path('events/outgoing/<int:pk>/', views.outgoing_action_detail_view, name='outgoing_action_detail'),
     path('numbers/', views.numbers_list_view, name='numbers_list'),
     path('numbers/add/', views.number_create, name='add_number'),               # správný název
     path('numbers/bulk-add/', views.number_bulk_add, name='number_bulk_add'),

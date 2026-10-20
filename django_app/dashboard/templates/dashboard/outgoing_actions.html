@@ -120,9 +120,12 @@
                         <div class="fw-semibold mono">{{ action.target_number }}</div>
                         <small class="d-block text-muted-soft">{{ action.created_at|date:"d.m.Y H:i:s" }}</small>
                         {% if action.rule %}
-                            <small class="d-block mt-1"><a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a></small>
+                            <small class="d-block mt-1"><a href="{% url 'rule_detail' action.rule.id %}" class="table-link" onclick="event.stopPropagation()">{{ action.rule.name }}</a></small>
                         {% endif %}
                         <small class="d-block mt-1 text-muted-soft">{{ action.payload_message|truncatechars:100 }}</small>
+                        <div class="tile-card__actions mt-auto pt-3">
+                            <a href="{% url 'outgoing_action_detail' action.id %}" class="btn btn-sm btn-app-outline">Detail</a>
+                        </div>
                     </div>
                 </div>
             {% endfor %}
@@ -142,12 +145,12 @@
             </thead>
             <tbody>
                 {% for action in actions %}
-                <tr>
+                <tr class="clickable-row" onclick="window.location='{% url 'outgoing_action_detail' action.id %}'">
                     <td>{{ action.created_at|date:"d.m.Y H:i:s" }}</td>
                     <td>{{ action.get_action_type_display }}</td>
                     <td class="mono">{{ action.target_number }}</td>
                     <td>{{ action.get_status_display }}</td>
-                    <td>
+                    <td onclick="event.stopPropagation()">
                         {% if action.rule %}
                             <a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a>
                             {% if action.flag_label %}

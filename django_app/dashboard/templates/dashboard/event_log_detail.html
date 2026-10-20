@@ -67,12 +67,12 @@
             </thead>
             <tbody>
                 {% for action in actions %}
-                <tr>
+                <tr class="clickable-row" onclick="window.location='{% url 'outgoing_action_detail' action.id %}'">
                     <td>{{ action.created_at|date:"d.m.Y H:i:s" }}</td>
                     <td>{% if action.processed_at %}{{ action.processed_at|date:"d.m.Y H:i:s" }}{% else %}—{% endif %}</td>
                     <td>{{ action.get_action_type_display }}</td>
                     <td class="mono">{{ action.target_number }}</td>
-                    <td>
+                    <td onclick="event.stopPropagation()">
                         {% if action.rule %}
                             <a href="{% url 'rule_detail' action.rule.id %}" class="table-link">{{ action.rule.name }}</a>
                             {% if action.flag_label %}
