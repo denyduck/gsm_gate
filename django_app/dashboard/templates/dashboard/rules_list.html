@@ -222,7 +222,7 @@
                     <td>{{ rule.get_action_display }}</td>
                     <td>{% if rule.active %}Ano{% else %}Ne{% endif %}</td>
                     <td>
-                        <div class="d-flex flex-nowrap gap-1">
+                        <div class="d-flex flex-wrap gap-1">
                             {% if can_view_rule %}
                                 <a href="{% url 'rule_detail' rule.id %}" class="btn btn-sm btn-app-outline">Detail</a>
                             {% endif %}

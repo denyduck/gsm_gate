@@ -39,6 +39,7 @@ docker compose --profile rpi up -d --build
 
 - **Architektura** – komponenty a datové toky.
 - **Funkcionalita** – detailní popis všech modulů UI.
+- **Systémové a provozní události** – upozornění na restart RPi, přihlášení admina, útoky na přihlášení a zdraví brány (disk, zálohy, konfigurace, fronta).
 - **Role a oprávnění** – kdo co může dělat.
 - **Zabezpečení proti zahlcení SMS** – rate limiting, blokovaná čísla, testování.
 - **API objektů zařízení** – ingest endpoint a autentizace tokenem.

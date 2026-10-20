@@ -232,6 +232,10 @@
     padding: 0.3rem 0.8rem;
     font-size: 0.82rem;
     margin-bottom: 0.8rem;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .feature-card {
@@ -497,6 +501,10 @@
 .table-wrap .table td {
     color: var(--text-main);
     border-color: var(--border);
+    /* Jakýkoliv dlouhý nelámaný text (dlouhý e-mail, URL, popis bez mezer)
+       se má zalomit uvnitř buňky, ne roztáhnout celou tabulku do šířky. */
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .table-wrap .table > :not(caption) > * > * {
@@ -806,11 +814,16 @@ textarea::placeholder {
 
 .pill {
     display: inline-block;
+    max-width: 100%;
     border: 1px solid var(--border);
     border-radius: 999px;
     color: var(--text-muted);
     padding: 0.2rem 0.62rem;
     font-size: 0.76rem;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: middle;
 }
 
 a.pill-link {
@@ -874,6 +887,18 @@ a.pill-link:hover {
    tyhle prvky vždy vypadaly podle výchozího (světlého) Bootstrap stylu,
    bez ohledu na to, jaký režim appka právě má - proto vlastní přepsání
    přes stejné CSS proměnné jako zbytek appky. */
+
+/* Bootstrap defaultně dává .badge "white-space: nowrap" - u krátkých
+   pevných popisků (Aktivní/Chráněné) to nevadí, ale u badgí s dynamickým
+   textem (název pravidla, popis, e-mail, cokoliv uživatelsky zadané) to
+   nutí text přetékat mimo zaoblené pozadí badge, místo aby se zalomil -
+   přesně tenhle efekt napříč appkou. */
+.badge {
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    max-width: 100%;
+}
 
 .badge.text-bg-success {
     background-color: var(--success) !important;

@@ -41,6 +41,7 @@ nav:
   - Úvod: index.md
   - Architektura: architektura.md
   - Funkcionalita: funkcionalita.md
+  - Systémové a provozní události: systemove-udalosti.md
   - Role a oprávnění: role-a-opravneni.md
   - Zabezpečení proti zahlcení SMS: zabezpeceni-sms.md
   - API objektů zařízení: api-objekty-zarizeni.md

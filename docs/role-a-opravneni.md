@@ -20,7 +20,7 @@ Aplikace používá kombinaci:
 
 **Jak povýšit uživatele na admina:** Django Admin → *Users* → daný účet → sekce *Permissions* → do pole *Groups* přidat **Admin**. Pro přístup do samotného `/admin/` navíc potřebuje zaškrtnuté **„Staff status“** (to je vlastnost konkrétního účtu, ne role – skupina sama o sobě přístup do Django Adminu nedává).
 
-Mimochodem – každý admin/superuser dostává i automatická upozornění na provozní stav brány (restart RPi, přihlášení jiného admina, útok na přihlášení), pokud si k nim založí pravidlo – viz [Systémové a provozní události brány](funkcionalita.md#16-systémové-a-provozní-události-brány).
+Mimochodem – každý admin/superuser dostává i automatická upozornění na provozní stav brány (restart RPi, přihlášení jiného admina, útok na přihlášení, zdraví brány), pokud si k nim založí pravidlo – viz [Systémové a provozní události](systemove-udalosti.md).
 
 Kontrola v kódu je vždy přes jednu funkci – `dashboard.access.is_admin(user)` (`user.is_superuser or user.groups.filter(name='Admin').exists()`) – a používá se místo přímého `user.is_superuser` ve `views.py`, `gsm_gate/admin.py` i v šablonách (přes `is_admin` v globálním kontextu, `dashboard/context_processors.py`). `is_superuser` se v celém kódu objevuje jen uvnitř týhle jedné funkce – nikde jinde se na něj appka nedívá přímo.
 
