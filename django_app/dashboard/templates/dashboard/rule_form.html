@@ -103,17 +103,40 @@
                         </div>
 
                         <div id="system-event-hint-wrap" class="col-md-8 d-none">
-                            <div class="alert alert-info py-2 px-3 small mb-0">
-                                <strong>Systémová/provozní událost brány</strong> – nereaguje na SMS/API z telefonních čísel, ale na provozní stav samotné brány. Dostane ji každý admin/superuser (ne jen vlastník tohoto pravidla). Zapni <strong>Filtrovat podle příznaku v SMS</strong> níže a zadej jeden z příznaků přesně (včetně <span class="mono">#</span>), ať pravidlo reaguje jen na konkrétní typ:
-                                <ul class="mb-1 mt-1">
-                                    <li><span class="mono">#REBOOT</span> – RPi bylo restartováno (ne jen restart kontejneru).</li>
-                                    <li><span class="mono">#LOGIN_ADMIN</span> – přihlásil se admin/superuser.</li>
-                                    <li><span class="mono">#LOGIN_ATTACK</span> – překročen limit neúspěšných pokusů o přihlášení (10 za 5 min).</li>
-                                </ul>
-                                <strong>Podmínku na zdroj</strong> nastav na <strong>Jakékoliv číslo</strong> – zdroj u těchto událostí není telefonní číslo.
+                            <div class="alert alert-info py-2 px-3 small mb-2">
+                                <strong>Systémová/provozní událost brány</strong> – nereaguje na SMS/API z telefonních čísel, ale na provozní stav samotné brány. Dostane ji každý admin/superuser (ne jen vlastník tohoto pravidla). <strong>Podmínku na zdroj</strong> nastav na <strong>Jakékoliv číslo</strong> – zdroj u těchto událostí není telefonní číslo.
                                 {% if mkdocs_base_url %}
                                     <br><a href="{{ mkdocs_base_url }}/funkcionalita/#16-systémové-a-provozní-události-brány" target="_blank" rel="noopener"><i class="bi bi-book"></i> Více v dokumentaci</a>
                                 {% endif %}
+                            </div>
+                            <div class="small fw-semibold mb-1">Zaškrtni jeden nebo víc příznaků, na které má pravidlo reagovat:</div>
+                            <div class="d-flex flex-wrap gap-3 mb-1">
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#REBOOT"> <span class="mono">#REBOOT</span>
+                                </label>
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#LOGIN_ADMIN"> <span class="mono">#LOGIN_ADMIN</span>
+                                </label>
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#LOGIN_ATTACK"> <span class="mono">#LOGIN_ATTACK</span>
+                                </label>
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#DISK_LOW"> <span class="mono">#DISK_LOW</span>
+                                </label>
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#BACKUP_OLD"> <span class="mono">#BACKUP_OLD</span>
+                                </label>
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#CONFIG_WARN"> <span class="mono">#CONFIG_WARN</span>
+                                </label>
+                                <label class="form-check-label d-flex align-items-center gap-1">
+                                    <input type="checkbox" class="form-check-input system-flag-checkbox" value="#QUEUE_PROBLEM"> <span class="mono">#QUEUE_PROBLEM</span>
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                <span class="mono">#REBOOT</span> – restart RPi. <span class="mono">#LOGIN_ADMIN</span> – přihlášení admina. <span class="mono">#LOGIN_ATTACK</span> – útok na přihlášení.
+                                <span class="mono">#DISK_LOW</span> – málo místa na disku. <span class="mono">#BACKUP_OLD</span> – stará/chybějící záloha. <span class="mono">#CONFIG_WARN</span> – problém s bezpečnostní konfigurací. <span class="mono">#QUEUE_PROBLEM</span> – zaseknutá/chybující fronta akcí.
+                                Posledních 4 (disk/zálohy/konfigurace/fronta) se vyšlou při zhoršení i při obnovení. Zaškrtnutím se automaticky zapne "Filtrovat podle příznaku v SMS" a doplní pole níže (víc příznaků = ANY shoda, kterýkoliv z nich pravidlo spustí).
                             </div>
                         </div>
                         <div id="match-type-wrap" class="col-md-8">
@@ -630,6 +653,26 @@
         const sourceNumberChoiceField = document.getElementById('id_source_number_choice');
         const useMessageFlagField = document.getElementById('id_use_message_flag');
         const messageFlagField = document.getElementById('id_message_flag');
+        const systemFlagCheckboxes = Array.from(document.querySelectorAll('.system-flag-checkbox'));
+
+        if (systemFlagCheckboxes.length && messageFlagField) {
+            // Pre-check boxes matching the current (edit-mode) message_flag value.
+            const initialFlags = messageFlagField.value.split(',').map((v) => v.trim()).filter(Boolean);
+            systemFlagCheckboxes.forEach((checkbox) => {
+                checkbox.checked = initialFlags.includes(checkbox.value);
+            });
+
+            systemFlagCheckboxes.forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    const selected = systemFlagCheckboxes.filter((cb) => cb.checked).map((cb) => cb.value);
+                    messageFlagField.value = selected.join(',');
+                    if (useMessageFlagField) {
+                        useMessageFlagField.checked = selected.length > 0;
+                    }
+                    updateFormVisibility();
+                });
+            });
+        }
         const sourceGroupCheckboxes = Array.from(document.querySelectorAll('input[name="source_groups"]'));
         const sourceObjectCheckboxes = Array.from(document.querySelectorAll('input[name="source_objects"]'));
         const targetNumberCheckboxes = Array.from(document.querySelectorAll('input[name="target_numbers"]'));

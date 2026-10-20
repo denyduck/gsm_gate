@@ -64,14 +64,12 @@
                     <th>Příznak v SMS</th>
                     <td>
                         {{ rule.message_flag|default:"—" }}
-                        {% if rule.event_type == 'SYSTEM' %}
-                            {% if rule.message_flag == '#REBOOT' %}
-                                <span class="text-muted-soft">— RPi bylo restartováno (ne jen restart kontejneru).</span>
-                            {% elif rule.message_flag == '#LOGIN_ADMIN' %}
-                                <span class="text-muted-soft">— přihlásil se admin/superuser.</span>
-                            {% elif rule.message_flag == '#LOGIN_ATTACK' %}
-                                <span class="text-muted-soft">— překročen limit neúspěšných pokusů o přihlášení.</span>
-                            {% endif %}
+                        {% if rule.event_type == 'SYSTEM' and system_flag_descriptions %}
+                            <ul class="mb-0 mt-1 text-muted-soft">
+                                {% for flag in system_flag_descriptions %}
+                                    <li><span class="mono">{{ flag.flag }}</span> — {{ flag.description }}</li>
+                                {% endfor %}
+                            </ul>
                         {% endif %}
                     </td>
                 </tr>

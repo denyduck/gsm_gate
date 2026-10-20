@@ -54,6 +54,7 @@ from .services import backup as backup_service
 from .services import ratelimit
 from .services import reset as reset_service
 from .services import selftest as selftest_service
+from .services import system_health
 from .services import telemetry as telemetry_service
 from .services.rules_engine import (
     OUTGOING_FLOOD_MAX_PER_TARGET,
@@ -1243,10 +1244,20 @@ def rule_detail(request, pk):
         source_logs = source_logs.filter(source_number=rule.source_number)
     source_logs = source_logs.order_by('-created_at')[:30]
 
+    system_flag_descriptions = []
+    if rule.event_type == 'SYSTEM' and rule.message_flag:
+        selected_flags = {flag.strip() for flag in rule.message_flag.split(',') if flag.strip()}
+        system_flag_descriptions = [
+            {'flag': flag, 'description': description}
+            for flag, description in system_health.SYSTEM_FLAG_DESCRIPTIONS
+            if flag in selected_flags
+        ]
+
     context = {
         'rule': rule,
         'recent_actions': recent_actions,
         'source_logs': source_logs,
+        'system_flag_descriptions': system_flag_descriptions,
         'can_simulate_events': request.user.has_perm('dashboard.add_incomingeventlog'),
         'can_change_rule': request.user.has_perm('dashboard.change_automationrule'),
         'can_delete_rule': request.user.has_perm('dashboard.delete_automationrule'),

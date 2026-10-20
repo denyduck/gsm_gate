@@ -154,10 +154,15 @@ def rule_matches_event(rule, event_type, source_number, message_body='', source_
             return False
 
     if rule.use_message_flag:
-        required_flag = (rule.message_flag or '').strip().lower()
-        if not required_flag:
+        # Víc příznaků najednou (OR) - oddělené čárkou, např.
+        # "#REBOOT,#LOGIN_ATTACK" - pravidlo se spustí, pokud je v textu
+        # ALESPOŇ JEDEN z nich. Bez čárky (běžný případ) se chová úplně
+        # stejně jako dřív - jedna přesná shoda podtextu.
+        raw_flags = (rule.message_flag or '').strip().lower()
+        if not raw_flags:
             return False
-        if required_flag not in normalized_message:
+        required_flags = [f.strip() for f in raw_flags.split(',') if f.strip()]
+        if not required_flags or not any(flag in normalized_message for flag in required_flags):
             return False
 
     if rule.match_type == 'ANY':

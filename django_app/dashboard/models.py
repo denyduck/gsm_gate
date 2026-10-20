@@ -333,7 +333,10 @@ class AutomationRule(models.Model):
     target_numbers = models.ManyToManyField(PhoneNumber, blank=True, related_name='targeted_by_rules', verbose_name='Cílová čísla')
     target_groups = models.ManyToManyField(Group, blank=True, related_name='targeted_by_rules', verbose_name='Cílové skupiny')
     use_message_flag = models.BooleanField('Filtrovat podle příznaku v SMS', default=False)
-    message_flag = models.CharField('Příznak v SMS', max_length=60, blank=True)
+    message_flag = models.CharField(
+        'Příznak v SMS', max_length=150, blank=True,
+        help_text='Víc příznaků najednou (ANY) odděl čárkou, např. "#REBOOT,#LOGIN_ATTACK".',
+    )
     forward_to_number = models.CharField('Předat na číslo', max_length=30, blank=True)
     notify_via_sms = models.BooleanField('Notifikovat přes SMS', default=True)
     notify_via_email = models.BooleanField('Notifikovat přes e-mail', default=False)
@@ -598,6 +601,12 @@ class SystemState(models.Model):
     services/system_health.py."""
 
     last_known_boot_time = models.DateTimeField('Poslední známý čas bootu RPi', null=True, blank=True)
+    check_states = models.JSONField(
+        'Stav periodických kontrol',
+        default=dict,
+        blank=True,
+        help_text='Poslední známý status (OK/WARN/ERROR) jednotlivých kontrol zdraví brány - viz services/system_health.py. Slouží jen k detekci ZMĚNY stavu, ať se při přetrvávajícím problému nespamuje notifikace každý cyklus.',
+    )
 
     class Meta:
         verbose_name = 'Stav systému'

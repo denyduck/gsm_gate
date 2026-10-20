@@ -278,7 +278,7 @@ Appka umí upozornit i na provozní stav samotné brány (RPi), ne jen na SMS/AP
 
 1. Založ nové pravidlo (**Pravidla → Nové pravidlo**).
 2. **Typ události** = *Systémová/provozní událost brány*.
-3. Zapni **Filtrovat podle příznaku v SMS** a vyplň jeden z příznaků z tabulky níže (přesně, včetně `#`).
+3. Zapni **Filtrovat podle příznaku v SMS** a zaškrtni jeden nebo víc příznaků z tabulky níže (formulář je zobrazí jako checkboxy, zvolené se do pole samy doplní oddělené čárkou). Víc zaškrtnutých příznaků znamená shodu **ANY** – pravidlo se spustí, nastane-li kterýkoliv z nich.
 4. **Podmínka na zdroj** nastav na *Jakékoliv číslo* – zdroj u těchto událostí není telefonní číslo, filtrace jde jen přes příznak.
 5. Vyber reakci (*Poslat informaci na cílová čísla/skupiny*), kanál (SMS/e-mail/Teams) a případně vlastní text.
 
@@ -286,10 +286,16 @@ Appka umí upozornit i na provozní stav samotné brány (RPi), ne jen na SMS/AP
 
 | Příznak | Kdy se vyšle | Kde v kódu |
 |---|---|---|
-| `#REBOOT` | RPi se restartovalo (ne jen kontejner) – detekováno porovnáním aktuálního a posledního známého času bootu (`/proc/uptime`) při každém cyklu `gsm_worker` | `dashboard/services/system_health.py` |
+| `#REBOOT` | RPi se restartovalo (ne jen kontejner) – detekováno porovnáním aktuálního a posledního známého času bootu (`/proc/uptime`) při každém cyklu `gsm_worker` | `dashboard/services/system_health.py` (`check_reboot`) |
 | `#LOGIN_ADMIN` | Přihlásil se uživatel s rolí admin/superuser | `dashboard/signals.py` (signál `user_logged_in`) |
 | `#LOGIN_ATTACK` | Překročen limit neúspěšných pokusů o přihlášení (10 za 5 min, IP+jméno) – stejný zámek jako v [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md#4-rate-limit-na-api-ingest-a-zámek-proti-brute-force-na-přihlášení), teď navíc notifikuje | `accounts/forms.py` (`LockoutAuthenticationForm`) |
+| `#DISK_LOW` | Volné místo na disku kleslo pod práh (stejné prahy jako Sebediagnostika: WARN < 1000 MB, ERROR < 300 MB), nebo se zase uvolnilo | `dashboard/services/system_health.py` (`check_periodic_health`, reuse `selftest.check_disk_space`) |
+| `#BACKUP_OLD` | Poslední záloha v `backups/` je starší než 7 dní (nebo žádná neexistuje), nebo se objevila nová čerstvá | `selftest.check_last_backup` (reuse) |
+| `#CONFIG_WARN` | Některá z bezpečnostních kontrol konfigurace selhala/zotavila se – `DEBUG=True` v produkci, slabý/výchozí `SECRET_KEY`, nebo `ALLOWED_HOSTS` obsahuje `*` | `selftest.check_debug_mode` / `check_secret_key` / `check_allowed_hosts` (reuse, sdílený příznak pro všechny tři) |
+| `#QUEUE_PROBLEM` | Fronta odchozích akcí má zaseknuté `PENDING` (> 10 min) nebo hodně `FAILED` za 24 h – přes všechny účty najednou, ne jen jednoho uživatele, nebo se fronta zase vyčistila | `system_health._check_outgoing_queue_global` |
 
-Detekce restartu si poslední známý čas bootu pamatuje v novém modelu `SystemState` (jeden řádek, globální – ne per uživatel, na rozdíl od `GatewaySettings`). Při úplně prvním běhu appky po nasazení se jen zapamatuje výchozí stav, nevygeneruje se falešné "restart" upozornění.
+U posledních čtyř příznaků appka vyšle událost **jak při zhoršení, tak při návratu do pořádku** – v textu zprávy je vždy napsáno "Zhoršení" nebo "Obnoveno", ať se dá podle potřeby rozlišit v custom textu pravidla. Appka si poslední stav každé kontroly pamatuje v `SystemState.check_states` (JSON, jedno pole na kontrolu) – notifikace se vyšle jen při **změně** stavu, ne při každém cyklu, kdy problém jen přetrvává. Při úplně prvním běhu appky po nasazení se jen zapamatuje výchozí stav, nevygeneruje se falešné upozornění.
+
+Detekce restartu (`#REBOOT`) si poslední známý čas bootu pamatuje ve stejném modelu `SystemState` (jeden řádek, globální – ne per uživatel, na rozdíl od `GatewaySettings`), ze stejného důvodu – ať se při prvním běhu nevygeneruje falešný restart.
 
 **Záměrně mimo rozsah (zatím):** upozornění na podpětí/napájení (`vcgencmd`/hwmon) – potřebuje ověřit, co je z `gsm_worker` kontejneru reálně dostupné bez úprav `docker-compose.yml`, než se dodá.

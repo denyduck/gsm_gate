@@ -64,6 +64,11 @@ class GsmWorkerService:
             logger.exception('Chyba při kontrole restartu RPi')
 
         try:
+            system_health.check_periodic_health()
+        except Exception:
+            logger.exception('Chyba při periodické kontrole zdraví brány')
+
+        try:
             self.client.connect()
         except ModemError:
             # I neúspěšné připojení je pro historii signálu důležité - bez
