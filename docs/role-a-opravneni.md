@@ -20,7 +20,11 @@ Aplikace používá kombinaci:
 
 **Jak povýšit uživatele na admina:** Django Admin → *Users* → daný účet → sekce *Permissions* → do pole *Groups* přidat **Admin**. Pro přístup do samotného `/admin/` navíc potřebuje zaškrtnuté **„Staff status“** (to je vlastnost konkrétního účtu, ne role – skupina sama o sobě přístup do Django Adminu nedává).
 
-Kontrola v kódu je vždy přes jednu funkci – `dashboard.access.is_admin(user)` (`user.is_superuser or user.groups.filter(name='Admin').exists()`) – a používá se místo přímého `user.is_superuser` ve `views.py`, `gsm_gate/admin.py` i v šablonách (přes `is_admin` v globálním kontextu, `dashboard/context_processors.py`).
+Mimochodem – každý admin/superuser dostává i automatická upozornění na provozní stav brány (restart RPi, přihlášení jiného admina, útok na přihlášení), pokud si k nim založí pravidlo – viz [Systémové a provozní události brány](funkcionalita.md#16-systémové-a-provozní-události-brány).
+
+Kontrola v kódu je vždy přes jednu funkci – `dashboard.access.is_admin(user)` (`user.is_superuser or user.groups.filter(name='Admin').exists()`) – a používá se místo přímého `user.is_superuser` ve `views.py`, `gsm_gate/admin.py` i v šablonách (přes `is_admin` v globálním kontextu, `dashboard/context_processors.py`). `is_superuser` se v celém kódu objevuje jen uvnitř týhle jedné funkce – nikde jinde se na něj appka nedívá přímo.
+
+**Jediný reálný rozdíl mezi superuserem a skupinou „Admin“:** superuser je vestavěný Django flag, který automaticky obchází *úplně jakoukoliv* kontrolu oprávnění, i budoucí/neznámou (např. nový model přidaný později do appky). Skupina „Admin“ dostává svoje oprávnění explicitně vyjmenovaná migrací `0054_seed_admin_role.py` (`content_type__app_label__in=['dashboard', 'auth']`) – pro cokoliv mimo tyhle dvě aplikace (nebo pro budoucí novou aplikaci) by bylo potřeba seedovací migraci doplnit/spustit znovu, superuser by to ale měl automaticky bez zásahu. V praxi jsou obě úrovně prakticky zaměnitelné – „Admin“ skupina existuje především proto, aby šlo přidat víc lidí na nejvyšší úroveň práv bez nutnosti dávat jim vestavěný `is_superuser` flag.
 
 ## Vlastnictví vs. sdílení (user úroveň)
 

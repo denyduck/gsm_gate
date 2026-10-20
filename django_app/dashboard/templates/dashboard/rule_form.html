@@ -101,6 +101,21 @@
                             {{ form.event_type }}
                             <div class="form-text">Vyberte typ příchozí události. Pokud zvolíte variantu obsahující API, je povinné vybrat zdrojový objekt.</div>
                         </div>
+
+                        <div id="system-event-hint-wrap" class="col-md-8 d-none">
+                            <div class="alert alert-info py-2 px-3 small mb-0">
+                                <strong>Systémová/provozní událost brány</strong> – nereaguje na SMS/API z telefonních čísel, ale na provozní stav samotné brány. Dostane ji každý admin/superuser (ne jen vlastník tohoto pravidla). Zapni <strong>Filtrovat podle příznaku v SMS</strong> níže a zadej jeden z příznaků přesně (včetně <span class="mono">#</span>), ať pravidlo reaguje jen na konkrétní typ:
+                                <ul class="mb-1 mt-1">
+                                    <li><span class="mono">#REBOOT</span> – RPi bylo restartováno (ne jen restart kontejneru).</li>
+                                    <li><span class="mono">#LOGIN_ADMIN</span> – přihlásil se admin/superuser.</li>
+                                    <li><span class="mono">#LOGIN_ATTACK</span> – překročen limit neúspěšných pokusů o přihlášení (10 za 5 min).</li>
+                                </ul>
+                                <strong>Podmínku na zdroj</strong> nastav na <strong>Jakékoliv číslo</strong> – zdroj u těchto událostí není telefonní číslo.
+                                {% if mkdocs_base_url %}
+                                    <br><a href="{{ mkdocs_base_url }}/funkcionalita/#16-systémové-a-provozní-události-brány" target="_blank" rel="noopener"><i class="bi bi-book"></i> Více v dokumentaci</a>
+                                {% endif %}
+                            </div>
+                        </div>
                         <div id="match-type-wrap" class="col-md-8">
                             <label class="form-label">{{ form.match_type.label }}</label>
                             {{ form.match_type }}
@@ -471,6 +486,7 @@
         const useMessageFlagWrap = document.getElementById('use-message-flag-wrap');
         const messageFlagWrap = document.getElementById('message-flag-wrap');
         const eventTypeWrap = document.getElementById('event-type-wrap');
+        const systemEventHintWrap = document.getElementById('system-event-hint-wrap');
         const targetNumbersWrap = document.getElementById('target-numbers-wrap');
         const targetGroupsWrap = document.getElementById('target-groups-wrap');
         const notifyChannelsWrap = document.getElementById('notify-channels-wrap');
@@ -1049,6 +1065,7 @@
             setVisible(useMessageFlagWrap, !isApiOnlyEvent);
             setVisible(messageFlagWrap, !isApiOnlyEvent && !!(useMessageFlagField && useMessageFlagField.checked));
             setVisible(eventTypeWrap, true);
+            setVisible(systemEventHintWrap, eventType === 'SYSTEM');
 
             if (sourceNumberChoiceField) {
                 sourceNumberChoiceField.disabled = matchType !== 'EXACT';

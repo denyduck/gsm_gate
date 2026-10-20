@@ -95,7 +95,7 @@ Výstupem je souhrn zpracování (kolik položek změněno, přeskočeno, vytvo�
 
 - název, popis, aktivita,
 - priorita (pořadí vyhodnocování),
-- typ události – `SMS`, `API`, `SMS_API` (kombinace obou) nebo `SECURITY` (bezpečnostní událost, viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)). Dřív existovala i hodnota `ANY` se stejným popiskem jako `SMS_API` a identickým chováním – čistá duplicita v rozbalovacím seznamu. Migrace `0046` existující pravidla s `ANY` převedla na `SMS_API` a hodnotu `ANY` z voleb odstranila,
+- typ události – `SMS`, `API`, `SMS_API` (kombinace obou), `SECURITY` (bezpečnostní událost, viz [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md)) nebo `SYSTEM` (provozní/systémová událost brány – restart RPi, přihlášení admina, útok na přihlášení, viz [Systémové a provozní události](#16-systémové-a-provozní-události-brány) níže). Dřív existovala i hodnota `ANY` se stejným popiskem jako `SMS_API` a identickým chováním – čistá duplicita v rozbalovacím seznamu. Migrace `0046` existující pravidla s `ANY` převedla na `SMS_API` a hodnotu `ANY` z voleb odstranila,
 - podmínka na zdroj – `match_type`: `ANY`/`EXACT`/`GROUP` (jiné pole než typ události výše – tady `ANY` zůstává beze změny, znamená "libovolné zdrojové číslo"),
 - zdrojové číslo/skupiny/objekty,
 - reakce (`IGNORE`, `NOTIFY_NUM`, `NOTIFY_GRP`, `FORWARD`),
@@ -267,3 +267,29 @@ Adresu běžícího MkDocs webu appka dostává přes proměnnou `MKDOCS_BASE_UR
 - na stránkách Zálohování, Stav brány a Pravidla (odkaz na relevantní stránku dokumentace).
 
 Pokud proměnná není nastavená, odkazy se v appce jednoduše nezobrazí (žádná rozbitá URL).
+
+## 16) Systémové a provozní události brány
+
+Appka umí upozornit i na provozní stav samotné brány (RPi), ne jen na SMS/API provoz – stejnou cestou jako cokoliv jiného: vygeneruje se `IncomingEventLog` s `event_type='SYSTEM'` a vyhodnotí se běžná pravidla (`dashboard/services/rules_engine.py`, `fire_system_health_event()`). Žádný nový notifikační mechanismus – jen nový zdroj událostí pro ten stávající.
+
+**Důležitý rozdíl od všech ostatních událostí:** tyhle se netýkají dat jednoho uživatele, ale provozu celé brány – appka je proto vytvoří **pro každého admina/superusera** (`access.is_admin()`, viz [Role a oprávnění](role-a-opravneni.md#tři-úrovně-práv-super-admin-admin-user)) zvlášť, ne pro běžné uživatele s čísly/skupinami.
+
+### Jak si nastavit upozornění
+
+1. Založ nové pravidlo (**Pravidla → Nové pravidlo**).
+2. **Typ události** = *Systémová/provozní událost brány*.
+3. Zapni **Filtrovat podle příznaku v SMS** a vyplň jeden z příznaků z tabulky níže (přesně, včetně `#`).
+4. **Podmínka na zdroj** nastav na *Jakékoliv číslo* – zdroj u těchto událostí není telefonní číslo, filtrace jde jen přes příznak.
+5. Vyber reakci (*Poslat informaci na cílová čísla/skupiny*), kanál (SMS/e-mail/Teams) a případně vlastní text.
+
+### Dostupné příznaky
+
+| Příznak | Kdy se vyšle | Kde v kódu |
+|---|---|---|
+| `#REBOOT` | RPi se restartovalo (ne jen kontejner) – detekováno porovnáním aktuálního a posledního známého času bootu (`/proc/uptime`) při každém cyklu `gsm_worker` | `dashboard/services/system_health.py` |
+| `#LOGIN_ADMIN` | Přihlásil se uživatel s rolí admin/superuser | `dashboard/signals.py` (signál `user_logged_in`) |
+| `#LOGIN_ATTACK` | Překročen limit neúspěšných pokusů o přihlášení (10 za 5 min, IP+jméno) – stejný zámek jako v [Zabezpečení proti zahlcení SMS](zabezpeceni-sms.md#4-rate-limit-na-api-ingest-a-zámek-proti-brute-force-na-přihlášení), teď navíc notifikuje | `accounts/forms.py` (`LockoutAuthenticationForm`) |
+
+Detekce restartu si poslední známý čas bootu pamatuje v novém modelu `SystemState` (jeden řádek, globální – ne per uživatel, na rozdíl od `GatewaySettings`). Při úplně prvním běhu appky po nasazení se jen zapamatuje výchozí stav, nevygeneruje se falešné "restart" upozornění.
+
+**Záměrně mimo rozsah (zatím):** upozornění na podpětí/napájení (`vcgencmd`/hwmon) – potřebuje ověřit, co je z `gsm_worker` kontejneru reálně dostupné bez úprav `docker-compose.yml`, než se dodá.

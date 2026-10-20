@@ -9,7 +9,7 @@
 
     <div class="d-flex flex-nowrap gap-2">
         <a href="{% url 'rules_list' %}" class="btn btn-app-outline">Zpět na pravidla</a>
-        {% if can_simulate_events %}
+        {% if can_simulate_events and rule.event_type != 'SYSTEM' %}
             {% if rule.event_type == 'API' or rule.event_type == 'SMS_API' %}
                 <a href="{% url 'incoming_simulator' %}?event_type=API{% with first_source_object=rule.source_objects.first %}{% if first_source_object %}&source_object={{ first_source_object.id }}{% endif %}{% endwith %}" class="btn btn-app-outline">Spustit simulaci</a>
             {% else %}
@@ -49,10 +49,32 @@
                 </tr>
                 <tr><th>Popis</th><td>{{ rule.description|default:"—" }}</td></tr>
                 <tr><th>Priorita</th><td>{{ rule.priority }}</td></tr>
-                <tr><th>Typ události</th><td>{{ rule.get_event_type_display }}</td></tr>
+                <tr>
+                    <th>Typ události</th>
+                    <td>
+                        {{ rule.get_event_type_display }}
+                        {% if rule.event_type == 'SYSTEM' %}
+                            <div class="form-text mb-0">Nereaguje na SMS/API z telefonních čísel, ale na provozní stav brány (RPi) - dostane ji každý admin/superuser, ne jen vlastník tohoto pravidla. {% if mkdocs_base_url %}<a href="{{ mkdocs_base_url }}/funkcionalita/#16-systémové-a-provozní-události-brány" target="_blank" rel="noopener">Více v dokumentaci</a>{% endif %}</div>
+                        {% endif %}
+                    </td>
+                </tr>
                 <tr><th>Typ podmínky</th><td>{{ rule.get_match_type_display }}</td></tr>
                 <tr><th>Filtrovat podle příznaku v SMS</th><td>{% if rule.use_message_flag %}Ano{% else %}Ne{% endif %}</td></tr>
-                <tr><th>Příznak v SMS</th><td>{{ rule.message_flag|default:"—" }}</td></tr>
+                <tr>
+                    <th>Příznak v SMS</th>
+                    <td>
+                        {{ rule.message_flag|default:"—" }}
+                        {% if rule.event_type == 'SYSTEM' %}
+                            {% if rule.message_flag == '#REBOOT' %}
+                                <span class="text-muted-soft">— RPi bylo restartováno (ne jen restart kontejneru).</span>
+                            {% elif rule.message_flag == '#LOGIN_ADMIN' %}
+                                <span class="text-muted-soft">— přihlásil se admin/superuser.</span>
+                            {% elif rule.message_flag == '#LOGIN_ATTACK' %}
+                                <span class="text-muted-soft">— překročen limit neúspěšných pokusů o přihlášení.</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
                 <tr><th>Reakce</th><td>{{ rule.get_action_display }}</td></tr>
                 <tr><th>Aktivní</th><td>{% if rule.active %}Ano{% else %}Ne{% endif %}</td></tr>
                 <tr><th>Zdrojové číslo</th><td>{{ rule.source_number|default:"—" }}</td></tr>

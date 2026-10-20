@@ -49,6 +49,8 @@ Dvě samostatné ochrany, nezávislé na `SecurityRule` výše (ta chrání až 
 
 **Přihlášení** (`accounts/forms.py`, `LockoutAuthenticationForm`) – po 10 neúspěšných pokusech ze stejné dvojice IP+uživatelské jméno za 5 minut appka další pokusy na tu kombinaci odmítne bez ohledu na to, jestli je heslo správné. Kombinace IP+jméno (ne jen jedno z nich) je záměr: čistě podle IP by šlo zablokovat celou sdílenou síť kvůli jednomu útočníkovi, čistě podle jména by šel cizí účet zamknout jen znalostí přihlašovacího jména, bez hesla, odkudkoliv.
 
+Přesně v okamžiku, kdy tenhle zámek poprvé zabere (desátý neúspěšný pokus, ne při každém dalším zablokovaném), appka to navíc nahlásí jako systémovou událost (`#LOGIN_ATTACK`) každému adminovi/superuserovi – viz [Systémové a provozní události brány](funkcionalita.md#16-systémové-a-provozní-události-brány).
+
 Obě používají stejný sdílený cache-based počítač (`dashboard/services/ratelimit.py`) – u výchozího Django LocMemCache je počítadlo **per-proces**, takže při 3 gunicorn workerech (`GUNICORN_WORKERS`) je efektivní limit až 3x vyšší, než čísla výše říkají. Pro tuhle velikost nasazení akceptovaný kompromis bez potřeby Redis/Memcached; při přechodu na sdílený cache backend by se chování zpřesnilo samo, bez úprav kódu.
 
 ## Datový model
