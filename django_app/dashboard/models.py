@@ -277,6 +277,7 @@ class AutomationRule(models.Model):
         ('API', 'Příchozí API událost'),
         ('SMS_API', 'SMS i API událost'),
         ('SECURITY', 'Bezpečnostní událost (zablokování čísla)'),
+        ('SYSTEM', 'Systémová/provozní událost brány (restart, přihlášení admina, útok na přihlášení)'),
     ]
 
     MATCH_TYPE_CHOICES = [
@@ -587,3 +588,25 @@ class SignalReading(models.Model):
     def __str__(self):
         value = self.quality if self.quality is not None else 'výpadek'
         return f"{self.recorded_at:%d.%m.%Y %H:%M} - {value}"
+
+
+class SystemState(models.Model):
+    """Globální (NE per-uživatel) technický stav brány - jeden řádek,
+    singleton přes SystemState.load(). Na rozdíl od GatewaySettings se
+    netýká jednoho uživatele, ale provozu celé brány (RPi) - použito pro
+    detekci reálného restartu RPi (ne jen restart kontejneru), viz
+    services/system_health.py."""
+
+    last_known_boot_time = models.DateTimeField('Poslední známý čas bootu RPi', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Stav systému'
+        verbose_name_plural = 'Stav systému'
+
+    def __str__(self):
+        return 'Stav systému'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

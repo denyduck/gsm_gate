@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils import timezone
 
@@ -243,6 +244,27 @@ def _fire_security_event(user, source_number, reason):
         message_body=reason,
     )
     return _evaluate_rules(user, security_log, 'SECURITY', source_number, reason)
+
+
+def fire_system_health_event(flag, message, source_number=''):
+    """Stavová/bezpečnostní událost celé brány (restart RPi, pokus o útok na
+    přihlášení, přihlášení admina...) - na rozdíl od běžných událostí není
+    vázaná na data jednoho uživatele, proto se vytvoří samostatně pro
+    KAŽDÉHO admina/superusera (access.is_admin) - každý si pak reaguje
+    vlastním pravidlem (event_type=SYSTEM, příznak `flag`). Stejný vzor jako
+    _fire_security_event výše, jen pro víc vlastníků najednou."""
+    from dashboard.access import is_admin
+
+    full_message = f'{message} {flag}'.strip()
+    admins = [u for u in User.objects.filter(is_active=True) if is_admin(u)]
+    for admin in admins:
+        event_log = IncomingEventLog.objects.create(
+            owner=admin,
+            event_type='SYSTEM',
+            source_number=source_number,
+            message_body=full_message,
+        )
+        _evaluate_rules(admin, event_log, 'SYSTEM', source_number, full_message)
 
 
 def _queue_first_contact_notice(rule, user, event_log, target):

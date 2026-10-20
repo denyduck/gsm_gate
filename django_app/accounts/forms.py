@@ -1,9 +1,14 @@
+import logging
+
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import ValidationError
 
 from dashboard.services import ratelimit
+from dashboard.services.rules_engine import fire_system_health_event
+
+logger = logging.getLogger(__name__)
 
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
@@ -37,7 +42,19 @@ class LockoutAuthenticationForm(AuthenticationForm):
         try:
             cleaned_data = super().clean()
         except ValidationError:
-            ratelimit.register_failure(fail_key, LOGIN_WINDOW_SECONDS)
+            count = ratelimit.register_failure(fail_key, LOGIN_WINDOW_SECONDS)
+            # Jen jednou, přesně v okamžiku, kdy se zámek poprvé spustí -
+            # další zablokované pokusy skončí na kontrole výše (bez
+            # register_failure), ať to nezaspamuje admina opakovaně.
+            if count == LOGIN_MAX_FAILURES:
+                try:
+                    fire_system_health_event(
+                        '#LOGIN_ATTACK',
+                        f'Příliš mnoho neúspěšných pokusů o přihlášení (IP: {client_ip}, uživatel: {username or "neznámý"}).',
+                        source_number=client_ip,
+                    )
+                except Exception:
+                    logger.exception('Chyba při generování události o útoku na přihlášení')
             raise
 
         ratelimit.reset_failures(fail_key)

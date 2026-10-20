@@ -11,6 +11,7 @@ from django.db import close_old_connections
 from django.utils import timezone
 
 from dashboard.models import OutgoingAction, GatewaySettings, SignalReading
+from dashboard.services import system_health
 from dashboard.services.rules_engine import process_incoming_event, normalize_phone_number
 from dashboard.services.modem_manager import ModemManagerClient, ModemError
 
@@ -53,6 +54,14 @@ class GsmWorkerService:
     def cycle(self) -> WorkerResult:
         close_old_connections()
         result = WorkerResult()
+
+        # Mimo try/except na modem (viz níže) - ať detekce restartu RPi
+        # funguje i chvíli po výpadku, než se modem zase zaregistruje v síti.
+        # Vlastní try/except, ať chyba tady nikdy nezhatí zbytek cyklu.
+        try:
+            system_health.check_reboot()
+        except Exception:
+            logger.exception('Chyba při kontrole restartu RPi')
 
         try:
             self.client.connect()
