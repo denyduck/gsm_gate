@@ -45,7 +45,9 @@ Tahle čtveřice přímo vychází z kontrol na stránce [Sebediagnostika](funkc
 | `#DISK_LOW` | Volné místo na disku kleslo pod práh (Varování < 1000 MB, Chyba < 300 MB) – nebo se zase uvolnilo. |
 | `#BACKUP_OLD` | Poslední záloha v `backups/` je starší než 7 dní (nebo žádná neexistuje) – nebo se objevila nová čerstvá. |
 | `#CONFIG_WARN` | Některá z bezpečnostních kontrol konfigurace selhala nebo se zotavila – `DEBUG=True` v produkci, slabý/výchozí `SECRET_KEY`, nebo `ALLOWED_HOSTS` obsahuje `*`. |
-| `#QUEUE_PROBLEM` | Fronta odchozích akcí má zaseknuté čekající položky (déle než 10 min) nebo hodně selhání za posledních 24 h (přes všechny účty najednou) – nebo se fronta zase vyčistila. |
+| `#QUEUE_PROBLEM` | Fronta odchozích akcí má zaseknuté čekající položky (akce z pravidel déle než 10 min, ruční/hromadné SMS déle než 60 min) nebo hodně selhání za posledních 24 h (přes všechny účty najednou) – nebo se fronta zase vyčistila. |
+| `#SMS_FAILED` | Ruční/hromadné odeslání SMS skončilo a některé SMS se nepodařilo odeslat ani po opakování – v textu je počet a odkaz na průběh odeslání, kde jde použít „Poslat znovu“. |
+| `#MODEM_STORAGE` | Paměť SMS v modemu se plní (≥ 50 %), je téměř plná (≥ `GSM_MODEM_STORAGE_PAUSE_PERCENT`, odesílání SMS pozastaveno), SMS nejde z modemu smazat nebo vyhodila pojistka po opakovaných selháních odeslání – nebo se stav vrátil do normálu. Viz [incident 2026-11](modem-diagnostika.md#incident-2026-11-plna-pamet-sms-v-modemu-po-hromadnem-odeslani). |
 
 ## Zhoršení vs. obnovení
 

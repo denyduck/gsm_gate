@@ -69,6 +69,9 @@ services:
       - GSM_MODEM_PORT=${GSM_MODEM_PORT:-/dev/ttyUSB0}
       - GSM_MODEM_BAUD=${GSM_MODEM_BAUD:-115200}
       - GSM_WORKER_INTERVAL=${GSM_WORKER_INTERVAL:-10}
+      # Jen pro hodnocení ukazatele paměti SMS v UI/Sebediagnostice - musí
+      # odpovídat hodnotě u gsm_worker.
+      - GSM_MODEM_STORAGE_PAUSE_PERCENT=${GSM_MODEM_STORAGE_PAUSE_PERCENT:-80}
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
     depends_on:
       db:
@@ -103,6 +106,10 @@ services:
       - GSM_ENABLED=${GSM_ENABLED:-true}
       - GSM_WORKER_INTERVAL=${GSM_WORKER_INTERVAL:-10}
       - GSM_MAX_ACTIONS_PER_CYCLE=${GSM_MAX_ACTIONS_PER_CYCLE:-30}
+      - GSM_MODEM_SMS_CAPACITY=${GSM_MODEM_SMS_CAPACITY:-20}
+      - GSM_MODEM_STORAGE_PAUSE_PERCENT=${GSM_MODEM_STORAGE_PAUSE_PERCENT:-80}
+      - GSM_SMS_FAILURE_BREAKER=${GSM_SMS_FAILURE_BREAKER:-3}
+      - GSM_MAX_MANUAL_SMS_PER_CYCLE=${GSM_MAX_MANUAL_SMS_PER_CYCLE:-10}
     depends_on:
       db:
         condition: service_healthy

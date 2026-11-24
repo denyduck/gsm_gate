@@ -24,6 +24,8 @@ SYSTEM_FLAG_DESCRIPTIONS = [
     ('#BACKUP_OLD', 'poslední záloha je starší než 7 dní (nebo chybí/je zase čerstvá).'),
     ('#CONFIG_WARN', 'problém s bezpečnostní konfigurací (DEBUG/SECRET_KEY/ALLOWED_HOSTS).'),
     ('#QUEUE_PROBLEM', 'fronta odchozích akcí je zaseknutá / hodně chyb (nebo se vyčistila).'),
+    ('#SMS_FAILED', 'ruční/hromadné odeslání SMS skončilo a některé SMS se nepodařilo odeslat ani po opakování.'),
+    ('#MODEM_STORAGE','paměť SMS v modemu se plní / je plná / odesílání SMS pozastaveno (nebo se vrátila do normálu).'),
 ]
 
 
@@ -75,15 +77,13 @@ def _check_outgoing_queue_global():
     """Stejná logika jako selftest.check_outgoing_queue(), jen přes
     VŠECHNY uživatele najednou (ne per-owner) - tahle kontrola běží z
     workeru, který obsluhuje frontu pro celou bránu, ne jednoho uživatele."""
-    stuck_pending = OutgoingAction.objects.filter(
-        status='PENDING', created_at__lt=timezone.now() - timedelta(minutes=10),
-    ).count()
+    stuck_pending = OutgoingAction.objects.filter(selftest.stuck_pending_q()).count()
     failed_recent = OutgoingAction.objects.filter(
         status='FAILED', created_at__gte=timezone.now() - timedelta(hours=24),
     ).count()
 
     if stuck_pending:
-        return 'ERROR', f'{stuck_pending} odchozích akcí čeká na zpracování déle než 10 min (přes všechny účty).'
+        return 'ERROR', f'{stuck_pending} odchozích akcí čeká na zpracování podezřele dlouho (přes všechny účty).'
     if failed_recent:
         return 'WARN', f'{failed_recent} odchozích akcí za posledních 24 h selhalo (přes všechny účty).'
     return 'OK', 'Fronta odchozích akcí je v pořádku.'
@@ -99,7 +99,16 @@ _WATCHED_CHECKS = [
     ('secret_key', selftest.check_secret_key, '#CONFIG_WARN'),
     ('allowed_hosts', selftest.check_allowed_hosts, '#CONFIG_WARN'),
     ('outgoing_queue', _check_outgoing_queue_global, '#QUEUE_PROBLEM'),
+    ('modem_storage', lambda: _check_modem_storage_watch(), '#MODEM_STORAGE'),
 ]
+
+
+def _check_modem_storage_watch():
+    """Dokud worker paměť ani jednou nezměřil (čerstvé nasazení), nehodnotit
+    - jinak by první změření vyslalo falešné „Obnoveno“."""
+    if SystemState.load().modem_sms_checked_at is None:
+        return None
+    return selftest.check_modem_storage()
 
 
 def check_periodic_health():
@@ -117,6 +126,9 @@ def check_periodic_health():
             result = check_fn()
         except Exception:
             logger.exception('Chyba při periodické kontrole zdraví brány (%s)', key)
+            continue
+
+        if result is None:
             continue
 
         if isinstance(result, dict):

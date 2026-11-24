@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Potvrdit odeslání SMS{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4">
+    <span class="status-badge"><i class="bi bi-clipboard-check"></i> Kontrola před odesláním</span>
+    <h1 class="hero-title">Potvrdit odeslání SMS</h1>
+    <p class="hero-subtitle">Zatím se nic neodeslalo. Zkontroluj příjemce a text, pak odeslání potvrď.</p>
+
+    <div class="row g-3">
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Příjemců</div><div class="value">{{ plan.valid|length }}</div></div></div>
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Vyřazeno</div><div class="value">{{ plan.excluded_count }}</div></div></div>
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Částí SMS na zprávu</div><div class="value">{{ sms_parts }}</div></div></div>
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Odhad doby odeslání</div><div class="value">{{ duration }}</div></div></div>
+    </div>
+    <p class="form-text mt-2 mb-0">
+        Odhad vychází z rychlosti posledních odeslaných SMS. Modem posílá SMS jednu po druhé; mezi dávkami brána
+        průběžně zpracovává příchozí SMS a pravidla. SMS, která se nepodaří odeslat, se automaticky zkusí znovu
+        později (zařadí se na konec fronty, ostatní nezdržuje).
+    </p>
+</section>
+
+{% if plan.excluded_count %}
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Vyřazená čísla</h2></div>
+    {% if plan.gateway %}
+        <div class="alert alert-warning py-2"><i class="bi bi-arrow-repeat"></i> <strong>Číslo brány</strong> (SMS by se vrátila zpět a mohla spustit pravidla): {{ plan.gateway|join:", " }}</div>
+    {% endif %}
+    {% if plan.invalid %}
+        <div class="alert alert-danger py-2"><i class="bi bi-x-circle"></i> <strong>Neplatná čísla:</strong> {{ plan.invalid|join:", " }}</div>
+    {% endif %}
+    {% if plan.duplicates %}
+        <div class="alert alert-secondary py-2"><i class="bi bi-files"></i> <strong>Duplicity</strong> (odešle se jen jednou): {{ plan.duplicates|join:", " }}</div>
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="app-panel mb-4">
+    <div class="panel-header"><h2 class="panel-title">Text zprávy</h2></div>
+    <div class="module-card"><p class="mb-0" style="white-space: pre-wrap;">{{ message }}</p></div>
+
+    <details class="mt-3">
+        <summary>Příjemci v pořadí odeslání ({{ plan.valid|length }})</summary>
+        <div class="mt-2">{% for number in plan.valid %}<span class="pill">{{ number }}</span> {% endfor %}</div>
+    </details>
+</section>
+
+<section class="app-panel">
+    <form method="post" class="d-flex flex-wrap gap-2">
+        {% csrf_token %}
+        {{ form.message.as_hidden }}
+        {{ form.manual_numbers.as_hidden }}
+        {% for pk in selected_pks %}<input type="hidden" name="numbers" value="{{ pk }}">{% endfor %}
+        <input type="hidden" name="confirm" value="1">
+        <button type="submit" class="btn btn-app-primary"><i class="bi bi-send"></i> Odeslat {{ plan.valid|length }} SMS</button>
+        <a href="{% url 'send_sms' %}" class="btn btn-app-outline">Zpět k úpravám</a>
+    </form>
+</section>
+{% endblock %}

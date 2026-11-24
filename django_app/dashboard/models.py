@@ -235,6 +235,15 @@ class GatewaySettings(models.Model):
         default=True,
         help_text='Vypnutím se pro tebe přestanou vyhodnocovat pravidla na příchozí SMS – worker zprávy dál čte a maže z modemu, jen je nikomu nepředá. Nemá vliv na API události.',
     )
+    own_number = models.CharField(
+        'Číslo brány (SIM)',
+        max_length=30,
+        blank=True,
+        help_text=(
+            'Telefonní číslo SIM karty v bráně. Brána na něj nikdy neodešle SMS a příchozí SMS z něj '
+            'ignoruje (ochrana proti smyčce). Při výměně SIM karty ho uprav.'
+        ),
+    )
     webhook_url = models.URLField(
         'Webhook URL (Teams)',
         blank=True,
@@ -503,6 +512,7 @@ class OutgoingAction(models.Model):
         ('PENDING', 'Čeká'),
         ('SENT', 'Odesláno'),
         ('FAILED', 'Chyba'),
+        ('CANCELLED', 'Zrušeno'),
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outgoing_actions', verbose_name='Vlastník')
@@ -516,6 +526,11 @@ class OutgoingAction(models.Model):
     processed_at = models.DateTimeField('Zpracováno', null=True, blank=True)
     execution_detail = models.TextField('Detail zpracování', blank=True)
     created_at = models.DateTimeField('Vytvořeno', auto_now_add=True)
+    # Opakování po dočasné chybě (viz services/sms_dispatch.py) - worker
+    # zkouší každou SMS jen jednou za průchod; selhání ji vrátí do plánovače,
+    # který ji zařadí na konec fronty s odstupem, ať nezdržuje ostatní.
+    attempts = models.PositiveSmallIntegerField('Počet pokusů', default=0)
+    next_attempt_at = models.DateTimeField('Další pokus', null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -607,6 +622,34 @@ class SystemState(models.Model):
         blank=True,
         help_text='Poslední známý status (OK/WARN/ERROR) jednotlivých kontrol zdraví brány - viz services/system_health.py. Slouží jen k detekci ZMĚNY stavu, ať se při přetrvávajícím problému nespamuje notifikace každý cyklus.',
     )
+
+    # Obsazenost paměti SMS v modemu - zapisuje gsm_worker každý cyklus,
+    # čte Stav brány a Sebediagnostika (web kontejner na modem nevidí).
+    # Incident 2026-11: zbytky odchozích SMS zaplnily paměť modemu a brána
+    # přestala přijímat SMS - viz docs/modem-diagnostika.md.
+    modem_sms_used = models.PositiveIntegerField('SMS v paměti modemu', null=True, blank=True)
+    modem_sms_capacity = models.PositiveIntegerField('Kapacita paměti SMS', null=True, blank=True)
+    modem_sms_capacity_source = models.CharField(
+        'Zdroj kapacity', max_length=10, blank=True,
+        help_text='AT = skutečná hodnota z modemu (AT+CPMS?), CONFIG = odhad z GSM_MODEM_SMS_CAPACITY.',
+    )
+    modem_sms_storage = models.CharField('Úložiště SMS', max_length=10, blank=True)
+    modem_sms_states = models.JSONField('SMS v modemu podle stavu', default=dict, blank=True)
+    modem_sms_delete_failures = models.PositiveIntegerField(
+        'Neúspěšná mazání', default=0,
+        help_text='Kolik SMS se v posledním cyklu nepodařilo z modemu smazat.',
+    )
+    modem_sms_checked_at = models.DateTimeField('Paměť SMS naposledy zjištěna', null=True, blank=True)
+    sms_sending_paused_reason = models.CharField(
+        'Důvod pozastavení odesílání SMS', max_length=255, blank=True,
+        help_text='Vyplněné, pokud worker v posledním cyklu SMS neodesílal (plná paměť, opakovaná selhání).',
+    )
+
+    @property
+    def modem_sms_percent(self):
+        if self.modem_sms_used is None or not self.modem_sms_capacity:
+            return None
+        return min(100, round(100 * self.modem_sms_used / self.modem_sms_capacity))
 
     class Meta:
         verbose_name = 'Stav systému'

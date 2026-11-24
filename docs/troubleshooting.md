@@ -140,7 +140,41 @@ docker compose --profile rpi logs gsm_worker | grep "už byla v tomhle běhu"
 
 Pokud se tahle hláška objevuje opakovaně pro stejné číslo, smazání SMS z modemu dlouhodobě selhává – řešit jako modemovou nestabilitu (viz [Modem – hardware a diagnostika](modem-diagnostika.md)), ne jako problém v appce.
 
-## 10) Build dokumentace
+## 10) Pravidla přestala fungovat, worker hlásí jen `incoming=0`
+
+### Příznak
+
+Na bránu chodí SMS, ale v Logu událostí nic nepřibývá a žádné pravidlo se nespustí. Worker v každém cyklu hlásí `incoming=0`. Typicky po hromadném odeslání SMS nebo po smyčce odchozích zpráv.
+
+### Příčina
+
+Paměť SMS v modemu je plná zbytků (odeslané a neodeslané SMS) a modem nepřijímá nové zprávy. Podrobnosti v [Modem – incident 2026-11](modem-diagnostika.md#incident-2026-11-plna-pamet-sms-v-modemu-po-hromadnem-odeslani).
+
+### Kontrola
+
+- **Stav brány → Paměť SMS v modemu:** obsazenost, počty podle stavu a neúspěšná mazání.
+- **Sebediagnostika → Paměť SMS v modemu.**
+- Na RPi:
+
+```bash
+mmcli -L
+mmcli -m <index> --messaging-list-sms
+```
+
+### Řešení
+
+Worker zbytky maže sám každý cyklus. Pokud obsazenost neklesá (roste počet „Neúspěšná mazání“), smaž SMS ručně podle postupu v odkazované kapitole. Pokud ani to nepomůže, udělej USB reset modemu.
+
+## 11) Hromadné SMS odcházejí pomalu / zůstávají „Čeká“
+
+To je záměr. Ruční a hromadné SMS (bez pravidla) se odesílají nejvýš po `GSM_MAX_MANUAL_SMS_PER_CYCLE` (výchozí 10) za cyklus a mají nižší prioritu než akce z pravidel. Velké odeslání se tak rozloží a nezablokuje pravidla. SMS také čekají, když:
+
+- je paměť modemu zaplněná nad `GSM_MODEM_STORAGE_PAUSE_PERCENT` (výchozí 80 %),
+- vyhodila pojistka po `GSM_SMS_FAILURE_BREAKER` selháních za sebou (pauza 5 min).
+
+Důvod pozastavení je vidět na stránce **Stav brány** (žlutý pruh v panelu *Paměť SMS v modemu*). Nic se nezahazuje, akce se odešlou, jakmile pauza skončí.
+
+## 12) Build dokumentace
 
 Spuštění lokálně přes samostatný compose:
 

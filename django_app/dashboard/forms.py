@@ -216,10 +216,12 @@ class GatewaySettingsForm(forms.ModelForm):
         fields = [
             'pin_code',
             'delivery_reports',
+            'own_number',
             'allow_incoming_sms',
             'webhook_url',
         ]
         labels = {
+            'own_number': 'Číslo brány (SIM)',
             'pin_code': 'PIN SIM (volitelné)',
             'delivery_reports': 'Vyžadovat doručenky',
             'allow_incoming_sms': 'Povolit příchozí SMS',
@@ -227,6 +229,7 @@ class GatewaySettingsForm(forms.ModelForm):
         }
         widgets = {
             'pin_code': forms.PasswordInput(render_value=True, attrs={'class': 'form-control'}),
+            'own_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+420777123456'}),
             'webhook_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://example.local/webhook'}),
         }
 

@@ -33,6 +33,12 @@
             {% endif %}
 
             <div class="col-md-6">
+                <label class="form-label">{{ form.own_number.label }}</label>
+                {{ form.own_number }}
+                <div class="form-text">{{ form.own_number.help_text }}</div>
+            </div>
+            <div class="col-md-6"></div>
+            <div class="col-md-6">
                 <label class="form-label">{{ form.pin_code.label }}</label>
                 {{ form.pin_code }}
                 <div class="form-text">{{ form.pin_code.help_text }}</div>

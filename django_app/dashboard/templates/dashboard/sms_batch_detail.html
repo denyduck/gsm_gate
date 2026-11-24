@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Průběh odeslání SMS{% endblock %}
+
+{% block content %}
+<section class="app-panel mb-4" id="sms-batch" data-status-url="{% url 'sms_batch_detail' event_log.pk %}?format=json" data-finished="{{ counts.finished|yesno:'1,0' }}">
+    <span class="status-badge"><i class="bi bi-send"></i> Odeslání SMS</span>
+    <h1 class="hero-title">Průběh odeslání SMS</h1>
+    <p class="hero-subtitle">{{ event_log.message_body }} Zadáno {{ event_log.created_at|date:"d.m.Y H:i:s" }}.</p>
+
+    {% if pause_reason and not counts.finished %}
+        <div class="alert alert-warning py-2"><i class="bi bi-pause-circle"></i> Odesílání SMS je dočasně pozastavené: {{ pause_reason }}</div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-baseline mb-1">
+        <strong>{% if counts.finished %}Dokončeno{% else %}Probíhá…{% endif %}</strong>
+        <span>{{ counts.percent }} %</span>
+    </div>
+    <div class="progress mb-3" role="progressbar" aria-label="Průběh odeslání" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ counts.percent }}" style="height: 1.25rem;">
+        <div class="progress-bar {% if counts.failed %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ counts.percent }}%;"></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-2 col-6"><div class="card-stat"><div class="label">Celkem</div><div class="value">{{ counts.total }}</div></div></div>
+        <div class="col-md-2 col-6"><div class="card-stat"><div class="label">Odesláno</div><div class="value text-success">{{ counts.sent }}</div></div></div>
+        <div class="col-md-2 col-6"><div class="card-stat"><div class="label">Čeká</div><div class="value">{{ counts.waiting }}</div></div></div>
+        <div class="col-md-2 col-6"><div class="card-stat"><div class="label">Opakuje se</div><div class="value text-warning-emphasis">{{ counts.retrying }}</div></div></div>
+        <div class="col-md-2 col-6"><div class="card-stat"><div class="label">Neodesláno</div><div class="value text-danger">{{ counts.failed }}</div></div></div>
+        <div class="col-md-2 col-6"><div class="card-stat"><div class="label">Zrušeno</div><div class="value">{{ counts.cancelled }}</div></div></div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        {% if counts.failed or counts.cancelled %}
+            <form method="post" action="{% url 'sms_batch_resend' event_log.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-app-primary"><i class="bi bi-arrow-clockwise"></i> Poslat znovu všem neodeslaným ({{ counts.failed|add:counts.cancelled }})</button>
+            </form>
+        {% endif %}
+        {% if not counts.finished %}
+            <form method="post" action="{% url 'sms_batch_cancel' event_log.pk %}" onsubmit="return confirm('Opravdu zastavit odesílání? Čekající SMS se zruší (lze je později poslat znovu).');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-stop-circle"></i> Zastavit odesílání</button>
+            </form>
+        {% endif %}
+        <a href="{% url 'send_sms' %}" class="btn btn-app-outline">Nová SMS</a>
+    </div>
+</section>
+
+<section class="app-panel">
+    <div class="panel-header"><h2 class="panel-title">Příjemci</h2></div>
+    <p class="form-text mt-0">
+        Každá SMS se zkouší jednou; po dočasné chybě se zařadí na konec fronty a zkusí znovu (max. {{ max_attempts }} pokusy).
+        Stav „Odesláno“ znamená předáno do sítě operátora – doručení do telefonu brána nesleduje.
+    </p>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Číslo</th><th>Stav</th><th>Pokusy</th><th>Detail</th><th></th></tr></thead>
+            <tbody>
+            {% for action in actions %}
+                <tr>
+                    <td class="text-nowrap">{{ action.target_number }}</td>
+                    <td class="text-nowrap">
+                        {% if action.status == 'SENT' %}<span class="text-success"><i class="bi bi-check-circle"></i> Odesláno</span>
+                        {% elif action.status == 'FAILED' %}<span class="text-danger"><i class="bi bi-x-circle"></i> Neodesláno</span>
+                        {% elif action.status == 'CANCELLED' %}<span class="text-muted"><i class="bi bi-slash-circle"></i> Zrušeno</span>
+                        {% elif action.attempts %}<span class="text-warning-emphasis"><i class="bi bi-arrow-repeat"></i> Opakuje se{% if action.next_attempt_at %} v {{ action.next_attempt_at|date:"H:i:s" }}{% endif %}</span>
+                        {% else %}<span><i class="bi bi-hourglass-split"></i> Čeká</span>{% endif %}
+                    </td>
+                    <td>{{ action.attempts }}</td>
+                    <td class="small">{{ action.execution_detail }}</td>
+                    <td class="text-end">
+                        {% if action.status == 'FAILED' or action.status == 'CANCELLED' %}
+                            <form method="post" action="{% url 'sms_batch_resend' event_log.pk %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action_id" value="{{ action.pk }}">
+                                <button type="submit" class="btn btn-sm btn-app-outline text-nowrap" title="Zpráva se neodeslala – poslat znovu?"><i class="bi bi-arrow-clockwise"></i> Poslat znovu</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-muted">Žádné SMS.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Dokud odeslání běží, obnovovat stránku, jakmile se změní počty.
+    (function () {
+        const panel = document.getElementById('sms-batch');
+        if (!panel || panel.dataset.finished === '1') return;
+        let last = null;
+        setInterval(() => {
+            fetch(panel.dataset.statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then((r) => r.json())
+                .then((data) => {
+                    const key = JSON.stringify(data);
+                    if (last !== null && key !== last) window.location.reload();
+                    last = key;
+                })
+                .catch(() => {});
+        }, 5000);
+    })();
+</script>
+{% endblock %}

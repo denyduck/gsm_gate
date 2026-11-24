@@ -285,6 +285,54 @@ I bez tohohle bugu je "Jakékoliv číslo → Předat na číslo X" riskantní k
 
 I s opraveným `delivery_reports` může teoreticky nastat jiná smyčka (auto-odpověď na straně příjemce, budoucí neznámý bug) – appka proto od tohohle incidentu má vestavěnou pojistku na úrovni pravidla: `dashboard/services/rules_engine.py` (`_target_flood_guard`, konstanty `OUTGOING_FLOOD_MAX_PER_TARGET`/`OUTGOING_FLOOD_WINDOW_MINUTES`) zastaví další odchozí akce téhož pravidla na tentýž cíl (SMS číslo, `MAIL`, `TEAMS`), jakmile jich za posledních 5 minut proběhlo 5. Přeskočení se zaloguje a promítne i do `result_summary` v logu události ("ochrana proti smyčce"), takže je vidět i bez SSH. Formulář pravidla na riziko upozorňuje přímo u volby "Jakékoliv číslo".
 
+## Incident 2026-11: plná paměť SMS v modemu po hromadném odeslání
+
+### Příznak
+
+Po ručním hromadném odeslání SMS (stránka Odeslat SMS) na stovky čísel přestala brána úplně reagovat na příchozí SMS: worker hlásil `incoming=0` v každém cyklu, v Logu událostí nic nepřibývalo, a tedy nefungovalo žádné pravidlo. Blokovaná čísla ani fronta odchozích akcí problém nevykazovaly. Modem byl celou dobu `registered` se signálem 70 %, takže watchdog nic nepoznal.
+
+### Kořenová příčina
+
+`mmcli -m 1 --messaging-list-sms` ukázal 16 SMS, **všechny ve stavu `sent`**. 12 z nich zbylo ze smyčky z 2026-09-11 (uložené v `storage: me`) a 4 z hromadného odeslání. Index došel až na 409, takže brána vytvořila přes 400 objektů SMS. Paměť pro SMS (`me`, kam modem ukládá i příchozí zprávy) byla plná a modem další příchozí SMS nepřijímal.
+
+Ve starém kódu byly dvě chyby:
+
+1. `ModemManagerClient.send_sms()` mazal vytvořenou SMS **jen po úspěšném odeslání**. Po timeoutu nebo chybě `--send` zpráva v paměti zůstala.
+2. Worker četl jen SMS ve stavu `received`. Cokoliv jiného (`sent`, `stored`, `unknown`, zaseknuté `receiving`/`sending`) přeskakoval a **nikdy nemazal**.
+
+### Okamžitá náprava (ručně)
+
+```bash
+mmcli -L                                   # index modemu (např. 1)
+mmcli -m 1 --messaging-list-sms
+for p in $(mmcli -m 1 --messaging-list-sms | grep -o 'SMS/[0-9]*' | cut -d/ -f2); do
+  mmcli -m 1 --messaging-delete-sms=/org/freedesktop/ModemManager1/SMS/$p; done
+```
+
+Po smazání začaly příchozí SMS hned zase chodit.
+
+### Trvalá oprava
+
+- **Mazání vždy:** `send_sms()` maže vytvořenou SMS i po chybě nebo timeoutu. Výsledek úklidu předá workeru (`sms_cleaned`).
+- **Kontrola před modemem:** `validate_sms()` (neplatné číslo, prázdný text, apostrof, více než 10 částí) zamítne zprávu dřív, než se v paměti modemu cokoliv založí. Taková akce skončí jako FAILED s textem „do modemu se nic nezapsalo“ a do pojistky se nepočítá.
+- **Úklid paměti každý cyklus** (`GsmWorkerService._sweep_modem_storage`): `sent`, `stored` a `unknown` se mažou hned, `receiving` po 30 min a `sending` po 10 min.
+- **Ukazatel zaplnění:** stránka **Stav brány**, panel *Paměť SMS v modemu* (obnovuje se každých 20 s), a Sebediagnostika (*Paměť SMS v modemu*). Data zapisuje worker do `SystemState`. Pokud ModemManager běží s `--debug`, čte se skutečná obsazenost z modemu (`AT+CPMS?`). Jinak se počítají SMS viditelné v ModemManageru proti `GSM_MODEM_SMS_CAPACITY` (výchozí 20).
+- **Pauza při zaplnění:** od `GSM_MODEM_STORAGE_PAUSE_PERCENT` (výchozí 80 %) worker SMS neodesílá. Zůstávají PENDING, aby zůstalo místo pro příchozí zprávy. E-mail, Teams a další akce běží dál.
+- **Pojistka při selhání:** po `GSM_SMS_FAILURE_BREAKER` (výchozí 3) selháních SMS za sebou se odesílání na 5 min pozastaví. Zbytek fronty čeká, nic se nezahazuje.
+- **Priorita fronty:** akce z pravidel, systémové notifikace, e-mail a Teams jdou před ručními a hromadnými SMS. Těch se za cyklus odešle nejvýš `GSM_MAX_MANUAL_SMS_PER_CYCLE` (výchozí 10), takže hromadné odeslání se rozloží a pravidla nečekají za ním.
+- **Systémový příznak `#MODEM_STORAGE`** (viz [Systémové události](systemove-udalosti.md)): pošle notifikaci, když se paměť plní, je plná nebo je odesílání pozastavené, a znovu po návratu do normálu.
+
+### Skutečná kapacita paměti
+
+mmcli kapacitu neukáže. Zjistit ji lze jen přes AT příkaz, a ten ModemManager povolí pouze v debug režimu:
+
+```bash
+mmcli -m 1 --command='AT+CPMS?'
+# +CPMS: "ME",3,25,"ME",3,25,"ME",3,25   -> použito/celkem pro čtení, zápis, příjem
+```
+
+Pokud příkaz funguje, worker ho použije automaticky. Jinak nastav `GSM_MODEM_SMS_CAPACITY` v `.env` konzervativně (raději méně) a restartuj `gsm_worker`.
+
 ## Historické poznámky (starý SIM7000E/GPIO UART setup)
 
 Pro referenci, kdyby se v budoucnu řešil jiný modem typu SIM7000/SIM800 s GPIO UART (ne USB) místo ModemManager přístupu:

@@ -30,6 +30,9 @@ def get_security_rule(user):
 # konkrétního pravidla a cíle.
 OUTGOING_FLOOD_WINDOW_MINUTES = 5
 OUTGOING_FLOOD_MAX_PER_TARGET = 5
+# Totéž napříč VŠEMI pravidly - smyčka může běžet i přes víc pravidel
+# (A odpoví -> pravidlo 1 pošle B -> B odpoví -> pravidlo 2 pošle A ...).
+OUTGOING_FLOOD_MAX_PER_TARGET_GLOBAL = 10
 
 
 def _target_flood_guard(rule, target):
@@ -37,6 +40,17 @@ def _target_flood_guard(rule, target):
     limitem za posledních OUTGOING_FLOOD_WINDOW_MINUTES minut), jinak False
     a přeskočení akce se zaloguje."""
     window_start = timezone.now() - timedelta(minutes=OUTGOING_FLOOD_WINDOW_MINUTES)
+    if target not in ('MAIL', 'TEAMS'):
+        global_count = OutgoingAction.objects.filter(
+            rule__isnull=False, target_number=target, created_at__gte=window_start,
+        ).count()
+        if global_count >= OUTGOING_FLOOD_MAX_PER_TARGET_GLOBAL:
+            logger.warning(
+                'Pravidlo "%s" (id=%s): cíl %s dostal za %s min už %s akcí ze všech pravidel - další akce se '
+                'přeskakuje (ochrana proti smyčce napříč pravidly).',
+                rule.name, rule.id, target, OUTGOING_FLOOD_WINDOW_MINUTES, global_count,
+            )
+            return False
     recent_count = OutgoingAction.objects.filter(
         rule=rule, target_number=target, created_at__gte=window_start,
     ).count()
@@ -211,6 +225,19 @@ def process_incoming_event(user, event_type, source_number, message_body, source
         message_body=message_body or '',
     )
 
+    from dashboard.services import sms_dispatch
+
+    # SMS z vlastního čísla brány nikdy nespouští pravidla - jinak by
+    # jakékoliv odeslání na vlastní číslo (omylem v hromadné SMS, v cílové
+    # skupině pravidla...) mohlo roztočit smyčku.
+    if (event_type or '').upper() == 'SMS' and sms_dispatch.is_gateway_number(normalized_source):
+        event_log.processed = True
+        event_log.result_summary = (
+            f'SMS z vlastního čísla brány ({normalized_source}) – pravidla se nevyhodnocují (ochrana proti smyčce).'
+        )
+        event_log.save(update_fields=['processed', 'result_summary'])
+        return event_log, 0, 0
+
     security_rule = get_security_rule(user)
 
     # Ruční blokace platí vždy - je to explicitní rozhodnutí administrátora,
@@ -238,7 +265,16 @@ def process_incoming_event(user, event_type, source_number, message_body, source
             _fire_security_event(user, normalized_source, block_reason)
             return event_log, 0, 0
 
-    return _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object)
+    # Odpověď na zprávu brány (auto-odpověď zařízení, „OK“ po hromadné SMS)
+    # - pravidla „Jakékoliv číslo“ ji přeskočí, viz _evaluate_rules.
+    reply_to_gateway = (
+        (event_type or '').upper() == 'SMS' and sms_dispatch.recently_messaged_by_gateway(normalized_source)
+    )
+
+    return _evaluate_rules(
+        user, event_log, event_type, source_number, message_body, source_device_object,
+        reply_to_gateway=reply_to_gateway,
+    )
 
 
 def _fire_security_event(user, source_number, reason):
@@ -388,10 +424,12 @@ def _build_notification_payload(rule, default_text, source_number, message_body)
     return payload
 
 
-def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None):
+def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None,
+                    reply_to_gateway=False):
     summaries = []
     matched_count = 0
     queued_count = 0
+    skipped_as_reply = []
 
     rules = AutomationRule.objects.filter(active=True).filter(
         Q(owner=user) | Q(users=user)
@@ -399,6 +437,14 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
 
     for rule in rules:
         if not rule_matches_event(rule, event_type, source_number, message_body, source_device_object=source_device_object):
+            continue
+
+        # Smyčky vznikají právě u širokých pravidel „Jakékoliv číslo“, která
+        # zachytí i odpověď na zprávu, kterou brána sama poslala. Pravidla na
+        # konkrétní číslo/skupinu nebo s příznakem fungují dál - ta jsou
+        # nastavená vědomě.
+        if reply_to_gateway and rule.match_type == 'ANY' and not rule.use_message_flag:
+            skipped_as_reply.append(rule_log_label(rule))
             continue
 
         matched_count += 1
@@ -578,7 +624,13 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             summaries.append('Zpracování ukončeno podle priority pravidel.')
             break
 
-    if matched_count == 0:
+    if skipped_as_reply:
+        summaries.append(
+            f'SMS je odpovědí na zprávu, kterou brána tomuto číslu poslala v posledních minutách – pravidla '
+            f'„Jakékoliv číslo“ přeskočena (ochrana proti smyčce): {", ".join(skipped_as_reply)}.'
+        )
+
+    if matched_count == 0 and not skipped_as_reply:
         summaries.append('Nebyla nalezena žádná aktivní pravidla pro tuto událost.')
 
     event_log.processed = True

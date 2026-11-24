@@ -239,6 +239,19 @@ GSM_MODEM_TIMEOUT = float(os.environ.get('GSM_MODEM_TIMEOUT', '3'))
 GSM_WORKER_INTERVAL = int(os.environ.get('GSM_WORKER_INTERVAL', '10'))
 GSM_MAX_ACTIONS_PER_CYCLE = int(os.environ.get('GSM_MAX_ACTIONS_PER_CYCLE', '30'))
 
+# Ochrana paměti SMS v modemu a fronty (incident 2026-11, viz
+# docs/modem-diagnostika.md):
+# - kapacita úložiště SMS, pokud ji modem neprozradí přes AT+CPMS? (to jde
+#   jen s ModemManagerem v --debug režimu) - konzervativní odhad,
+# - od jaké obsazenosti (%) worker přestane odesílat SMS (nechá je PENDING),
+# - po kolika selháních SMS za sebou se odesílání v cyklu zastaví,
+# - kolik ručních/hromadných SMS (bez pravidla) se odešle za jeden cyklus -
+#   velké hromadné odeslání se tak rozloží a nezablokuje pravidla.
+GSM_MODEM_SMS_CAPACITY = int(os.environ.get('GSM_MODEM_SMS_CAPACITY', '20'))
+GSM_MODEM_STORAGE_PAUSE_PERCENT = int(os.environ.get('GSM_MODEM_STORAGE_PAUSE_PERCENT', '80'))
+GSM_SMS_FAILURE_BREAKER = int(os.environ.get('GSM_SMS_FAILURE_BREAKER', '3'))
+GSM_MAX_MANUAL_SMS_PER_CYCLE = int(os.environ.get('GSM_MAX_MANUAL_SMS_PER_CYCLE', '10'))
+
 # Výchozí retenční doby (dny) pro management příkaz prune_old_data -
 # viz scripts/gsm-prune.timer. Jde jen o defaulty, na běhu jde přepsat
 # přes --logs-days/--signal-days.

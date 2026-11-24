@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import connection
+from django.db.models import Q
 from django.utils import timezone
 
 from dashboard.models import GatewaySettings, OutgoingAction, SecurityRule
@@ -175,17 +176,86 @@ def check_security_rule(user):
     )
 
 
+def stuck_pending_q():
+    """Akce, které čekají podezřele dlouho. Ruční/hromadné SMS (bez pravidla)
+    worker záměrně rozkládá do víc cyklů (GSM_MAX_MANUAL_SMS_PER_CYCLE),
+    takže mají delší toleranci - jinak by každé větší hromadné odeslání
+    hlásilo zaseknutou frontu."""
+    now = timezone.now()
+    manual = Q(rule__isnull=True, action_type__in=('NOTIFY_SMS', 'FORWARD_INFO', 'INFO_SMS'))
+    return Q(status='PENDING') & (
+        (~manual & Q(created_at__lt=now - timedelta(minutes=10)))
+        | (manual & Q(created_at__lt=now - timedelta(minutes=60)))
+    )
+
+
+# Prahy ukazatele paměti SMS v modemu (%). Odesílání se pozastavuje od
+# settings.GSM_MODEM_STORAGE_PAUSE_PERCENT (worker), tady jen hodnocení.
+MODEM_STORAGE_WARN_PERCENT = 50
+MODEM_STORAGE_STALE_AFTER = timedelta(minutes=10)
+
+
+def check_modem_storage():
+    from dashboard.models import SystemState
+
+    name = 'Paměť SMS v modemu'
+    state = SystemState.load()
+    if state.modem_sms_checked_at is None:
+        return _result(
+            name, 'WARN', 'Worker zatím obsazenost paměti nezjistil.',
+            'Zkontroluj, jestli běží gsm_worker a jestli je modem připojený.',
+            category=CATEGORY_OPERATIONS, doc_page='modem-diagnostika',
+        )
+
+    if timezone.now() - state.modem_sms_checked_at > MODEM_STORAGE_STALE_AFTER:
+        return _result(
+            name, 'WARN',
+            f'Údaj je zastaralý (naposledy {timezone.localtime(state.modem_sms_checked_at):%d.%m.%Y %H:%M}).',
+            'Worker se k modemu nepřipojuje - zkontroluj `docker compose logs gsm_worker` a stav modemu.',
+            category=CATEGORY_OPERATIONS, doc_page='modem-diagnostika',
+        )
+
+    percent = state.modem_sms_percent or 0
+    source = 'z modemu' if state.modem_sms_capacity_source == 'AT' else 'odhad kapacity'
+    detail = f'{state.modem_sms_used}/{state.modem_sms_capacity} SMS ({percent} %, {source}).'
+    recommendation = (
+        'Worker zbytky maže sám; pokud obsazenost neklesá, smaž SMS ručně: '
+        'mmcli -m <idx> --messaging-list-sms a --messaging-delete-sms (viz dokumentace).'
+    )
+
+    if percent >= settings.GSM_MODEM_STORAGE_PAUSE_PERCENT:
+        return _result(
+            name, 'ERROR', f'Paměť je téměř plná: {detail} Odesílání SMS je pozastavené, hrozí, že modem přestane přijímat.',
+            recommendation, category=CATEGORY_OPERATIONS, doc_page='modem-diagnostika',
+        )
+    if state.sms_sending_paused_reason:
+        return _result(
+            name, 'WARN', f'{state.sms_sending_paused_reason} Paměť: {detail}',
+            'Zkontroluj detail selhaných akcí v Odchozích akcích a stav modemu.',
+            category=CATEGORY_OPERATIONS, doc_page='modem-diagnostika',
+        )
+    if state.modem_sms_delete_failures:
+        return _result(
+            name, 'WARN', f'{state.modem_sms_delete_failures} SMS se nepodařilo z modemu smazat. Paměť: {detail}',
+            recommendation, category=CATEGORY_OPERATIONS, doc_page='modem-diagnostika',
+        )
+    if percent >= MODEM_STORAGE_WARN_PERCENT:
+        return _result(
+            name, 'WARN', f'Paměť se plní: {detail}', recommendation,
+            category=CATEGORY_OPERATIONS, doc_page='modem-diagnostika',
+        )
+    return _result(name, 'OK', detail, category=CATEGORY_OPERATIONS)
+
+
 def check_outgoing_queue(user):
     failed_recent = OutgoingAction.objects.filter(
         owner=user, status='FAILED', created_at__gte=timezone.now() - timedelta(hours=24),
     ).count()
-    stuck_pending = OutgoingAction.objects.filter(
-        owner=user, status='PENDING', created_at__lt=timezone.now() - timedelta(minutes=10),
-    ).count()
+    stuck_pending = OutgoingAction.objects.filter(stuck_pending_q(), owner=user).count()
 
     if stuck_pending:
         return _result(
-            'Fronta odchozích akcí', 'ERROR', f'{stuck_pending} akcí čeká na zpracování déle než 10 min.',
+            'Fronta odchozích akcí', 'ERROR', f'{stuck_pending} akcí čeká na zpracování podezřele dlouho (z pravidel > 10 min, ruční > 60 min).',
             'Worker pravděpodobně neběží nebo je zaseknutý - zkontroluj `docker compose --profile rpi logs gsm_worker`.',
             category=CATEGORY_OPERATIONS, doc_page='troubleshooting',
         )
@@ -206,6 +276,7 @@ GLOBAL_CHECKS = [
     check_static_files,
     check_disk_space,
     check_last_backup,
+    check_modem_storage,
 ]
 
 USER_CHECKS = [

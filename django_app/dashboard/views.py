@@ -11,10 +11,12 @@ from urllib import request as urllib_request
 
 import qrcode
 from django import forms
+from django.conf import settings as django_settings
 from django.core import management
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Case, IntegerField, Q, When
 from django.forms import modelform_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -37,6 +39,7 @@ from .models import (
     IncomingEventLog,
     OutgoingAction,
     SelfTestRun,
+    SystemState,
 )
 from .forms import (
     BlockedNumberForm,
@@ -54,6 +57,8 @@ from .services import backup as backup_service
 from .services import ratelimit
 from .services import reset as reset_service
 from .services import selftest as selftest_service
+from .services import sms_dispatch
+from .services.modem_manager import ModemError, ModemManagerClient, _estimate_sms_parts as estimate_sms_parts
 from .services import system_health
 from .services import telemetry as telemetry_service
 from .services.rules_engine import (
@@ -508,6 +513,11 @@ def number_share_view(request):
 # ručně zadaná čísla (nemusí být v bráně evidovaná). Stejný vzor jako
 # number_share_view (syntetický IncomingEventLog, jedna OutgoingAction na
 # cíl), jen appka text zprávy nevytváří sama - jen odešle, co uživatel napsal.
+#
+# Dvoukrokové: 1) vyhodnocení před bránou (sms_dispatch.plan_recipients -
+# vyřazení neplatných, duplicitních čísel a čísla brány, kontrola textu,
+# odhad doby) a náhled, 2) po potvrzení uložení do fronty v pevném pořadí
+# a přesměrování na průběh odeslání (sms_batch_detail_view).
 @login_required
 @permission_required('dashboard.view_phonenumber', raise_exception=True)
 def send_sms_view(request):
@@ -515,29 +525,53 @@ def send_sms_view(request):
         form = SendSmsForm(request.POST, user=request.user)
         if form.is_valid():
             message = form.cleaned_data['message']
-            selected_numbers = {n.number for n in form.cleaned_data['numbers']}
-            manual_numbers = set(form.cleaned_data['manual_number_list'])
-            target_numbers = sorted(selected_numbers | manual_numbers)
+            selected_numbers = [n.number for n in form.cleaned_data['numbers']]
+            manual_numbers = list(form.cleaned_data['manual_number_list'])
+            plan = sms_dispatch.plan_recipients(selected_numbers + manual_numbers)
 
-            event_log = IncomingEventLog.objects.create(
-                owner=request.user,
-                event_type='SYSTEM',
-                source_number='',
-                message_body=f'Ruční odeslání SMS na {len(target_numbers)} čísel.',
-                processed=True,
-                result_summary=f'Vygenerováno ručním odesláním SMS na {", ".join(target_numbers)}.',
-            )
-            for target in target_numbers:
-                OutgoingAction.objects.create(
-                    owner=request.user,
-                    event_log=event_log,
-                    action_type='NOTIFY_SMS',
-                    target_number=target,
-                    payload_message=message,
-                    status='PENDING',
-                )
-            messages.success(request, f'SMS zařazena k odeslání na {len(target_numbers)} čísel: {", ".join(target_numbers)}.')
-            return redirect('send_sms')
+            try:
+                ModemManagerClient.validate_sms('+420777000000', message)
+            except ModemError as exc:
+                form.add_error('message', str(exc))
+            if not plan.valid:
+                form.add_error(None, 'Po vyřazení neplatných, duplicitních čísel a čísla brány nezbyl žádný příjemce.')
+
+            if form.is_valid() and request.POST.get('confirm') != '1':
+                return render(request, 'dashboard/send_sms_confirm.html', {
+                    'form': form,
+                    'plan': plan,
+                    'message': message,
+                    'sms_parts': estimate_sms_parts(message),
+                    'duration': sms_dispatch.estimate_duration_text(len(plan.valid)),
+                    'selected_pks': [n.pk for n in form.cleaned_data['numbers']],
+                })
+
+            if form.is_valid():
+                with transaction.atomic():
+                    event_log = IncomingEventLog.objects.create(
+                        owner=request.user,
+                        event_type='SYSTEM',
+                        source_number='',
+                        message_body=f'Ruční odeslání SMS na {len(plan.valid)} čísel.',
+                        processed=True,
+                        result_summary=(
+                            f'Vygenerováno ručním odesláním SMS na {", ".join(plan.valid)}.'
+                            + (f' Vyřazeno před odesláním: {plan.excluded_count}.' if plan.excluded_count else '')
+                        ),
+                    )
+                    OutgoingAction.objects.bulk_create([
+                        OutgoingAction(
+                            owner=request.user,
+                            event_log=event_log,
+                            action_type='NOTIFY_SMS',
+                            target_number=target,
+                            payload_message=message,
+                            status='PENDING',
+                        )
+                        for target in plan.valid
+                    ])
+                messages.success(request, f'SMS zařazena k odeslání na {len(plan.valid)} čísel.')
+                return redirect('sms_batch_detail', pk=event_log.pk)
     else:
         initial = {}
         preselected_number = request.GET.get('number')
@@ -546,6 +580,86 @@ def send_sms_view(request):
         form = SendSmsForm(user=request.user, initial=initial)
 
     return render(request, 'dashboard/send_sms.html', {'form': form})
+
+
+def _sms_batch_for_user(request, pk):
+    queryset = IncomingEventLog.objects.all()
+    if not access.is_admin(request.user):
+        queryset = queryset.filter(owner=request.user)
+    return get_object_or_404(queryset, pk=pk)
+
+
+def _sms_batch_summary(event_log):
+    actions = OutgoingAction.objects.filter(event_log=event_log, action_type__in=sms_dispatch.SMS_ACTION_TYPES)
+    counts = {
+        'total': actions.count(),
+        'sent': actions.filter(status='SENT').count(),
+        'waiting': actions.filter(status='PENDING', attempts=0).count(),
+        'retrying': actions.filter(status='PENDING', attempts__gt=0).count(),
+        'failed': actions.filter(status='FAILED').count(),
+        'cancelled': actions.filter(status='CANCELLED').count(),
+    }
+    done = counts['sent'] + counts['failed'] + counts['cancelled']
+    counts['percent'] = round(100 * done / counts['total']) if counts['total'] else 100
+    counts['finished'] = counts['waiting'] + counts['retrying'] == 0
+    return actions, counts
+
+
+# Průběh ručního/hromadného odeslání SMS - co je odeslané, co čeká, co se
+# opakuje (s časem dalšího pokusu) a co se nepodařilo, s možností „Poslat
+# znovu“ a „Zastavit“. Dávku tvoří jeden syntetický IncomingEventLog.
+@login_required
+@permission_required('dashboard.view_phonenumber', raise_exception=True)
+def sms_batch_detail_view(request, pk):
+    event_log = _sms_batch_for_user(request, pk)
+    actions, counts = _sms_batch_summary(event_log)
+
+    if request.GET.get('format') == 'json':
+        return JsonResponse(counts)
+
+    status_order = Case(
+        When(status='FAILED', then=0),
+        When(status='PENDING', attempts__gt=0, then=1),
+        When(status='PENDING', then=2),
+        When(status='CANCELLED', then=3),
+        default=4,
+        output_field=IntegerField(),
+    )
+    context = {
+        'event_log': event_log,
+        'counts': counts,
+        'actions': actions.annotate(status_order=status_order).order_by('status_order', 'id'),
+        'pause_reason': SystemState.load().sms_sending_paused_reason,
+        'max_attempts': sms_dispatch.MAX_ATTEMPTS,
+    }
+    return render(request, 'dashboard/sms_batch_detail.html', context)
+
+
+@login_required
+@permission_required('dashboard.view_phonenumber', raise_exception=True)
+@require_http_methods(['POST'])
+def sms_batch_resend_view(request, pk):
+    event_log = _sms_batch_for_user(request, pk)
+    actions = OutgoingAction.objects.filter(event_log=event_log)
+    action_id = request.POST.get('action_id')
+    if action_id:
+        actions = actions.filter(pk=action_id)
+    count = sms_dispatch.requeue(actions)
+    if count:
+        messages.success(request, f'Znovu zařazeno k odeslání: {count} SMS.')
+    else:
+        messages.info(request, 'Nebyla nalezena žádná neodeslaná SMS k opětovnému odeslání.')
+    return redirect('sms_batch_detail', pk=event_log.pk)
+
+
+@login_required
+@permission_required('dashboard.view_phonenumber', raise_exception=True)
+@require_http_methods(['POST'])
+def sms_batch_cancel_view(request, pk):
+    event_log = _sms_batch_for_user(request, pk)
+    count = sms_dispatch.cancel_pending(OutgoingAction.objects.filter(event_log=event_log))
+    messages.warning(request, f'Odeslání zastaveno - zrušeno {count} čekajících SMS. Lze je později odeslat znovu.')
+    return redirect('sms_batch_detail', pk=event_log.pk)
 
 
 @login_required
@@ -1118,7 +1232,33 @@ def gateway_signal_api(request):
         'label': settings_obj.signal_label,
         'dbm': settings_obj.signal_dbm,
         'checked_at': settings_obj.last_signal_checked_at.isoformat() if settings_obj.last_signal_checked_at else None,
+        'storage': _modem_storage_context(),
     })
+
+
+def _modem_storage_context():
+    """Ukazatel paměti SMS v modemu - sdílené pro Stav brány i JSON API
+    (průběžné obnovování). Hodnocení (OK/WARN/ERROR) je stejné jako v
+    Sebediagnostice, ať se to nerozchází."""
+    state = SystemState.load()
+    check = selftest_service.check_modem_storage()
+    pending_sms = OutgoingAction.objects.filter(
+        status='PENDING', action_type__in=('NOTIFY_SMS', 'FORWARD_INFO', 'INFO_SMS'),
+    ).count()
+    return {
+        'used': state.modem_sms_used,
+        'capacity': state.modem_sms_capacity,
+        'percent': state.modem_sms_percent,
+        'source': state.modem_sms_capacity_source,
+        'storage': state.modem_sms_storage,
+        'states': state.modem_sms_states or {},
+        'delete_failures': state.modem_sms_delete_failures,
+        'paused_reason': state.sms_sending_paused_reason,
+        'checked_at': state.modem_sms_checked_at.isoformat() if state.modem_sms_checked_at else None,
+        'status': check['status'],
+        'message': check['message'],
+        'pending_sms': pending_sms,
+    }
 
 
 @login_required
@@ -1132,6 +1272,8 @@ def gateway_status_view(request):
         'gateway_settings': settings_obj,
         'numbers_count': numbers_count,
         'groups_count': groups_count,
+        'modem_storage': _modem_storage_context(),
+        'storage_pause_percent': django_settings.GSM_MODEM_STORAGE_PAUSE_PERCENT,
     }
     return render(request, 'dashboard/gateway_status.html', context)
 

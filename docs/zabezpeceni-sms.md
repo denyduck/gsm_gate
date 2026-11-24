@@ -91,6 +91,15 @@ Obě používají stejný sdílený cache-based počítač (`dashboard/services/
 3. **Nezapomeň kliknout na tlačítko "Uložit"/"Save"** – u editace přímo v seznamu (`list_editable`) samotné zaškrtnutí checkboxu nic neuloží, dokud se pod tabulkou neklikne na Uložit. Tohle je nejčastější příčina, proč se zapnutí/vypnutí "neprojeví" – změna se ve skutečnosti vůbec neuložila do databáze (dá se ověřit přes shell: `AutomationRule.objects.get(name='...').active`).
 4. Přidat nový řádek ani smazat existující nejde – tlačítka pro to admin nenabízí.
 
+## Ochrana proti smyčce odchozích SMS
+
+Smyčka vzniká, když brána přijme SMS, kterou sama vyvolala. Proti tomu jsou čtyři vrstvy:
+
+1. **Číslo brány** (Konfigurace brány → *Číslo brány (SIM)*, při výměně SIM upravit): brána na něj nikdy neodešle SMS (vyřadí ho už náhled hromadné SMS, worker ho odmítne i u pravidel) a příchozí SMS z něj nespouští žádná pravidla. Porovnává se bez ohledu na zápis (`737…`, `+420737…`, `00420737…`).
+2. **Odpověď na zprávu brány:** SMS od čísla, kterému brána v posledních 5 minutách něco poslala (auto-odpověď zařízení, „OK“ po hromadné SMS), **nespustí pravidla „Jakékoliv číslo“** bez příznaku. Pravidla na konkrétní číslo, skupinu nebo s příznakem fungují dál, ta jsou nastavená vědomě. Zpráva se vždy zapíše do Logu událostí s vysvětlením.
+3. **Limit na pravidlo a cíl:** max. 5 akcí jednoho pravidla na stejný cíl za 5 min.
+4. **Limit na cíl napříč pravidly:** max. 10 akcí ze všech pravidel na stejné číslo za 5 min. Zastaví i smyčku, která běží přes víc pravidel (A odpoví → pravidlo 1 pošle B → B odpoví → pravidlo 2 pošle A …).
+
 ## Omezení a co tahle ochrana neřeší
 
 - **Spoofing čísla odesílatele** – ověření identity volajícího/odesílatele SMS řeší mobilní síť/operátor, ne aplikace. Pokud útočník dokáže podvrhnout číslo, které je zrovna odblokované/důvěryhodné, ochrana ho nezachytí.

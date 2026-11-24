@@ -51,7 +51,46 @@ Adresáti se kombinují ze dvou zdrojů (aspoň jeden musí dát alespoň jedno 
 - **Vybraná čísla** – zaškrtávací seznam s vyhledáváním, stejný vzor jako u sdílení výše – jen čísla, která už appka eviduje.
 - **Ručně zadaná čísla** – libovolná čísla (jedno na řádek, nebo oddělená čárkou/středníkem), která v bráně vůbec nemusí existovat jako záznam – appka je jen normalizuje (`normalize_phone_number`) a použije.
 
-Výsledné cíle (sjednocení obou zdrojů, bez duplicit) se zpracují stejně jako u sdílení – jeden syntetický `IncomingEventLog` (`event_type='SYSTEM'`) a pro každé cílové číslo samostatná `OutgoingAction` (`action_type='NOTIFY_SMS'`, `status='PENDING'`), kterou pak odešle `gsm_worker` v běžném cyklu.
+Výsledné cíle se zpracují stejně jako u sdílení: jeden syntetický `IncomingEventLog` (`event_type='SYSTEM'`) a pro každé cílové číslo samostatná `OutgoingAction` (`action_type='NOTIFY_SMS'`, `status='PENDING'`), kterou pak odešle `gsm_worker`.
+
+#### 1. Kontrola před odesláním (náhled)
+
+Po kliknutí na „Odeslat“ se zatím nic neodešle. Appka (`services/sms_dispatch.py`, `plan_recipients`) příjemce vyhodnotí a ukáže náhled:
+
+- **vyřazená čísla:** neplatná, duplicitní (i v různých zápisech, např. `737…` a `+420737…`) a **číslo brány** (Konfigurace brány → *Číslo brány (SIM)*),
+- kontrola textu: apostrof nebo zpráva delší než 10 částí SMS se odmítne hned,
+- počet částí SMS a **odhad doby odeslání** (podle skutečné rychlosti posledních odeslaných SMS).
+
+Teprve po potvrzení se SMS uloží do fronty v pevném pořadí a appka přesměruje na stránku **Průběh odeslání SMS**.
+
+#### 2. Odesílání
+
+- Worker posílá ruční a hromadné SMS po dávkách (`GSM_MAX_MANUAL_SMS_PER_CYCLE`, výchozí 10). Dokud ve frontě něco čeká, **mezi dávkami nečeká** celý interval. Hromadná SMS tak jede plnou rychlostí modemu, a přitom se mezi dávkami zpracují příchozí SMS a akce z pravidel, které mají přednost.
+- Rychlost omezuje modem (SMS jdou jedna po druhé), řádově jednotky sekund na SMS. Pro opravdu urgentní zprávy (evakuace) proto doporučujeme souběžně i e-mail nebo Teams.
+
+#### 3. Chyby a opakování
+
+Každá SMS se zkouší **jen jednou za průchod**, worker na ni nikdy nečeká. Po selhání ji vyhodnotí plánovač (`schedule_retry_or_fail`):
+
+| Chyba | Co se stane |
+|---|---|
+| Trvalá (neplatné číslo/text, číslo brány) | hned **Neodesláno**, opakování nemá smysl |
+| Dočasná (modem, timeout) | zpět do fronty s odstupem 1 → 5 → 15 min, **za SMS, které čekají dřív**. Ostatní SMS tedy nezdržuje. |
+| Dočasná, ale vyčerpány 4 pokusy | **Neodesláno**, s tlačítkem *Poslat znovu* |
+| Pauza (plná paměť modemu, pojistka po opakovaných selháních) | SMS čeká, pokus se nespotřebuje. Po obnovení modemu odesílání samo pokračuje. |
+
+Když odeslání skončí a některé SMS zůstanou neodeslané, vyšle se systémový příznak `#SMS_FAILED` (viz [Systémové události](systemove-udalosti.md)).
+
+#### 4. Průběh odeslání SMS
+
+Stránka s živým průběhem (obnovuje se sama): *Odesláno / Čeká / Opakuje se* (s časem dalšího pokusu) */ Neodesláno / Zrušeno*, detail chyby u každého čísla a tlačítka:
+
+- **Poslat znovu** u konkrétního čísla, nebo **Poslat znovu všem neodeslaným** (dostanou novou sadu pokusů),
+- **Zastavit odesílání**: čekající SMS se zruší (lze je pak poslat znovu).
+
+Na stránku vede i odkaz *Průběh odeslání* z detailu odchozí akce.
+
+> „Odesláno“ znamená předáno do sítě operátora. Doručení do telefonu brána nesleduje, doručenky jsou kvůli [incidentu 2026-09-11](modem-diagnostika.md) vypnuté.
 
 ## 4) Skupiny telefonních čísel
 

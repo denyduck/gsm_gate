@@ -50,7 +50,8 @@ class Command(BaseCommand):
                     result = worker.cycle()
                     self.stdout.write(
                         f'Cyklus dokončen: incoming={result.incoming_processed}, '
-                        f'sent={result.outgoing_sent}, failed={result.outgoing_failed}'
+                        f'sent={result.outgoing_sent}, failed={result.outgoing_failed}, '
+                        f'deferred={result.outgoing_deferred}, modem_cleaned={result.modem_sms_deleted}'
                     )
                 except OperationalError as e:
                     self.stdout.write(self.style.WARNING(f'DB chyba, čekám 15s a zkouším znovu: {e}'))
@@ -71,7 +72,11 @@ class Command(BaseCommand):
                 if run_once:
                     break
 
-                time.sleep(interval)
+                # Když ve frontě čeká další dávka (např. hromadná SMS na
+                # stovky čísel), nečekat celý interval - jen krátká pauza.
+                # Příchozí SMS a akce pravidel se tak kontrolují mezi každou
+                # dávkou a hromadná SMS přitom jede plnou rychlostí modemu.
+                time.sleep(1 if result.more_work else interval)
         finally:
             worker.close()
             self.stdout.write(self.style.WARNING('GSM worker ukončen.'))

@@ -14,6 +14,16 @@
         {% if action.rule_id %}
             <a href="{% url 'rule_detail' action.rule_id %}" class="btn btn-app-outline">Pravidlo</a>
         {% endif %}
+        {% if action.event_log_id and not action.rule_id and action.action_type == 'NOTIFY_SMS' %}
+            <a href="{% url 'sms_batch_detail' action.event_log_id %}" class="btn btn-app-outline"><i class="bi bi-list-check"></i> Průběh odeslání</a>
+            {% if action.status == 'FAILED' or action.status == 'CANCELLED' %}
+                <form method="post" action="{% url 'sms_batch_resend' action.event_log_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action_id" value="{{ action.pk }}">
+                    <button type="submit" class="btn btn-app-primary"><i class="bi bi-arrow-clockwise"></i> Zpráva se neodeslala – poslat znovu</button>
+                </form>
+            {% endif %}
+        {% endif %}
     </div>
 </section>
 

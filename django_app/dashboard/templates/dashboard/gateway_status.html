@@ -44,6 +44,34 @@
     </div>
 </section>
 
+<section class="app-panel mb-4" id="modem-storage-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Paměť SMS v modemu</h2>
+    </div>
+    <p class="form-text mt-0">
+        Když se paměť zaplní, modem přestane přijímat SMS a přestanou fungovat pravidla. Worker zbytky
+        (odeslané/neodeslané SMS) maže sám a od {{ storage_pause_percent }} % zaplnění pozastaví odesílání SMS,
+        aby zůstalo místo pro příchozí zprávy.
+    </p>
+    {% with s=modem_storage %}
+    <div class="d-flex justify-content-between align-items-baseline mb-1">
+        <strong id="storage-used-text">{% if s.used is not None %}{{ s.used }} / {{ s.capacity }} SMS{% else %}Neznámé{% endif %}</strong>
+        <span id="storage-percent-text">{% if s.percent is not None %}{{ s.percent }} %{% else %}-{% endif %}</span>
+    </div>
+    <div class="progress mb-2" role="progressbar" aria-label="Zaplnění paměti SMS" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ s.percent|default:0 }}" style="height: 1.25rem;">
+        <div id="storage-bar" class="progress-bar {% if s.status == 'ERROR' %}bg-danger{% elif s.status == 'WARN' %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ s.percent|default:0 }}%;"></div>
+    </div>
+    <div id="storage-message" class="mb-3 {% if s.status == 'ERROR' %}text-danger{% elif s.status == 'WARN' %}text-warning-emphasis{% endif %}">{{ s.message }}</div>
+    <div id="storage-paused" class="alert alert-warning py-2 {% if not s.paused_reason %}d-none{% endif %}"><i class="bi bi-pause-circle"></i> <span>{{ s.paused_reason }}</span></div>
+    <div class="row g-3">
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">SMS čekající ve frontě</div><div class="value" id="storage-pending">{{ s.pending_sms }}</div></div></div>
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Neúspěšná mazání</div><div class="value" id="storage-delete-failures">{{ s.delete_failures }}</div></div></div>
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Podle stavu</div><div class="value fs-6" id="storage-states">{% for state, count in s.states.items %}{{ state }}: {{ count }}{% if not forloop.last %}, {% endif %}{% empty %}prázdná{% endfor %}</div></div></div>
+        <div class="col-md-3 col-6"><div class="card-stat"><div class="label">Zdroj kapacity</div><div class="value fs-6" id="storage-source">{% if s.source == 'AT' %}modem ({{ s.storage|upper }}){% elif s.source %}odhad (GSM_MODEM_SMS_CAPACITY){% else %}-{% endif %}</div></div></div>
+    </div>
+    {% endwith %}
+</section>
+
 <section class="app-panel mb-4">
     <div class="panel-header">
         <h2 class="panel-title">Provozní přepínače</h2>
@@ -95,10 +123,41 @@
             return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
         }
 
+        function renderStorage(s) {
+            const bar = document.getElementById('storage-bar');
+            if (!bar) return;
+            const percent = s.percent === null || s.percent === undefined ? null : s.percent;
+            document.getElementById('storage-used-text').textContent =
+                s.used === null || s.used === undefined ? 'Neznámé' : `${s.used} / ${s.capacity} SMS`;
+            document.getElementById('storage-percent-text').textContent = percent === null ? '-' : `${percent} %`;
+            bar.style.width = `${percent || 0}%`;
+            bar.parentElement.setAttribute('aria-valuenow', percent || 0);
+            bar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+            bar.classList.add(s.status === 'ERROR' ? 'bg-danger' : s.status === 'WARN' ? 'bg-warning' : 'bg-success');
+
+            const msg = document.getElementById('storage-message');
+            msg.textContent = s.message;
+            msg.classList.remove('text-danger', 'text-warning-emphasis');
+            if (s.status === 'ERROR') msg.classList.add('text-danger');
+            else if (s.status === 'WARN') msg.classList.add('text-warning-emphasis');
+
+            const paused = document.getElementById('storage-paused');
+            paused.classList.toggle('d-none', !s.paused_reason);
+            paused.querySelector('span').textContent = s.paused_reason || '';
+
+            document.getElementById('storage-pending').textContent = s.pending_sms;
+            document.getElementById('storage-delete-failures').textContent = s.delete_failures;
+            const states = Object.entries(s.states || {}).map(([k, v]) => `${k}: ${v}`).join(', ');
+            document.getElementById('storage-states').textContent = states || 'prázdná';
+            document.getElementById('storage-source').textContent =
+                s.source === 'AT' ? `modem (${(s.storage || '').toUpperCase()})` : s.source ? 'odhad (GSM_MODEM_SMS_CAPACITY)' : '-';
+        }
+
         function refresh() {
             fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then((res) => res.json())
                 .then((data) => {
+                    if (data.storage) renderStorage(data.storage);
                     if (!data.ok || data.quality === null || data.quality === undefined) {
                         csqEl.textContent = '-';
                         labelEl.textContent = 'Neznámý';

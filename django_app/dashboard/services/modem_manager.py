@@ -17,6 +17,49 @@ class IncomingSms:
     timestamp: str = ''
 
 
+@dataclass
+class ModemSms:
+    """Libovolná SMS, kterou ModemManager drží (příchozí i odchozí, v
+    jakémkoliv stavu) - pro úklid paměti modemu, viz list_sms()."""
+    index: int
+    state: str
+    number: str = ''
+    text: str = ''
+    timestamp: str = ''
+    storage: str = ''
+
+
+@dataclass
+class StorageInfo:
+    """Obsazenost úložiště SMS podle modemu samotného (AT+CPMS?)."""
+    storage: str
+    used: int
+    total: int
+
+
+# Kontrola vstupu PŘED vytvořením SMS v modemu - chybná zpráva (neplatné
+# číslo, apostrof, přehnaná délka) tak skončí chybou dřív, než by v paměti
+# modemu založila objekt, který by po neúspěšném --send mohl zůstat viset
+# (incident 2026-11: zbytky odchozích SMS zaplnily paměť modemu a brána
+# přestala přijímat SMS - viz docs/modem-diagnostika.md).
+_VALID_NUMBER_RE = re.compile(r'^\+?\d{3,15}$')
+SMS_MAX_PARTS = 10
+
+
+def parse_cpms(raw: str) -> Optional[StorageInfo]:
+    """Z odpovědi `+CPMS: "ME",12,25,"ME",12,25,"ME",12,25` vrátí úložiště,
+    kam modem ukládá PŘIJATÉ SMS (3. trojice, mem3) - právě jeho zaplnění
+    zastaví příjem. Bez 3. trojice vezme první."""
+    triples = re.findall(r'"(\w+)"\s*,\s*(\d+)\s*,\s*(\d+)', raw or '')
+    if not triples:
+        return None
+    storage, used, total = triples[2] if len(triples) >= 3 else triples[0]
+    total_int = int(total)
+    if total_int <= 0:
+        return None
+    return StorageInfo(storage=storage.lower(), used=int(used), total=total_int)
+
+
 def _run_mmcli(args: List[str], timeout: float = 20.0) -> dict:
     try:
         result = subprocess.run(
@@ -142,11 +185,28 @@ class ModemManagerClient:
         self._modem_index = _index_from_path(modems[0])
         return self._modem_index
 
-    def send_sms(self, phone_number: str, text: str, request_delivery_report: bool = False):
-        modem_idx = self._resolve_modem_index()
+    @staticmethod
+    def validate_sms(phone_number: str, text: str) -> None:
+        """Vyhodí ModemError pro zprávu, kterou nemá smysl modemu vůbec
+        předávat. Volá se před --messaging-create-sms, takže chybná zpráva
+        v paměti modemu nic nezaloží."""
+        if not _VALID_NUMBER_RE.match(phone_number or ''):
+            raise ModemError(f'Neplatné cílové číslo "{phone_number}".')
+        if not (text or '').strip():
+            raise ModemError('Text zprávy je prázdný.')
+        if "'" in text:
+            raise ModemError('Text zprávy nesmí obsahovat apostrof (omezení mmcli parseru).')
+        parts = _estimate_sms_parts(text)
+        if parts > SMS_MAX_PARTS:
+            raise ModemError(f'Zpráva je příliš dlouhá ({parts} částí SMS, maximum {SMS_MAX_PARTS}).')
 
-        if "'" in text or "'" in phone_number:
-            raise ModemError('Text zprávy ani číslo nesmí obsahovat apostrof (omezení mmcli parseru).')
+    def send_sms(self, phone_number: str, text: str, request_delivery_report: bool = False) -> bool:
+        """Odešle SMS. Vrací True, pokud se vytvořenou SMS podařilo z paměti
+        modemu i smazat (False = zůstala tam a uklidí ji až další sweep ve
+        workeru). Při chybě odeslání vyhodí ModemError - i tehdy se ale
+        vytvořenou SMS napřed pokusí smazat."""
+        self.validate_sms(phone_number, text)
+        modem_idx = self._resolve_modem_index()
 
         create_arg = f"text='{text}',number='{phone_number}'"
         if request_delivery_report:
@@ -158,6 +218,26 @@ class ModemManagerClient:
             raise ModemError(f'mmcli nevrátil cestu k nově vytvořené SMS: {data}')
 
         sms_idx = _index_from_path(sms_path)
+        # Smazat VŽDY - i po chybě/timeoutu --send. Dřív se mazalo jen po
+        # úspěchu a každá neodeslaná zpráva zůstala v paměti modemu navždy
+        # (read_unread_sms ji jako ne-"received" přeskakovalo). Výsledek
+        # úklidu se při chybě předá v atributu výjimky `sms_cleaned`, ať
+        # worker ví, jestli v paměti něco zůstalo.
+        try:
+            self._send_created_sms(sms_idx, text)
+        except Exception as exc:
+            exc.sms_cleaned = self._try_delete(sms_idx)
+            raise
+        return self._try_delete(sms_idx)
+
+    def _try_delete(self, sms_idx: int) -> bool:
+        try:
+            self.delete_sms(sms_idx)
+            return True
+        except ModemError:
+            return False
+
+    def _send_created_sms(self, sms_idx: int, text: str) -> None:
         # Vícečásťové SMS (dlouhý text, např. sdílení víc čísel najednou)
         # odesílá modem po částech přes AT příkazy - pevných 20s nemusí na
         # celé odeslání stačit. 15s/část s rozumným stropem, ať jedna
@@ -173,13 +253,11 @@ class ModemManagerClient:
         if state is not None and state not in ('sent', 'sending'):
             raise ModemError(f'SMS se nepodařilo odeslat, stav po odeslání: {state}')
 
-        # Uklidíme si po sobě, ať se odchozí zprávy nehromadí ve výpisu.
-        try:
-            self.delete_sms(sms_idx)
-        except ModemError:
-            pass
-
-    def read_unread_sms(self) -> List[IncomingSms]:
+    def list_sms(self) -> List[ModemSms]:
+        """Všechny SMS, které ModemManager drží - v jakémkoliv stavu
+        (received, receiving, sent, sending, stored, unknown). Na rozdíl od
+        read_unread_sms slouží i k úklidu zbytků, které by jinak zaplnily
+        paměť modemu."""
         modem_idx = self._resolve_modem_index()
         data = _run_mmcli(['-m', str(modem_idx), '--messaging-list-sms'])
 
@@ -190,29 +268,56 @@ class ModemManagerClient:
             or []
         )
 
-        messages: List[IncomingSms] = []
+        messages: List[ModemSms] = []
         for path in sms_paths:
-            idx = _index_from_path(path)
+            # Pro jistotu odříznout případný stav v závorce ("…/SMS/12 (sent)").
+            idx = _index_from_path(str(path).split(' ')[0])
             try:
                 detail = _run_mmcli(['-s', str(idx)])
             except ModemError:
+                # Detail nejde přečíst - SMS ale pořád zabírá místo, ať ji
+                # sweep ve workeru vidí (stav "unknown") a zkusí smazat.
+                messages.append(ModemSms(index=idx, state='unknown'))
                 continue
 
             sms = detail.get('sms', {})
             props = sms.get('properties', {})
             content = sms.get('content', {})
 
-            if props.get('state') != 'received':
-                continue
-
-            messages.append(IncomingSms(
+            messages.append(ModemSms(
                 index=idx,
-                sender=content.get('number', ''),
-                message=content.get('text', ''),
+                state=props.get('state') or 'unknown',
+                number=content.get('number', '') or '',
+                text=content.get('text', '') or '',
                 timestamp=props.get('timestamp', '') or '',
+                storage=props.get('storage', '') or '',
             ))
 
         return messages
+
+    def read_unread_sms(self) -> List[IncomingSms]:
+        return [
+            IncomingSms(index=m.index, sender=m.number, message=m.text, timestamp=m.timestamp)
+            for m in self.list_sms()
+            if m.state == 'received'
+        ]
+
+    def get_storage_info(self) -> Optional[StorageInfo]:
+        """Skutečná obsazenost úložiště SMS z modemu (AT+CPMS?). Funguje jen
+        když ModemManager běží s --debug (jinak mmcli --command odmítne) -
+        pak vrací None a worker použije počet SMS z list_sms() a kapacitu
+        z GSM_MODEM_SMS_CAPACITY."""
+        modem_idx = self._resolve_modem_index()
+        try:
+            result = subprocess.run(
+                ['mmcli', '-m', str(modem_idx), '--command=AT+CPMS?'],
+                capture_output=True, text=True, timeout=10,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+        if result.returncode != 0:
+            return None
+        return parse_cpms(result.stdout)
 
     def delete_sms(self, index: int):
         modem_idx = self._resolve_modem_index()
