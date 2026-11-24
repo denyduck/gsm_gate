@@ -265,15 +265,37 @@ def process_incoming_event(user, event_type, source_number, message_body, source
             _fire_security_event(user, normalized_source, block_reason)
             return event_log, 0, 0
 
-    # Odpověď na zprávu brány (auto-odpověď zařízení, „OK“ po hromadné SMS)
-    # - pravidla „Jakékoliv číslo“ ji přeskočí, viz _evaluate_rules.
-    reply_to_gateway = (
-        (event_type or '').upper() == 'SMS' and sms_dispatch.recently_messaged_by_gateway(normalized_source)
-    )
+    # Ping-pong (číslo opakovaně odpovídá na SMS, které mu pravidla posílají
+    # jako reakci na jeho vlastní zprávy) - SMS zpět na něj se pozastaví, viz
+    # _evaluate_rules. Ostatní cíle, e-mail a Teams běží normálně.
+    loop_number = None
+    if (event_type or '').upper() == 'SMS' and normalized_source:
+        rounds = sms_dispatch.pingpong_rounds(normalized_source)
+        if rounds >= sms_dispatch.PINGPONG_MAX_ROUNDS:
+            loop_number = normalized_source
+            _notify_pingpong_once(normalized_source, rounds)
 
     return _evaluate_rules(
         user, event_log, event_type, source_number, message_body, source_device_object,
-        reply_to_gateway=reply_to_gateway,
+        loop_number=loop_number,
+    )
+
+
+def _notify_pingpong_once(number, rounds):
+    """#SMS_LOOP jen jednou za okno, ne při každé zablokované SMS."""
+    from dashboard.services import sms_dispatch
+
+    already = IncomingEventLog.objects.filter(
+        event_type='SYSTEM', created_at__gte=timezone.now() - sms_dispatch.PINGPONG_WINDOW,
+    ).filter(message_body__contains='#SMS_LOOP').filter(message_body__contains=number).exists()
+    if already:
+        return
+    window = int(sms_dispatch.PINGPONG_WINDOW.total_seconds() // 60)
+    fire_system_health_event(
+        '#SMS_LOOP',
+        f'Pravděpodobná smyčka SMS s číslem {number}: za {window} min mu pravidla už {rounds}× poslala SMS '
+        f'jako reakci na jeho vlastní zprávy. Další SMS zpět na toto číslo jsou dočasně pozastavené '
+        f'(ostatní cíle, e-mail a Teams běží dál).',
     )
 
 
@@ -425,11 +447,23 @@ def _build_notification_payload(rule, default_text, source_number, message_body)
 
 
 def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None,
-                    reply_to_gateway=False):
+                    loop_number=None):
+    from dashboard.services import sms_dispatch
+
     summaries = []
     matched_count = 0
     queued_count = 0
-    skipped_as_reply = []
+    loop_skipped_rules = []
+    loop_canon = sms_dispatch.canonical_number(loop_number) if loop_number else ''
+
+    def blocked_by_loop(rule, target):
+        """SMS zpět na číslo, se kterým běží ping-pong, se nepošle."""
+        if loop_canon and sms_dispatch.canonical_number(target) == loop_canon:
+            label = rule_log_label(rule)
+            if label not in loop_skipped_rules:
+                loop_skipped_rules.append(label)
+            return True
+        return False
 
     rules = AutomationRule.objects.filter(active=True).filter(
         Q(owner=user) | Q(users=user)
@@ -439,13 +473,6 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
         if not rule_matches_event(rule, event_type, source_number, message_body, source_device_object=source_device_object):
             continue
 
-        # Smyčky vznikají právě u širokých pravidel „Jakékoliv číslo“, která
-        # zachytí i odpověď na zprávu, kterou brána sama poslala. Pravidla na
-        # konkrétní číslo/skupinu nebo s příznakem fungují dál - ta jsou
-        # nastavená vědomě.
-        if reply_to_gateway and rule.match_type == 'ANY' and not rule.use_message_flag:
-            skipped_as_reply.append(rule_log_label(rule))
-            continue
 
         matched_count += 1
         log_rule_name = rule_log_label(rule)
@@ -512,6 +539,8 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                     summaries.append(f'Pravidlo "{log_rule_name}": kanál SMS přeskočen, protože chybí cílová čísla/skupiny.')
                 else:
                     for target in targets:
+                        if blocked_by_loop(rule, target):
+                            continue
                         if not _target_flood_guard(rule, target):
                             flood_blocked = True
                             continue
@@ -594,6 +623,9 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                     if rule.first_contact_timing == 'ON_TRIGGER' and _queue_first_contact_notice(rule, user, event_log, target):
                         queued_count += 1
 
+                    if blocked_by_loop(rule, target):
+                        continue
+
                     if not _target_flood_guard(rule, target):
                         continue
 
@@ -624,13 +656,15 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             summaries.append('Zpracování ukončeno podle priority pravidel.')
             break
 
-    if skipped_as_reply:
+    if loop_skipped_rules:
+        window = int(sms_dispatch.PINGPONG_WINDOW.total_seconds() // 60)
         summaries.append(
-            f'SMS je odpovědí na zprávu, kterou brána tomuto číslu poslala v posledních minutách – pravidla '
-            f'„Jakékoliv číslo“ přeskočena (ochrana proti smyčce): {", ".join(skipped_as_reply)}.'
+            f'SMS zpět na {loop_number} nebyla odeslána – pravděpodobná smyčka: toto číslo za posledních {window} min '
+            f'už {sms_dispatch.PINGPONG_MAX_ROUNDS}× či víckrát dostalo SMS jako reakci na své vlastní zprávy '
+            f'(pravidla: {", ".join(loop_skipped_rules)}). Ostatní cíle, e-mail a Teams nejsou dotčené.'
         )
 
-    if matched_count == 0 and not skipped_as_reply:
+    if matched_count == 0:
         summaries.append('Nebyla nalezena žádná aktivní pravidla pro tuto událost.')
 
     event_log.processed = True

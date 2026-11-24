@@ -45,6 +45,9 @@ CPMS_RETRY_INTERVAL = timedelta(hours=1)
 # Po vyhození pojistky (GSM_SMS_FAILURE_BREAKER selhání za sebou) se SMS
 # neodesílají po tuhle dobu - ať rozbitý modem nespálí celou frontu.
 SMS_BREAKER_COOLDOWN = timedelta(minutes=5)
+# Akce ve stavu SENDING déle než tohle = odesílání přerušené pádem/restartem
+# workeru (jedno odeslání trvá nejvýš ~3 min, viz modem_manager.send_sms).
+SENDING_STALE_AFTER = timedelta(minutes=15)
 
 # Akce, které reálně jdou přes modem jako SMS.
 SMS_ACTION_TYPES = sms_dispatch.SMS_ACTION_TYPES
@@ -368,6 +371,9 @@ class GsmWorkerService:
         deferred_count = 0
         consecutive_sms_failures = 0
 
+        recovered = self.recover_interrupted_sends()
+        if recovered:
+            logger.error('%s akcí zůstalo ve stavu „Odesílá se“ po přerušení workeru - označeny jako nejisté.', recovered)
         self._gateway_numbers = sms_dispatch.gateway_numbers()
         pending_actions = self._select_pending_actions()
         pause_reason = self._current_pause_reason()
@@ -379,6 +385,9 @@ class GsmWorkerService:
                 if pause_reason:
                     # Zůstává PENDING - odešle se, až se paměť uvolní / pojistka vyprší.
                     deferred_count += 1
+                    continue
+
+                if not self._claim(action):
                     continue
 
                 outcome = self._send_sms_action(action)
@@ -396,6 +405,9 @@ class GsmWorkerService:
                         self._trip_sms_breaker(consecutive_sms_failures)
 
                 pause_reason = self._current_pause_reason()
+                continue
+
+            if not self._claim(action):
                 continue
 
             try:
@@ -422,6 +434,40 @@ class GsmWorkerService:
                 failed_count += 1
 
         return sent_count, failed_count, deferred_count
+
+    @staticmethod
+    def _claim(action: OutgoingAction) -> bool:
+        """Atomicky převede akci PENDING -> SENDING. Když ji mezitím zabrala
+        jiná instance workeru (nebo ji uživatel zrušil), vrátí False a akce
+        se přeskočí - SMS tak nikdy neodejde dvakrát."""
+        claimed = OutgoingAction.objects.filter(pk=action.pk, status='PENDING').update(
+            status='SENDING', processed_at=timezone.now(),
+        )
+        if not claimed:
+            logger.warning('Akce %s už není ve stavu Čeká (zabrala ji jiná instance workeru / zrušena) - přeskakuji.', action.pk)
+            return False
+        action.status = 'SENDING'
+        return True
+
+    @staticmethod
+    def recover_interrupted_sends() -> int:
+        """Akce, které zůstaly ve stavu SENDING (worker spadl/restartoval se
+        uprostřed odesílání). Nevíme, jestli SMS odešla - automaticky se
+        NEopakují (hrozila by zdvojená SMS), označí se jako neodeslané s
+        možností ručně „Poslat znovu“."""
+        limit = timezone.now() - SENDING_STALE_AFTER
+        stale = OutgoingAction.objects.filter(status='SENDING').filter(
+            Q(processed_at__lt=limit) | Q(processed_at__isnull=True)
+        )
+        return stale.update(
+            status='FAILED',
+            processed_at=timezone.now(),
+            next_attempt_at=None,
+            execution_detail=(
+                'Nejisté: odesílání bylo přerušeno (restart/pád workeru) a nelze zjistit, zda SMS odešla. '
+                'Automaticky se neopakuje, aby nepřišla dvakrát - ověř u příjemce a případně pošli znovu.'
+            ),
+        )
 
     def _send_sms_action(self, action: OutgoingAction) -> str:
         """Odešle jednu SMS akci. Vrací 'SENT', 'REJECTED' (zamítnuto ještě
@@ -468,10 +514,10 @@ class GsmWorkerService:
         """Po dokončení poslední SMS z ručního/hromadného odeslání, kde
         některé SMS zůstaly neodeslané, vyšle SYSTEM událost #SMS_FAILED
         (admin si na ni může navázat pravidlo s e-mailem/Teams)."""
-        if action.status == 'PENDING' or action.rule_id is not None or not action.event_log_id:
+        if action.status in ('PENDING', 'SENDING') or action.rule_id is not None or not action.event_log_id:
             return
         batch = OutgoingAction.objects.filter(event_log_id=action.event_log_id, action_type__in=SMS_ACTION_TYPES)
-        if batch.filter(status='PENDING').exists():
+        if batch.filter(status__in=('PENDING', 'SENDING')).exists():
             return
         failed = batch.filter(status='FAILED').count()
         if not failed:

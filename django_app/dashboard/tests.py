@@ -371,30 +371,72 @@ class SmsDispatchTests(TestCase):
         self.assertEqual((matched, queued), (0, 0))
         self.assertIn('vlastního čísla brány', log.result_summary)
 
-    # --- odpověď na zprávu brány ---
+    # --- ochrana proti smyčce (ping-pong) ---
 
-    def test_reply_to_gateway_skips_any_rules_but_not_exact(self):
+    def _self_forward_rule(self, number='+420737000111'):
+        me = PhoneNumber.objects.create(owner=self.admin, number=number, active=True)
+        rule = AutomationRule.objects.create(
+            owner=self.admin, name='Vše na mě', match_type='ANY', event_type='SMS', action='FORWARD',
+        )
+        rule.target_numbers.add(me)
+        return rule
+
+    def test_self_forward_works_for_repeated_human_messages(self):
+        """Případ z provozu: pravidlo „přesměruj všechno na moje číslo“ a SMS
+        z vlastního telefonu - každá zpráva se přepošle, žádná se nezahodí."""
         from .services.rules_engine import process_incoming_event
 
-        target = PhoneNumber.objects.create(owner=self.admin, number='+420777999000', active=True)
-        any_rule = AutomationRule.objects.create(
-            owner=self.admin, name='Vše', match_type='ANY', event_type='SMS', action='NOTIFY_NUM', notify_via_sms=True,
-        )
-        any_rule.target_numbers.add(target)
-        exact_rule = AutomationRule.objects.create(
-            owner=self.admin, name='Zařízení', match_type='EXACT', source_number='+420777000111',
-            event_type='SMS', action='NOTIFY_NUM', notify_via_sms=True, priority=200,
-        )
-        exact_rule.target_numbers.add(target)
+        rule = self._self_forward_rule()
+        for text in ('Test 1', 'Test 2'):
+            process_incoming_event(self.admin, 'SMS', '+420737000111', text)
+        self.assertEqual(OutgoingAction.objects.filter(rule=rule).count(), 2)
 
-        sent = self._action('777000111')
-        OutgoingAction.objects.filter(pk=sent.pk).update(status='SENT', processed_at=timezone.now())
+    def test_pingpong_stops_sms_back_after_max_rounds_and_alerts_once(self):
+        from .services.rules_engine import process_incoming_event
+        from .services.sms_dispatch import PINGPONG_MAX_ROUNDS
 
-        log, matched, _ = process_incoming_event(self.admin, 'SMS', '+420777000111', 'OK')
-        self.assertEqual(matched, 1)
-        self.assertIn('odpovědí na zprávu', log.result_summary)
-        self.assertFalse(OutgoingAction.objects.filter(rule=any_rule).exists())
-        self.assertTrue(OutgoingAction.objects.filter(rule=exact_rule).exists())
+        rule = self._self_forward_rule()
+        other = PhoneNumber.objects.create(owner=self.admin, number='+420777888999', active=True)
+        rule.target_numbers.add(other)
+
+        for i in range(PINGPONG_MAX_ROUNDS + 2):
+            log, _, _ = process_incoming_event(self.admin, 'SMS', '+420737000111', f'Auto-odpověď {i}')
+
+        to_source = OutgoingAction.objects.filter(rule=rule, target_number='+420737000111').count()
+        to_other = OutgoingAction.objects.filter(rule=rule, target_number='+420777888999').count()
+        self.assertEqual(to_source, PINGPONG_MAX_ROUNDS)
+        self.assertEqual(to_other, PINGPONG_MAX_ROUNDS + 2)
+        self.assertIn('pravděpodobná smyčka', log.result_summary)
+        loop_alerts = IncomingEventLog.objects.filter(event_type='SYSTEM', message_body__contains='#SMS_LOOP')
+        self.assertEqual(loop_alerts.count(), 1)
+
+    # --- souběh workerů ---
+
+    def test_claimed_action_is_not_sent_twice(self):
+        """Druhá instance workeru nesmí poslat akci, kterou už zabrala první."""
+        action = self._action('+420777000001')
+        OutgoingAction.objects.filter(pk=action.pk).update(status='SENDING', processed_at=timezone.now())
+
+        client = FakeModemClient()
+        worker = self._worker(client)
+        stale_copy = OutgoingAction.objects.get(pk=action.pk)
+        stale_copy.status = 'PENDING'  # jak ji viděl worker při výběru z fronty
+        self.assertFalse(worker._claim(stale_copy))
+        worker.cycle()
+        self.assertEqual(client.sent, [])
+
+    def test_interrupted_send_becomes_uncertain_not_retried(self):
+        action = self._action('+420777000001')
+        OutgoingAction.objects.filter(pk=action.pk).update(
+            status='SENDING', processed_at=timezone.now() - timedelta(minutes=20),
+        )
+        client = FakeModemClient()
+        self._worker(client).cycle()
+
+        action.refresh_from_db()
+        self.assertEqual(action.status, 'FAILED')
+        self.assertIn('Nejisté', action.execution_detail)
+        self.assertEqual(client.sent, [])
 
     # --- opakování ---
 

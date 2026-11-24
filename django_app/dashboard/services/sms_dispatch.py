@@ -16,8 +16,9 @@ Princip (viz docs/funkcionalita.md, Odeslání SMS):
 Ochrana proti smyčce:
 - číslo brány (GatewaySettings.own_number) - brána na něj nikdy nepošle a
   příchozí SMS z něj ignoruje,
-- odpověď na zprávu brány (recently_messaged_by_gateway) - pravidla
-  „Jakékoliv číslo“ na ni nereagují, viz rules_engine.process_incoming_event.
+- ping-pong (pingpong_rounds) - číslo, které opakovaně odpovídá na SMS,
+  jež mu pravidla posílají jako reakci na jeho vlastní zprávy, dočasně
+  nedostává další SMS zpět, viz rules_engine.process_incoming_event.
 """
 
 import re
@@ -37,9 +38,11 @@ SMS_ACTION_TYPES = ('NOTIFY_SMS', 'FORWARD_INFO', 'INFO_SMS')
 RETRY_BACKOFF = [timedelta(minutes=1), timedelta(minutes=5), timedelta(minutes=15)]
 MAX_ATTEMPTS = len(RETRY_BACKOFF) + 1
 
-# SMS od čísla, kterému brána v tomhle okně něco poslala, se bere jako
-# odpověď na zprávu brány (auto-odpověď zařízení, „OK“ od člověka...).
-REPLY_WINDOW = timedelta(minutes=5)
+# Ping-pong: když číslo za PINGPONG_WINDOW už PINGPONG_MAX_ROUNDS× dostalo
+# SMS z pravidla jako reakci na svou vlastní zprávu, další SMS zpět na něj se
+# pozastaví (pravděpodobně automaticky odpovídající zařízení = smyčka).
+PINGPONG_WINDOW = timedelta(minutes=10)
+PINGPONG_MAX_ROUNDS = 3
 
 DEFAULT_SECONDS_PER_SMS = 6.0
 
@@ -86,16 +89,21 @@ def is_gateway_number(raw, numbers=None) -> bool:
     return canon in (gateway_numbers() if numbers is None else numbers)
 
 
-def recently_messaged_by_gateway(raw, window=REPLY_WINDOW) -> bool:
+def pingpong_rounds(raw, window=None) -> int:
+    """Kolikrát za okno pravidla poslala číslu SMS jako reakci na jeho
+    VLASTNÍ zprávu (zdroj události = cíl SMS). Člověk, který si nechává
+    přeposílat zprávy, na to narazí jen výjimečně; automaticky odpovídající
+    zařízení v řádu minut - podle toho se pozná smyčka."""
     variants = number_variants(raw)
     if not variants:
-        return False
+        return 0
     return OutgoingAction.objects.filter(
-        status='SENT',
+        rule__isnull=False,
         action_type__in=SMS_ACTION_TYPES,
-        processed_at__gte=timezone.now() - window,
         target_number__in=variants,
-    ).exists()
+        event_log__source_number__in=variants,
+        created_at__gte=timezone.now() - (window or PINGPONG_WINDOW),
+    ).count()
 
 
 @dataclass

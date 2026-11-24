@@ -61,6 +61,7 @@
                     <td class="text-nowrap">
                         {% if action.status == 'SENT' %}<span class="text-success"><i class="bi bi-check-circle"></i> Odesláno</span>
                         {% elif action.status == 'FAILED' %}<span class="text-danger"><i class="bi bi-x-circle"></i> Neodesláno</span>
+                        {% elif action.status == 'SENDING' %}<span><i class="bi bi-broadcast"></i> Odesílá se…</span>
                         {% elif action.status == 'CANCELLED' %}<span class="text-muted"><i class="bi bi-slash-circle"></i> Zrušeno</span>
                         {% elif action.attempts %}<span class="text-warning-emphasis"><i class="bi bi-arrow-repeat"></i> Opakuje se{% if action.next_attempt_at %} v {{ action.next_attempt_at|date:"H:i:s" }}{% endif %}</span>
                         {% else %}<span><i class="bi bi-hourglass-split"></i> Čeká</span>{% endif %}

@@ -96,9 +96,13 @@ Obě používají stejný sdílený cache-based počítač (`dashboard/services/
 Smyčka vzniká, když brána přijme SMS, kterou sama vyvolala. Proti tomu jsou čtyři vrstvy:
 
 1. **Číslo brány** (Konfigurace brány → *Číslo brány (SIM)*, při výměně SIM upravit): brána na něj nikdy neodešle SMS (vyřadí ho už náhled hromadné SMS, worker ho odmítne i u pravidel) a příchozí SMS z něj nespouští žádná pravidla. Porovnává se bez ohledu na zápis (`737…`, `+420737…`, `00420737…`).
-2. **Odpověď na zprávu brány:** SMS od čísla, kterému brána v posledních 5 minutách něco poslala (auto-odpověď zařízení, „OK“ po hromadné SMS), **nespustí pravidla „Jakékoliv číslo“** bez příznaku. Pravidla na konkrétní číslo, skupinu nebo s příznakem fungují dál, ta jsou nastavená vědomě. Zpráva se vždy zapíše do Logu událostí s vysvětlením.
+2. **Ping-pong s jedním číslem:** pravidla zpracují každou příchozí SMS normálně, takže přesměrování „všechno na moje číslo“ funguje vždy. Když ale číslo za 10 minut už **potřetí** dostalo SMS z pravidla jako reakci na svou vlastní zprávu (typicky automaticky odpovídající zařízení), **další SMS zpět na toto číslo se pozastaví**. Ostatní cíle, e-mail a Teams běží dál. Důvod je vidět v Logu událostí a jednou za okno se vyšle systémový příznak `#SMS_LOOP`.
 3. **Limit na pravidlo a cíl:** max. 5 akcí jednoho pravidla na stejný cíl za 5 min.
 4. **Limit na cíl napříč pravidly:** max. 10 akcí ze všech pravidel na stejné číslo za 5 min. Zastaví i smyčku, která běží přes víc pravidel (A odpoví → pravidlo 1 pošle B → B odpoví → pravidlo 2 pošle A …).
+
+### Zdvojené odeslání
+
+Worker si každou akci před odesláním atomicky zabere (stav *Odesílá se*). Případná druhá instance workeru, spuštěná omylem nebo během nasazování, ji tak nikdy nepošle podruhé. Pokud worker spadne nebo se restartuje uprostřed odesílání, akce se po 15 minutách označí jako **nejistá** (neodesláno, s tlačítkem *Poslat znovu*). Automaticky se neopakuje, aby příjemce nedostal stejnou SMS dvakrát.
 
 ## Omezení a co tahle ochrana neřeší
 

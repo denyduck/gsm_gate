@@ -594,7 +594,7 @@ def _sms_batch_summary(event_log):
     counts = {
         'total': actions.count(),
         'sent': actions.filter(status='SENT').count(),
-        'waiting': actions.filter(status='PENDING', attempts=0).count(),
+        'waiting': actions.filter(Q(status='PENDING', attempts=0) | Q(status='SENDING')).count(),
         'retrying': actions.filter(status='PENDING', attempts__gt=0).count(),
         'failed': actions.filter(status='FAILED').count(),
         'cancelled': actions.filter(status='CANCELLED').count(),
@@ -619,6 +619,7 @@ def sms_batch_detail_view(request, pk):
 
     status_order = Case(
         When(status='FAILED', then=0),
+        When(status='SENDING', then=1),
         When(status='PENDING', attempts__gt=0, then=1),
         When(status='PENDING', then=2),
         When(status='CANCELLED', then=3),
@@ -1631,7 +1632,7 @@ def event_log_detail_view(request, pk):
     all_actions_qs = OutgoingAction.objects.filter(owner=request.user, event_log=log).select_related('rule').order_by('-created_at')
 
     active_status_filter = (request.GET.get('status') or '').strip().upper()
-    allowed_statuses = {'PENDING', 'SENT', 'FAILED'}
+    allowed_statuses = {'PENDING', 'SENDING', 'SENT', 'FAILED', 'CANCELLED'}
     if active_status_filter not in allowed_statuses:
         active_status_filter = ''
 

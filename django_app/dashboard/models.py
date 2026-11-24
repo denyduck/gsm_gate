@@ -510,6 +510,10 @@ class OutgoingAction(models.Model):
 
     STATUS_CHOICES = [
         ('PENDING', 'Čeká'),
+        # Worker si akci před odesláním atomicky „zabere“ - druhá instance
+        # workeru (omylem spuštěná, při nasazování) ji tak nikdy nepošle
+        # podruhé. Viz GsmWorkerService._claim.
+        ('SENDING', 'Odesílá se'),
         ('SENT', 'Odesláno'),
         ('FAILED', 'Chyba'),
         ('CANCELLED', 'Zrušeno'),
