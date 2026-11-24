@@ -234,8 +234,6 @@
     margin-bottom: 0.8rem;
     max-width: 100%;
     white-space: normal;
-    overflow-wrap: break-word;
-    word-break: break-word;
 }
 
 .feature-card {
@@ -501,10 +499,6 @@
 .table-wrap .table td {
     color: var(--text-main);
     border-color: var(--border);
-    /* Jakýkoliv dlouhý nelámaný text (dlouhý e-mail, URL, popis bez mezer)
-       se má zalomit uvnitř buňky, ne roztáhnout celou tabulku do šířky. */
-    overflow-wrap: break-word;
-    word-break: break-word;
 }
 
 .table-wrap .table > :not(caption) > * > * {
@@ -821,8 +815,6 @@ textarea::placeholder {
     padding: 0.2rem 0.62rem;
     font-size: 0.76rem;
     white-space: normal;
-    overflow-wrap: break-word;
-    word-break: break-word;
     vertical-align: middle;
 }
 
@@ -895,8 +887,6 @@ a.pill-link:hover {
    přesně tenhle efekt napříč appkou. */
 .badge {
     white-space: normal;
-    overflow-wrap: break-word;
-    word-break: break-word;
     max-width: 100%;
 }
 

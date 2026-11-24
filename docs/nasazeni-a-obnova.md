@@ -70,7 +70,7 @@ systemctl is-enabled calyx-usb-serial.service gsm-gate-compose.service gsm-watch
 
 Systémové služby výše zajistí, že brána po havárii sama naběhne s **prázdnou databází** (kód je z gitu, data ne). Pro obnovu dat (čísla, skupiny, pravidla, objekty, nastavení) po výměně SD karty/havárii disku je potřeba záloha dat – viz [Funkcionalita – Zálohování](funkcionalita.md#13-zálohování) a stránka „Zálohování“ v appce (jen pro superusera).
 
-Automatické denní zálohy do `django_app/backups/` (odtud si je synchronizuj tam, kam potřebuješ – rsync/rclone/cloud sync):
+Automatické denní zálohy do `django_app/backups/` (odtud si je synchronizuj tam, kam potřebuješ – rsync/rclone/cloud sync, viz i podsekce níže pro síťový disk):
 
 ```bash
 sudo cp scripts/gsm-backup.service scripts/gsm-backup.timer /etc/systemd/system/
@@ -80,6 +80,45 @@ sudo chmod +x /usr/local/bin/gsm_backup.sh
 sudo systemctl daemon-reload
 sudo systemctl enable --now gsm-backup.timer
 ```
+
+#### Navíc: kopie zálohy i na síťový disk (CIFS/SMB)
+
+Zálohy výše zůstávají jen na SD kartě RPi – při zničení RPi/SD karty zmizí spolu s appkou. `gsm_backup.sh` (od verze s `NAS_MOUNT_DIR`) umí navíc zálohu zkopírovat na připojený síťový disk, pokud je právě dostupný; pokud ne, lokální záloha stejně proběhne, jen se vypíše varování do logu (`journalctl -u gsm-backup.service`).
+
+1. Nainstaluj potřebné nástroje:
+   ```bash
+   sudo apt install -y cifs-utils rsync
+   ```
+2. Založ přístupové údaje do samostatného souboru (nikdy ne přímo do `/etc/fstab`, to by bylo čitelné pro kohokoliv přes `cat`):
+   ```bash
+   sudo nano /etc/samba/credentials-zaloha
+   ```
+   ```
+   username=UZIVATEL
+   password=HESLO
+   domain=DOMENA_POKUD_JE
+   ```
+   ```bash
+   sudo chmod 600 /etc/samba/credentials-zaloha
+   ```
+3. Založ přípojný bod a přidej řádek do `/etc/fstab`, ať se disk připojí automaticky po každém restartu RPi:
+   ```bash
+   sudo mkdir -p /mnt/zaloha
+   echo '//ADRESA_NEBO_HOSTNAME_NAS/NAZEV_SDILENE_SLOZKY /mnt/zaloha cifs credentials=/etc/samba/credentials-zaloha,iocharset=utf8,vers=3.0,uid=0,gid=0,file_mode=0600,dir_mode=0700,_netdev,nofail 0 0' | sudo tee -a /etc/fstab
+   ```
+   `_netdev` – počkej na síť, než se disk zkusí připojit. `nofail` – pokud NAS při bootu nejede, RPi se stejně nastartuje (jinak by `fstab` chyba mohla zablokovat celý boot).
+4. Namountuj a ověř:
+   ```bash
+   sudo mount -a
+   mountpoint /mnt/zaloha      # má vypsat "is a mountpoint"
+   ```
+5. Zkopíruj aktualizovaný `gsm_backup.sh` (pokud jsi ho stáhl/aktualizoval z gitu po nasazení timeru výše) a vyzkoušej zálohu hned:
+   ```bash
+   sudo cp scripts/gsm_backup.sh /usr/local/bin/gsm_backup.sh
+   sudo systemctl start gsm-backup.service
+   journalctl -u gsm-backup.service --no-pager -n 20
+   ls -la /mnt/zaloha/
+   ```
 
 ### Volitelně: automatická retence starých dat
 
