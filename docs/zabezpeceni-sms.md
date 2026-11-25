@@ -93,12 +93,12 @@ Obě používají stejný sdílený cache-based počítač (`dashboard/services/
 
 ## Ochrana proti smyčce odchozích SMS
 
-Smyčka vzniká, když brána přijme SMS, kterou sama vyvolala. Proti tomu jsou čtyři vrstvy:
+Skutečná smyčka vzniká, když brána pošle SMS **sama sobě** (číslo brány v hromadné SMS nebo v cílech pravidla) a pravidlo „vše přeposlat“ ji pak znovu odešle. Opakované SMS ze stejného čísla smyčka nejsou – **vyhodnotí se vždy** a pravidla je zpracují všechny.
 
-1. **Číslo brány** (Konfigurace brány → *Číslo brány (SIM)*, při výměně SIM upravit): brána na něj nikdy neodešle SMS (vyřadí ho už náhled hromadné SMS, worker ho odmítne i u pravidel) a příchozí SMS z něj nespouští žádná pravidla. Porovnává se bez ohledu na zápis (`737…`, `+420737…`, `00420737…`).
-2. **Ping-pong s jedním číslem:** pravidla zpracují každou příchozí SMS normálně, takže přesměrování „všechno na moje číslo“ funguje vždy. Když ale číslo za 10 minut už **potřetí** dostalo SMS z pravidla jako reakci na svou vlastní zprávu (typicky automaticky odpovídající zařízení), **další SMS zpět na toto číslo se pozastaví**. Ostatní cíle, e-mail a Teams běží dál. Důvod je vidět v Logu událostí a jednou za okno se vyšle systémový příznak `#SMS_LOOP`.
-3. **Limit na pravidlo a cíl:** max. 5 akcí jednoho pravidla na stejný cíl za 5 min.
-4. **Limit na cíl napříč pravidly:** max. 10 akcí ze všech pravidel na stejné číslo za 5 min. Zastaví i smyčku, která běží přes víc pravidel (A odpoví → pravidlo 1 pošle B → B odpoví → pravidlo 2 pošle A …).
+1. **Číslo brány** (Konfigurace brány → *Číslo brány (SIM)*, při výměně SIM upravit): brána na něj nikdy neodešle SMS (vyřadí ho už náhled hromadné SMS, worker ho odmítne i u pravidel) a příchozí SMS z něj nespouští žádná pravidla. Porovnává se bez ohledu na zápis (`737…`, `+420737…`, `00420737…`). Číslo musí být vyplněné, jinak tahle ochrana neplatí.
+2. **Zpomalení při zahlcení cíle (nic se nezahazuje):** pokud na stejný cíl jde za 5 min víc než 5 akcí jednoho pravidla nebo víc než 10 akcí ze všech pravidel dohromady, další akce se **zařadí se zpožděním** – max. 1 za minutu na cíl, ve správném pořadí. Běžná dávka alertů (API + SMS najednou) se tak doručí celá, jen rozložená v čase; případná smyčka (např. dvě zařízení odpovídající si navzájem) se zpomalí na neškodné tempo. V Logu událostí je u události „Zpomaleno … nejpozději HH:MM“ a jednou za 5 min a cíl se vyšle systémový příznak `#SMS_LOOP`.
+
+Zahazuje jen **bezpečnostní blokace čísla** (víc než 20 událostí za 10 min z jednoho čísla, viz výše) – prahy jdou upravit v adminu.
 
 ### Zdvojené odeslání
 

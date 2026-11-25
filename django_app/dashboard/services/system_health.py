@@ -24,7 +24,7 @@ SYSTEM_FLAG_DESCRIPTIONS = [
     ('#BACKUP_OLD', 'poslední záloha je starší než 7 dní (nebo chybí/je zase čerstvá).'),
     ('#CONFIG_WARN', 'problém s bezpečnostní konfigurací (DEBUG/SECRET_KEY/ALLOWED_HOSTS).'),
     ('#QUEUE_PROBLEM', 'fronta odchozích akcí je zaseknutá / hodně chyb (nebo se vyčistila).'),
-    ('#SMS_LOOP', 'pravděpodobná smyčka SMS s jedním číslem (opakovaně odpovídá na SMS z pravidel) - SMS zpět na něj pozastaveny.'),
+    ('#SMS_LOOP', 'neobvykle mnoho akcí z pravidel na jeden cíl (možná smyčka) - další se odesílají zpomaleně, nic se nezahazuje.'),
     ('#SMS_FAILED','ruční/hromadné odeslání SMS skončilo a některé SMS se nepodařilo odeslat ani po opakování.'),
     ('#MODEM_STORAGE','paměť SMS v modemu se plní / je plná / odesílání SMS pozastaveno (nebo se vrátila do normálu).'),
 ]

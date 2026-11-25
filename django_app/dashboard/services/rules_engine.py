@@ -28,40 +28,68 @@ def get_security_rule(user):
 # na stejné číslo během pár minut, než zasáhla obecná bezpečnostní blokace
 # zdrojového čísla - tohle je rychlejší, cílenější pojistka na úrovni
 # konkrétního pravidla a cíle.
+#
+# Nad limitem se akce NEZAHAZUJE - zařadí se se zpožděním (max. 1 akce na cíl
+# za OUTGOING_THROTTLE_SPACING). Běžná dávka alertů (API + SMS, víc SMS ze
+# stejného čísla) se tak doručí celá, jen rozložená v čase; případná smyčka
+# se zpomalí na neškodné tempo a vyšle #SMS_LOOP.
 OUTGOING_FLOOD_WINDOW_MINUTES = 5
 OUTGOING_FLOOD_MAX_PER_TARGET = 5
 # Totéž napříč VŠEMI pravidly - smyčka může běžet i přes víc pravidel
 # (A odpoví -> pravidlo 1 pošle B -> B odpoví -> pravidlo 2 pošle A ...).
 OUTGOING_FLOOD_MAX_PER_TARGET_GLOBAL = 10
+OUTGOING_THROTTLE_SPACING = timedelta(minutes=1)
 
 
-def _target_flood_guard(rule, target):
-    """Vrátí True, pokud smí pravidlo poslat další akci na daný cíl (pod
-    limitem za posledních OUTGOING_FLOOD_WINDOW_MINUTES minut), jinak False
-    a přeskočení akce se zaloguje."""
-    window_start = timezone.now() - timedelta(minutes=OUTGOING_FLOOD_WINDOW_MINUTES)
-    if target not in ('MAIL', 'TEAMS'):
-        global_count = OutgoingAction.objects.filter(
-            rule__isnull=False, target_number=target, created_at__gte=window_start,
-        ).count()
-        if global_count >= OUTGOING_FLOOD_MAX_PER_TARGET_GLOBAL:
-            logger.warning(
-                'Pravidlo "%s" (id=%s): cíl %s dostal za %s min už %s akcí ze všech pravidel - další akce se '
-                'přeskakuje (ochrana proti smyčce napříč pravidly).',
-                rule.name, rule.id, target, OUTGOING_FLOOD_WINDOW_MINUTES, global_count,
-            )
-            return False
-    recent_count = OutgoingAction.objects.filter(
-        rule=rule, target_number=target, created_at__gte=window_start,
-    ).count()
-    if recent_count >= OUTGOING_FLOOD_MAX_PER_TARGET:
-        logger.warning(
-            'Pravidlo "%s" (id=%s): cíl %s dosáhl limitu %s akcí za %s min - další akce se '
-            'přeskakuje (ochrana proti smyčce, viz docs/modem-diagnostika.md).',
-            rule.name, rule.id, target, OUTGOING_FLOOD_MAX_PER_TARGET, OUTGOING_FLOOD_WINDOW_MINUTES,
+def _throttle_until(rule, target):
+    """None = akci poslat hned (cíl je pod limitem za posledních
+    OUTGOING_FLOOD_WINDOW_MINUTES minut). Jinak čas, od kdy se smí odeslat
+    (next_attempt_at) - za poslední už odloženou akcí na stejný cíl."""
+    now = timezone.now()
+    window_start = now - timedelta(minutes=OUTGOING_FLOOD_WINDOW_MINUTES)
+    if target in ('MAIL', 'TEAMS'):
+        # 'MAIL'/'TEAMS' je společný zástupný cíl všech pravidel - počítat
+        # jen v rámci pravidla.
+        same_target = OutgoingAction.objects.filter(rule=rule, target_number=target)
+        over = same_target.filter(created_at__gte=window_start).count() >= OUTGOING_FLOOD_MAX_PER_TARGET
+    else:
+        same_target = OutgoingAction.objects.filter(rule__isnull=False, target_number=target)
+        recent = same_target.filter(created_at__gte=window_start)
+        over = (
+            recent.count() >= OUTGOING_FLOOD_MAX_PER_TARGET_GLOBAL
+            or recent.filter(rule=rule).count() >= OUTGOING_FLOOD_MAX_PER_TARGET
         )
-        return False
-    return True
+    if not over:
+        return None
+
+    last_delayed = (
+        same_target.filter(status='PENDING', next_attempt_at__gt=now)
+        .order_by('-next_attempt_at').values_list('next_attempt_at', flat=True).first()
+    )
+    send_at = max(last_delayed or now, now) + OUTGOING_THROTTLE_SPACING
+    logger.warning(
+        'Pravidlo "%s" (id=%s): cíl %s je nad limitem za %s min - akce se zpomaluje, odeslání v %s '
+        '(ochrana proti zahlcení, nic se nezahazuje).',
+        rule.name, rule.id, target, OUTGOING_FLOOD_WINDOW_MINUTES, timezone.localtime(send_at).strftime('%H:%M:%S'),
+    )
+    return send_at
+
+
+def _notify_throttle_once(target):
+    """#SMS_LOOP jen jednou za okno a cíl, ne při každé zpomalené akci."""
+    window = timedelta(minutes=OUTGOING_FLOOD_WINDOW_MINUTES)
+    already = IncomingEventLog.objects.filter(
+        event_type='SYSTEM', created_at__gte=timezone.now() - window,
+    ).filter(message_body__contains='#SMS_LOOP').filter(message_body__contains=f'cíl {target} ').exists()
+    if already:
+        return
+    fire_system_health_event(
+        '#SMS_LOOP',
+        f'Neobvykle mnoho akcí z pravidel na cíl {target} (víc než {OUTGOING_FLOOD_MAX_PER_TARGET} '
+        f'za {OUTGOING_FLOOD_WINDOW_MINUTES} min) – další se odesílají zpomaleně, max. 1 za '
+        f'{int(OUTGOING_THROTTLE_SPACING.total_seconds() // 60)} min. Nic se nezahazuje; pokud jde o smyčku, '
+        f'zkontroluj pravidla a číslo brány v konfiguraci.',
+    )
 
 
 DEFAULT_SECURITY_NOTIFICATION_RULE_NAME = 'Výchozí: Upozornění na bezpečnostní blokaci'
@@ -265,38 +293,9 @@ def process_incoming_event(user, event_type, source_number, message_body, source
             _fire_security_event(user, normalized_source, block_reason)
             return event_log, 0, 0
 
-    # Ping-pong (číslo opakovaně odpovídá na SMS, které mu pravidla posílají
-    # jako reakci na jeho vlastní zprávy) - SMS zpět na něj se pozastaví, viz
-    # _evaluate_rules. Ostatní cíle, e-mail a Teams běží normálně.
-    loop_number = None
-    if (event_type or '').upper() == 'SMS' and normalized_source:
-        rounds = sms_dispatch.pingpong_rounds(normalized_source)
-        if rounds >= sms_dispatch.PINGPONG_MAX_ROUNDS:
-            loop_number = normalized_source
-            _notify_pingpong_once(normalized_source, rounds)
-
-    return _evaluate_rules(
-        user, event_log, event_type, source_number, message_body, source_device_object,
-        loop_number=loop_number,
-    )
-
-
-def _notify_pingpong_once(number, rounds):
-    """#SMS_LOOP jen jednou za okno, ne při každé zablokované SMS."""
-    from dashboard.services import sms_dispatch
-
-    already = IncomingEventLog.objects.filter(
-        event_type='SYSTEM', created_at__gte=timezone.now() - sms_dispatch.PINGPONG_WINDOW,
-    ).filter(message_body__contains='#SMS_LOOP').filter(message_body__contains=number).exists()
-    if already:
-        return
-    window = int(sms_dispatch.PINGPONG_WINDOW.total_seconds() // 60)
-    fire_system_health_event(
-        '#SMS_LOOP',
-        f'Pravděpodobná smyčka SMS s číslem {number}: za {window} min mu pravidla už {rounds}× poslala SMS '
-        f'jako reakci na jeho vlastní zprávy. Další SMS zpět na toto číslo jsou dočasně pozastavené '
-        f'(ostatní cíle, e-mail a Teams běží dál).',
-    )
+    # Opakované SMS ze stejného čísla se vyhodnotí vždy - smyčku řeší číslo
+    # brány (výše a ve workeru) a zpomalení v _throttle_until, ne zahazování.
+    return _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object)
 
 
 def _fire_security_event(user, source_number, reason):
@@ -446,24 +445,27 @@ def _build_notification_payload(rule, default_text, source_number, message_body)
     return payload
 
 
-def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None,
-                    loop_number=None):
-    from dashboard.services import sms_dispatch
-
+def _evaluate_rules(user, event_log, event_type, source_number, message_body, source_device_object=None):
     summaries = []
     matched_count = 0
     queued_count = 0
-    loop_skipped_rules = []
-    loop_canon = sms_dispatch.canonical_number(loop_number) if loop_number else ''
+    throttled = {}  # cíl -> nejpozdější čas odeslání
 
-    def blocked_by_loop(rule, target):
-        """SMS zpět na číslo, se kterým běží ping-pong, se nepošle."""
-        if loop_canon and sms_dispatch.canonical_number(target) == loop_canon:
-            label = rule_log_label(rule)
-            if label not in loop_skipped_rules:
-                loop_skipped_rules.append(label)
-            return True
-        return False
+    def queue_action(rule, action_type, target, payload):
+        """Zařadí akci vždy - nad limitem jen se zpožděním (_throttle_until)."""
+        send_at = _throttle_until(rule, target)
+        OutgoingAction.objects.create(
+            owner=user,
+            event_log=event_log,
+            rule=rule,
+            action_type=action_type,
+            target_number=target,
+            payload_message=payload,
+            status='PENDING',
+            next_attempt_at=send_at,
+        )
+        if send_at:
+            throttled[target] = max(send_at, throttled.get(target, send_at))
 
     rules = AutomationRule.objects.filter(active=True).filter(
         Q(owner=user) | Q(users=user)
@@ -532,70 +534,28 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
                         queued_count += 1
                         rule_queued_count += 1
 
-            flood_blocked = False
-
             if rule.notify_via_sms:
                 if not targets:
                     summaries.append(f'Pravidlo "{log_rule_name}": kanál SMS přeskočen, protože chybí cílová čísla/skupiny.')
                 else:
                     for target in targets:
-                        if blocked_by_loop(rule, target):
-                            continue
-                        if not _target_flood_guard(rule, target):
-                            flood_blocked = True
-                            continue
-                        OutgoingAction.objects.create(
-                            owner=user,
-                            event_log=event_log,
-                            rule=rule,
-                            action_type='NOTIFY_SMS',
-                            target_number=target,
-                            payload_message=payload,
-                            status='PENDING',
-                        )
+                        queue_action(rule, 'NOTIFY_SMS', target, payload)
                         queued_count += 1
                         rule_queued_count += 1
 
             if rule.notify_via_email:
-                if _target_flood_guard(rule, 'MAIL'):
-                    OutgoingAction.objects.create(
-                        owner=user,
-                        event_log=event_log,
-                        rule=rule,
-                        action_type='NOTIFY_EMAIL',
-                        target_number='MAIL',
-                        payload_message=payload,
-                        status='PENDING',
-                    )
-                    queued_count += 1
-                    rule_queued_count += 1
-                else:
-                    flood_blocked = True
+                queue_action(rule, 'NOTIFY_EMAIL', 'MAIL', payload)
+                queued_count += 1
+                rule_queued_count += 1
 
             if rule.notify_via_teams:
-                if _target_flood_guard(rule, 'TEAMS'):
-                    OutgoingAction.objects.create(
-                        owner=user,
-                        event_log=event_log,
-                        rule=rule,
-                        action_type='NOTIFY_TEAMS',
-                        target_number='TEAMS',
-                        payload_message=payload,
-                        status='PENDING',
-                    )
-                    queued_count += 1
-                    rule_queued_count += 1
-                else:
-                    flood_blocked = True
+                queue_action(rule, 'NOTIFY_TEAMS', 'TEAMS', payload)
+                queued_count += 1
+                rule_queued_count += 1
 
             if rule_queued_count > 0:
                 summaries.append(
                     f'Pravidlo "{log_rule_name}": zařazeno {rule_queued_count} akcí pro kanály {", ".join(selected_channels)}.'
-                )
-            elif flood_blocked:
-                summaries.append(
-                    f'Pravidlo "{log_rule_name}": akce přeskočena - ochrana proti smyčce '
-                    f'(limit {OUTGOING_FLOOD_MAX_PER_TARGET} akcí na cíl za {OUTGOING_FLOOD_WINDOW_MINUTES} min dosažen).'
                 )
             else:
                 summaries.append(f'Pravidlo "{log_rule_name}": nebyla zařazena žádná odchozí akce.')
@@ -618,51 +578,33 @@ def _evaluate_rules(user, event_log, event_type, source_number, message_body, so
             else:
                 payload = _build_notification_payload(rule, f'[{event_type}] předání na číslo', source_number, message_body)
 
-                forwarded_count = 0
                 for target in targets:
                     if rule.first_contact_timing == 'ON_TRIGGER' and _queue_first_contact_notice(rule, user, event_log, target):
                         queued_count += 1
-
-                    if blocked_by_loop(rule, target):
-                        continue
-
-                    if not _target_flood_guard(rule, target):
-                        continue
-
-                    OutgoingAction.objects.create(
-                        owner=user,
-                        event_log=event_log,
-                        rule=rule,
-                        action_type='FORWARD_INFO',
-                        target_number=target,
-                        payload_message=payload,
-                        status='PENDING',
-                    )
+                    queue_action(rule, 'FORWARD_INFO', target, payload)
                     queued_count += 1
-                    forwarded_count += 1
 
-                if forwarded_count < len(targets):
-                    summaries.append(
-                        f'Pravidlo "{log_rule_name}": akce „Předat na číslo“ zařazena pro {forwarded_count} z {len(targets)} '
-                        f'cílových čísel - zbytek přeskočen ochranou proti smyčce '
-                        f'(limit {OUTGOING_FLOOD_MAX_PER_TARGET} akcí na cíl za {OUTGOING_FLOOD_WINDOW_MINUTES} min).'
-                    )
-                else:
-                    summaries.append(
-                        f'Pravidlo "{log_rule_name}": akce „Předat na číslo“ zařazena do fronty pro {len(targets)} cílových čísel.'
-                    )
+                summaries.append(
+                    f'Pravidlo "{log_rule_name}": akce „Předat na číslo“ zařazena do fronty pro {len(targets)} cílových čísel.'
+                )
 
         if rule.stop_processing:
             summaries.append('Zpracování ukončeno podle priority pravidel.')
             break
 
-    if loop_skipped_rules:
-        window = int(sms_dispatch.PINGPONG_WINDOW.total_seconds() // 60)
-        summaries.append(
-            f'SMS zpět na {loop_number} nebyla odeslána – pravděpodobná smyčka: toto číslo za posledních {window} min '
-            f'už {sms_dispatch.PINGPONG_MAX_ROUNDS}× či víckrát dostalo SMS jako reakci na své vlastní zprávy '
-            f'(pravidla: {", ".join(loop_skipped_rules)}). Ostatní cíle, e-mail a Teams nejsou dotčené.'
+    if throttled:
+        details = ', '.join(
+            f'{target} (nejpozději {timezone.localtime(send_at):%H:%M})' for target, send_at in sorted(throttled.items())
         )
+        summaries.append(
+            f'Zpomaleno (ochrana proti zahlcení, nic se nezahazuje): {details} – na cíl šlo za posledních '
+            f'{OUTGOING_FLOOD_WINDOW_MINUTES} min víc než {OUTGOING_FLOOD_MAX_PER_TARGET} akcí.'
+        )
+        if event_type != 'SYSTEM':
+            # SYSTEM události samy nevyvolávají další #SMS_LOOP (jinak by
+            # upozornění na zahlcení mohlo zahlcení samo prodlužovat).
+            for target in throttled:
+                _notify_throttle_once(target)
 
     if matched_count == 0:
         summaries.append('Nebyla nalezena žádná aktivní pravidla pro tuto událost.')

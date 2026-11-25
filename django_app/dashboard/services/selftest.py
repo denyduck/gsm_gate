@@ -183,9 +183,14 @@ def stuck_pending_q():
     hlásilo zaseknutou frontu."""
     now = timezone.now()
     manual = Q(rule__isnull=True, action_type__in=('NOTIFY_SMS', 'FORWARD_INFO', 'INFO_SMS'))
+
+    def waiting_since_before(limit):
+        # Odložená akce (opakování / zpomalení) čeká až od next_attempt_at.
+        return (Q(next_attempt_at__isnull=True) & Q(created_at__lt=limit)) | Q(next_attempt_at__lt=limit)
+
     return Q(status='PENDING') & (
-        (~manual & Q(created_at__lt=now - timedelta(minutes=10)))
-        | (manual & Q(created_at__lt=now - timedelta(minutes=60)))
+        (~manual & waiting_since_before(now - timedelta(minutes=10)))
+        | (manual & waiting_since_before(now - timedelta(minutes=60)))
     )
 
 

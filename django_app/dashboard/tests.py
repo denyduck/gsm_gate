@@ -391,24 +391,50 @@ class SmsDispatchTests(TestCase):
             process_incoming_event(self.admin, 'SMS', '+420737000111', text)
         self.assertEqual(OutgoingAction.objects.filter(rule=rule).count(), 2)
 
-    def test_pingpong_stops_sms_back_after_max_rounds_and_alerts_once(self):
-        from .services.rules_engine import process_incoming_event
-        from .services.sms_dispatch import PINGPONG_MAX_ROUNDS
+    def test_repeated_same_sms_is_never_dropped_only_throttled(self):
+        """Stejná SMS 8× ze stejného čísla: všech 8 se vyhodnotí a přepošle.
+        Prvních OUTGOING_FLOOD_MAX_PER_TARGET hned, zbytek zpomaleně po
+        OUTGOING_THROTTLE_SPACING; #SMS_LOOP jednou."""
+        from .services.rules_engine import (
+            OUTGOING_FLOOD_MAX_PER_TARGET, OUTGOING_THROTTLE_SPACING, process_incoming_event,
+        )
 
         rule = self._self_forward_rule()
-        other = PhoneNumber.objects.create(owner=self.admin, number='+420777888999', active=True)
-        rule.target_numbers.add(other)
+        total = OUTGOING_FLOOD_MAX_PER_TARGET + 3
+        for _ in range(total):
+            log, matched, queued = process_incoming_event(self.admin, 'SMS', '+420737000111', 'Alarm')
+            self.assertEqual((matched, queued), (1, 1))
 
-        for i in range(PINGPONG_MAX_ROUNDS + 2):
-            log, _, _ = process_incoming_event(self.admin, 'SMS', '+420737000111', f'Auto-odpověď {i}')
-
-        to_source = OutgoingAction.objects.filter(rule=rule, target_number='+420737000111').count()
-        to_other = OutgoingAction.objects.filter(rule=rule, target_number='+420777888999').count()
-        self.assertEqual(to_source, PINGPONG_MAX_ROUNDS)
-        self.assertEqual(to_other, PINGPONG_MAX_ROUNDS + 2)
-        self.assertIn('pravděpodobná smyčka', log.result_summary)
+        actions = list(OutgoingAction.objects.filter(rule=rule).order_by('id'))
+        self.assertEqual(len(actions), total)
+        immediate = [a for a in actions if a.next_attempt_at is None]
+        delayed = [a.next_attempt_at for a in actions if a.next_attempt_at is not None]
+        self.assertEqual(len(immediate), OUTGOING_FLOOD_MAX_PER_TARGET)
+        self.assertEqual(len(delayed), 3)
+        self.assertEqual(delayed, sorted(delayed))
+        self.assertGreaterEqual(delayed[1] - delayed[0], OUTGOING_THROTTLE_SPACING)
+        self.assertIn('Zpomaleno', log.result_summary)
         loop_alerts = IncomingEventLog.objects.filter(event_type='SYSTEM', message_body__contains='#SMS_LOOP')
         self.assertEqual(loop_alerts.count(), 1)
+
+    def test_throttled_action_is_sent_once_its_time_comes(self):
+        from .services.rules_engine import OUTGOING_FLOOD_MAX_PER_TARGET, process_incoming_event
+
+        rule = self._self_forward_rule()
+        for _ in range(OUTGOING_FLOOD_MAX_PER_TARGET + 1):
+            process_incoming_event(self.admin, 'SMS', '+420737000111', 'Alarm')
+        delayed = OutgoingAction.objects.get(rule=rule, next_attempt_at__isnull=False)
+
+        client = FakeModemClient()
+        self._worker(client).cycle()
+        delayed.refresh_from_db()
+        self.assertEqual(delayed.status, 'PENDING')
+        self.assertEqual(len(client.sent), OUTGOING_FLOOD_MAX_PER_TARGET)
+
+        OutgoingAction.objects.filter(pk=delayed.pk).update(next_attempt_at=timezone.now() - timedelta(seconds=1))
+        self._worker(client).cycle()
+        delayed.refresh_from_db()
+        self.assertEqual(delayed.status, 'SENT')
 
     # --- souběh workerů ---
 
